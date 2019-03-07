@@ -7,17 +7,22 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * Configuration class for tracer.
+ */
 public class TraceConfiguration
     {
-    // constructor
+    // ---- constructors ------------------------------------------------
+
+    // Default constructor
     public TraceConfiguration()
         {
         }
 
     /**
-     * @param operationNameConstructor for all spans created by this interceptor
+     * @param operationNameConstructor for all spans
      *
-     * @return this Builder with configured operation name
+     * @return this TraceConfiguration with configured operation name
      */
     public TraceConfiguration withOperationName(OperationNameConstructor operationNameConstructor)
         {
@@ -27,9 +32,8 @@ public class TraceConfiguration
 
     /**
      * @param attributes to set as tags on server spans
-     *                   created by this interceptor
      *
-     * @return this Builder configured to trace request attributes
+     * @return this TraceConfiguration configured to trace request attributes
      */
     public TraceConfiguration withTracedAttributes(ServerRequestAttribute... attributes)
         {
@@ -40,7 +44,7 @@ public class TraceConfiguration
     /**
      * Logs streaming events to server spans.
      *
-     * @return this Builder configured to log streaming events
+     * @return this TraceConfiguration configured to log streaming events
      */
     public TraceConfiguration withStreaming()
         {
@@ -51,7 +55,7 @@ public class TraceConfiguration
     /**
      * Logs all request life-cycle events to server spans.
      *
-     * @return this Builder configured to be verbose
+     * @return this TraceConfiguration configured to be verbose
      */
     public TraceConfiguration withVerbosity()
         {
@@ -60,7 +64,7 @@ public class TraceConfiguration
         }
 
     /**
-     * Return true if verbose tracing.
+     * Return the configured verbose.
      *
      * @return
      */
@@ -70,7 +74,7 @@ public class TraceConfiguration
         }
 
     /**
-     * Return true if streaming.
+     * Return the configured streaming.
      *
       * @return
      */
@@ -80,7 +84,7 @@ public class TraceConfiguration
         }
 
     /**
-     * Return the set of tracedAttributes.
+     * Return the set of configured tracedAttributes.
      *
      * @return
      */
@@ -90,7 +94,7 @@ public class TraceConfiguration
         }
 
     /**
-     * Return the operationNameConstructor.
+     * Return the configured operationNameConstructor.
      *
      * @return
      */

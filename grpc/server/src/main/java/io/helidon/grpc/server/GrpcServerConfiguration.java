@@ -200,6 +200,12 @@ static GrpcServerBasicConfig defaultConfig()
             return this;
             }
 
+        /**
+         * Set trace configuration.
+         *
+         * @param traceConfig
+         * @return an updated builder
+         */
         public Builder traceConfig(TraceConfiguration traceConfig)
             {
             this.traceConfig = traceConfig;

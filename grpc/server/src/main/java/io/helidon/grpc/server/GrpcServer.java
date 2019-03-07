@@ -297,13 +297,15 @@ public interface GrpcServer
             {
             GrpcServerImpl server = new GrpcServerImpl(configuration);
             Tracer tracer = configuration.tracer();
-            GrpcTracing tracingInterceptor = null;
+            GrpcTracingInterceptor tracingInterceptor = null;
             if (tracer != null)
                 {
-                tracingInterceptor = new GrpcTracing.Builder(tracer)
-                        .withVerbosity()
-                        .withTracedAttributes(ServerRequestAttribute.CALL_ATTRIBUTES, ServerRequestAttribute.HEADERS, ServerRequestAttribute.METHOD_NAME)
-                        .build();
+                TraceConfiguration traceConfig = configuration.traceConfig();
+                if (traceConfig == null)
+                    {
+                    traceConfig = new TraceConfiguration();
+                    }
+                tracingInterceptor = new GrpcTracingInterceptor(tracer, traceConfig);
                 }
             for (GrpcService.ServiceConfig cfg : routing.services())
                 {
@@ -333,5 +335,4 @@ public interface GrpcServer
             return server;
             }
         }
-
     }

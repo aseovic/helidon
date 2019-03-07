@@ -4,7 +4,6 @@
 package io.helidon.grpc.server;
 
 import io.helidon.config.Config;
-import io.helidon.webserver.ServerConfiguration;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 import java.util.function.Supplier;
@@ -85,6 +84,13 @@ public interface GrpcServerConfiguration
     Tracer tracer();
 
     /**
+     * Returns trace spec.
+     *
+     * @return a trace spec.
+     */
+    TraceConfiguration traceConfig();
+
+    /**
      * Creates new instance with defaults from external configuration source.
      *
      * @param config the externalized configuration
@@ -140,6 +146,8 @@ static GrpcServerBasicConfig defaultConfig()
 
         private Tracer tracer;
 
+        private TraceConfiguration traceConfig;
+
         private Builder()
             {
             }
@@ -192,10 +200,16 @@ static GrpcServerBasicConfig defaultConfig()
             return this;
             }
 
+        public Builder traceConfig(TraceConfiguration traceConfig)
+            {
+            this.traceConfig = traceConfig;
+            return this;
+            }
+
         @Override
         public GrpcServerConfiguration build()
             {
-            return new GrpcServerBasicConfig(name, port, useNativeTransport, useTLS, tlsCert, tlsKey, tlsCACert, tracer);
+            return new GrpcServerBasicConfig(name, port, useNativeTransport, useTLS, tlsCert, tlsKey, tlsCACert, tracer, traceConfig);
             }
         }
     }

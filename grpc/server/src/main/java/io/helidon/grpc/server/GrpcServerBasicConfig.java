@@ -30,7 +30,7 @@ public class GrpcServerBasicConfig
      */
     GrpcServerBasicConfig(String name, int port)
         {
-        this(name, port, false, false, null, null, null, null);
+        this(name, port, false, false, null, null, null, null, null);
         }
 
     /**
@@ -47,7 +47,7 @@ public class GrpcServerBasicConfig
      *                        tls is enabled)
      * @param tlsCaCert       the location of the optional TLS CA cert file
      */
-    public GrpcServerBasicConfig(String name, int port, boolean nativeTransport, boolean tls, String tlsCert, String tlsKey, String tlsCaCert, Tracer tracer)
+    public GrpcServerBasicConfig(String name, int port, boolean nativeTransport, boolean tls, String tlsCert, String tlsKey, String tlsCaCert, Tracer tracer, TraceConfiguration traceConfig)
         {
         this.name = name;
         this.port = port;
@@ -57,6 +57,7 @@ public class GrpcServerBasicConfig
         this.tlsKey = tlsKey;
         this.tlsCaCert = tlsCaCert;
         this.tracer = tracer;
+        this.traceConfig = traceConfig;
         }
 
     // ---- accessors ---------------------------------------------------
@@ -148,6 +149,12 @@ public class GrpcServerBasicConfig
         return tracer;
         }
 
+    @Override
+    public TraceConfiguration traceConfig()
+        {
+        return traceConfig;
+        }
+
     // ---- data members ------------------------------------------------
 
     private String name;
@@ -165,4 +172,6 @@ public class GrpcServerBasicConfig
     private String tlsCaCert;
 
     private Tracer tracer;
+
+    private TraceConfiguration traceConfig;
     }

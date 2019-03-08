@@ -10,14 +10,15 @@ import io.grpc.ServerInterceptor;
 import java.util.Map;
 
 /**
+ *
  * @author jk  2019.03.06
  */
-public class ContextSettingIServerInterceptor
+public class ContextSettingServerInterceptor
         implements ServerInterceptor
     {
     private final Map<Context.Key<?>, Object> contextMap;
 
-    public ContextSettingIServerInterceptor(Map<Context.Key<?>, Object> contextMap)
+    public ContextSettingServerInterceptor(Map<Context.Key<?>, Object> contextMap)
         {
         this.contextMap = contextMap;
         }

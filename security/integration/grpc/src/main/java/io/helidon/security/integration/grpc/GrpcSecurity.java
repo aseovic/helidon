@@ -17,49 +17,39 @@
 package io.helidon.security.integration.grpc;
 
 import io.grpc.Context;
-import io.grpc.Contexts;
 import io.grpc.Grpc;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import io.grpc.Status;
-import io.helidon.common.http.Http;
 import io.helidon.config.Config;
-import io.helidon.config.ConfigValue;
+import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcService;
 import io.helidon.security.EndpointConfig;
 import io.helidon.security.Security;
 import io.helidon.security.SecurityContext;
 import io.helidon.security.SecurityEnvironment;
-import io.helidon.webserver.Routing;
-import io.helidon.webserver.ServerRequest;
-import io.helidon.webserver.ServerResponse;
-import io.helidon.webserver.Service;
+import io.opentracing.Span;
+import io.opentracing.SpanContext;
+import io.opentracing.contrib.grpc.OpenTracingContextKey;
 
 import javax.security.auth.Subject;
 import java.net.SocketAddress;
-import java.security.Principal;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.function.IntSupplier;
-import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
-
-import static io.helidon.common.CollectionsHelper.listOf;
 
 /**
  * Integration of security into Web Server.
  * <p>
- * Methods that start with "from" are to register GrpcSecurity with {@link io.helidon.webserver.WebServer}
+ * Methods that start with "from" are to register GrpcSecurity with {@link io.helidon.grpc.server.GrpcServer}
  * - to create {@link SecurityContext} for requests:
  * <ul>
  * <li>{@link #create(Security)}</li>
@@ -69,38 +59,37 @@ import static io.helidon.common.CollectionsHelper.listOf;
  * <p>
  * Example:
  * <pre>
- * // Web server routing builder - this is our integration point
- * {@link Routing} routing = Routing.builder()
- * // register the GrpcSecurity to create context (shared by all routes)
+ * // gRPC server routing builder - this is our integration point
+ * {@link GrpcRouting} routing = GrpcRouting.builder()
+ * // register GrpcSecurity to add the security ServerInterceptor
  * .register({@link GrpcSecurity}.{@link
  * GrpcSecurity#create(Security) from(security)})
  * </pre>
  * <p>
- * Other methods are to create security enforcement points (gates) for routes (e.g. you are expected to use them for a get, post
- * etc. routes on specific path).
- * These methods are starting points that provide an instance of {@link GrpcSecurityInterceptor} that has finer grained methods to
- * control the gate behavior. <br>
- * Note that if any gate is configured, auditing will be enabled by default except for GET and HEAD methods - if you want
- * to audit any method, invoke {@link #audit()} to create a gate that will always audit the route.
- * If you want to create a gate and not audit it, use {@link GrpcSecurityInterceptor#skipAudit()} on the returned instance.
+ * Other methods are to create security enforcement points (gates) for specific servces.
+ * These methods are starting points that provide an instance of {@link GrpcSecurityHandler} that has finer grained
+ * methods to control the gate behavior. <br>
+ * Note that if any gate is configured, auditing will be enabled by default if you want to audit any method, invoke
+ * {@link #audit()} to create a gate that will always audit the route.
+ * If you want to create a gate and not audit it, use {@link GrpcSecurityHandler#skipAudit()} on the returned instance.
  * <ul>
  * <li>{@link #secure()} - authentication and authorization</li>
  * <li>{@link #rolesAllowed(String...)} - role based access control (implies authentication and authorization)</li>
  * <li>{@link #authenticate()} - authentication only</li>
  * <li>{@link #authorize()} - authorization only</li>
  * <li>{@link #allowAnonymous()} - authentication optional</li>
- * <li>{@link #audit()} - audit all requests (including GET and HEAD)</li>
+ * <li>{@link #audit()} - audit all requests</li>
  * <li>{@link #authenticator(String)} - use explicit authenticator (named - as configured in config or through builder)</li>
  * <li>{@link #authorizer(String)} - use explicit authorizer (named - as configured in config or through builder)</li>
- * <li>{@link #enforce()} - use defaults (e.g. no authentication, authorization, audit calls except for GET and HEAD); this
- * also give access to more fine-grained methods of {@link GrpcSecurityInterceptor}</li>
+ * <li>{@link #enforce()} - use defaults (e.g. no authentication, authorization, audit calls; this also give access to
+ * more fine-grained methods of {@link GrpcSecurityHandler}</li>
  * </ul>
  * <p>
  * Example:
  * <pre>
  * // continue from example above...
  * // create a gate for method GET: authenticate all paths under /user and require role "user" for authorization
- * .get("/user[/{*}]", GrpcSecurity.{@link GrpcSecurity#rolesAllowed(String...)
+ * .register({@link io.helidon.grpc.server.GrpcService}, GrpcSecurity.{@link GrpcSecurity#rolesAllowed(String...)
  * rolesAllowed("user")})
  * </pre>
  */
@@ -125,14 +114,8 @@ public final class GrpcSecurity
     /**
      * The default security interceptor gRPC metadata header key.
      */
-    public static final Context.Key<GrpcSecurityInterceptor> GRPC_SECURITY_INTERCEPTOR =
+    public static final Context.Key<GrpcSecurityHandler> GRPC_SECURITY_INTERCEPTOR =
             Context.key("DefaultGrpcSecurityInterceptor");
-
-    /**
-     * The authorization gRPC metadata header key.
-     */
-    public static final Metadata.Key<String> AUTHORIZATION =
-            Metadata.Key.of("Authorization", Metadata.ASCII_STRING_MARSHALLER);
 
     /**
      * The gRpc {@link Context.Key} to use to add and retrieve a {@link Subject}
@@ -155,20 +138,20 @@ public final class GrpcSecurity
 
     private final Security security;
     private final Config config;
-    private final GrpcSecurityInterceptor defaultHandler;
+    private final GrpcSecurityHandler defaultHandler;
 
     private GrpcSecurity(Security security, Config config) {
-        this(security, config, GrpcSecurityInterceptor.create());
+        this(security, config, GrpcSecurityHandler.create());
     }
 
-    private GrpcSecurity(Security security, Config config, GrpcSecurityInterceptor defaultHandler) {
+    private GrpcSecurity(Security security, Config config, GrpcSecurityHandler defaultHandler) {
         this.security = security;
         this.config = config;
         this.defaultHandler = defaultHandler;
     }
 
     /**
-     * Create a consumer of routing config to be {@link Routing.Builder#register(Service...) registered} with
+     * Create a consumer of routing config to be {@link GrpcRouting.Builder#register(GrpcService)}) registered} with
      * web server routing to process security requests.
      * This method is to be used together with other routing methods to protect web resources programmatically.
      * Example:
@@ -185,7 +168,7 @@ public final class GrpcSecurity
     }
 
     /**
-     * Create a consumer of routing config to be {@link Routing.Builder#register(Service...) registered} with
+     * Create a consumer of routing config to be {@link GrpcRouting.Builder#register(GrpcService) registered} with
      * web server routing to process security requests.
      * This method configures security and web server integration from a config instance
      *
@@ -198,7 +181,7 @@ public final class GrpcSecurity
     }
 
     /**
-     * Create a consumer of routing config to be {@link Routing.Builder#register(Service...) registered} with
+     * Create a consumer of routing config to be {@link GrpcRouting.Builder#register(GrpcService) registered} with
      * web server routing to process security requests.
      * This method expects initialized security and creates web server integration from a config instance
      *
@@ -214,7 +197,7 @@ public final class GrpcSecurity
      * Secure access using authentication and authorization.
      * Auditing is enabled by default for methods modifying content.
      * When using RBAC (role based access control), just use {@link #rolesAllowed(String...)}.
-     * If you use a security provider, that requires additional data, use {@link GrpcSecurityInterceptor#customObject(Object)}.
+     * If you use a security provider, that requires additional data, use {@link GrpcSecurityHandler#customObject(Object)}.
      * <p>
      * Behavior:
      * <ul>
@@ -223,10 +206,10 @@ public final class GrpcSecurity
      * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
      * </ul>
      *
-     * @return {@link GrpcSecurityInterceptor} instance configured with authentication and authorization
+     * @return {@link GrpcSecurityHandler} instance configured with authentication and authorization
      */
-    public static GrpcSecurityInterceptor secure() {
-        return GrpcSecurityInterceptor.create().authenticate().authorize();
+    public static GrpcSecurityHandler secure() {
+        return GrpcSecurityHandler.create().authenticate().authorize();
     }
 
     /**
@@ -239,10 +222,10 @@ public final class GrpcSecurity
      * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
      * </ul>
      *
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor authenticate() {
-        return GrpcSecurityInterceptor.create().authenticate();
+    public static GrpcSecurityHandler authenticate() {
+        return GrpcSecurityHandler.create().authenticate();
     }
 
     /**
@@ -256,10 +239,10 @@ public final class GrpcSecurity
      * <li>Audit: enabled for any method this gate is registered on</li>
      * </ul>
      *
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor audit() {
-        return GrpcSecurityInterceptor.create().audit();
+    public static GrpcSecurityHandler audit() {
+        return GrpcSecurityHandler.create().audit();
     }
 
     /**
@@ -273,10 +256,10 @@ public final class GrpcSecurity
      * </ul>
      *
      * @param explicitAuthenticator name of authenticator as configured in {@link Security}
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor authenticator(String explicitAuthenticator) {
-        return GrpcSecurityInterceptor.create().authenticate().authenticator(explicitAuthenticator);
+    public static GrpcSecurityHandler authenticator(String explicitAuthenticator) {
+        return GrpcSecurityHandler.create().authenticate().authenticator(explicitAuthenticator);
     }
 
     /**
@@ -291,10 +274,10 @@ public final class GrpcSecurity
      * </ul>
      *
      * @param explicitAuthorizer name of authorizer as configured in {@link Security}
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor authorizer(String explicitAuthorizer) {
-        return GrpcSecurityInterceptor.create().authenticate().authorize().authorizer(explicitAuthorizer);
+    public static GrpcSecurityHandler authorizer(String explicitAuthorizer) {
+        return GrpcSecurityHandler.create().authenticate().authorize().authorizer(explicitAuthorizer);
     }
 
     /**
@@ -308,11 +291,10 @@ public final class GrpcSecurity
      * </ul>
      *
      * @param roles if subject is any of these roles, allow access
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor rolesAllowed(String... roles) {
-        return GrpcSecurityInterceptor.create().rolesAllowed(roles);
-
+    public static GrpcSecurityHandler rolesAllowed(String... roles) {
+        return GrpcSecurityHandler.create().rolesAllowed(roles);
     }
 
     /**
@@ -325,10 +307,10 @@ public final class GrpcSecurity
      * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
      * </ul>
      *
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor allowAnonymous() {
-        return GrpcSecurityInterceptor.create().authenticate().authenticationOptional();
+    public static GrpcSecurityHandler allowAnonymous() {
+        return GrpcSecurityHandler.create().authenticate().authenticationOptional();
     }
 
     /**
@@ -341,10 +323,10 @@ public final class GrpcSecurity
      * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
      * </ul>
      *
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor authorize() {
-        return GrpcSecurityInterceptor.create().authorize();
+    public static GrpcSecurityHandler authorize() {
+        return GrpcSecurityHandler.create().authorize();
     }
 
     /**
@@ -357,10 +339,10 @@ public final class GrpcSecurity
      * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
      * </ul>
      *
-     * @return {@link GrpcSecurityInterceptor} instance
+     * @return {@link GrpcSecurityHandler} instance
      */
-    public static GrpcSecurityInterceptor enforce() {
-        return GrpcSecurityInterceptor.create();
+    public static GrpcSecurityHandler enforce() {
+        return GrpcSecurityHandler.create();
     }
 
     /**
@@ -370,7 +352,7 @@ public final class GrpcSecurity
      * @param defaultHandler if a security handler is configured for a route, it will take its defaults from this handler
      * @return new instance of web security with the handler default
      */
-    public GrpcSecurity securityDefaults(GrpcSecurityInterceptor defaultHandler) {
+    public GrpcSecurity securityDefaults(GrpcSecurityHandler defaultHandler) {
         Objects.requireNonNull(defaultHandler, "Default security handler must not be null");
         return new GrpcSecurity(security, config, defaultHandler);
     }
@@ -382,13 +364,16 @@ public final class GrpcSecurity
 
         try
             {
-            return context.call(() ->  GrpcSecurityInterceptor.create().interceptCall(call, headers, next));
+            GrpcSecurityHandler configuredHandler = GrpcSecurity.GRPC_SECURITY_INTERCEPTOR.get(context);
+            GrpcSecurityHandler handler           = configuredHandler == null ? defaultHandler : configuredHandler;
+
+            return context.call(() ->  handler.interceptCall(call, headers, next));
             }
         catch (Throwable throwable)
             {
             LOGGER.log(Level.SEVERE, "Unexpected exception during security processing", throwable);
             call.close(Status.INTERNAL, new Metadata());
-            return new GrpcSecurityInterceptor.EmptyListener<>();
+            return new GrpcSecurityHandler.EmptyListener<>();
             }
         }
 
@@ -409,10 +394,14 @@ public final class GrpcSecurity
                 Iterable<Object> iterable = headers.getAll(key);
                 List<String>     values   = new ArrayList<>();
 
-                for (Object o : iterable)
+                if (iterable != null)
                     {
-                    values.add(String.valueOf(o));
+                    for (Object o : iterable)
+                        {
+                        values.add(String.valueOf(o));
+                        }
                     }
+
                 headerMap.put(name, values);
                 }
 
@@ -426,8 +415,10 @@ public final class GrpcSecurity
             EndpointConfig ec = EndpointConfig.builder()
                     .build();
 
-            SecurityContext context = security.contextBuilder(String.valueOf(SECURITY_COUNTER.incrementAndGet()))
-//                    .tracingSpan(req.spanContext())
+            Span            span        = OpenTracingContextKey.getKey().get();
+            SpanContext     spanContext = span == null ? null : span.context();
+            SecurityContext context     = security.contextBuilder(String.valueOf(SECURITY_COUNTER.incrementAndGet()))
+                    .tracingSpan(spanContext)
                     .env(env)
                     .endpointConfig(ec)
                     .build();

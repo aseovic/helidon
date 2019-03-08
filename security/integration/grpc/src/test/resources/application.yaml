@@ -23,7 +23,6 @@ grpc:
 
 webserver:
   port: 8080
-  bind-address: "0.0.0.0"
 
 http-basic-auth:
   users:

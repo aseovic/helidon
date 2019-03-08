@@ -317,7 +317,7 @@ public interface GrpcServer
 
                 if (contextMap.size() > 0)
                     {
-                    interceptors.add(new ContextSettingIServerInterceptor(contextMap));
+                    interceptors.add(new ContextSettingServerInterceptor(contextMap));
                     }
 
                 for (ServerInterceptor interceptor : routing.interceptors())

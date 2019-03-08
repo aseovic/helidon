@@ -16,6 +16,8 @@
 
 package io.helidon.security.integration.grpc;
 
+import io.grpc.ForwardingServerCall;
+import io.grpc.ForwardingServerCallListener;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
@@ -23,7 +25,6 @@ import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.helidon.common.CollectionsHelper;
 import io.helidon.common.OptionalHelper;
-import io.helidon.common.http.Http;
 import io.helidon.common.reactive.Flow;
 import io.helidon.config.Config;
 import io.helidon.grpc.server.GrpcService;
@@ -31,27 +32,20 @@ import io.helidon.security.AuditEvent;
 import io.helidon.security.AuthenticationResponse;
 import io.helidon.security.AuthorizationResponse;
 import io.helidon.security.ClassToInstanceStore;
-import io.helidon.security.QueryParamMapping;
 import io.helidon.security.Security;
 import io.helidon.security.SecurityClientBuilder;
 import io.helidon.security.SecurityContext;
 import io.helidon.security.SecurityRequest;
 import io.helidon.security.SecurityRequestBuilder;
 import io.helidon.security.internal.SecurityAuditEvent;
-import io.helidon.security.util.TokenHandler;
-import io.helidon.webserver.ServerRequest;
-import io.helidon.webserver.ServerResponse;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.tag.Tags;
 
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -73,10 +67,10 @@ import static io.helidon.security.AuditEvent.AuditParam.plain;
  */
 // we need to have all fields optional and this is cleaner than checking for null
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public final class GrpcSecurityInterceptor
+public final class GrpcSecurityHandler
         implements ServerInterceptor, Consumer<GrpcService.ServiceConfig>
     {
-    private static final Logger LOGGER = Logger.getLogger(GrpcSecurityInterceptor.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(GrpcSecurityHandler.class.getName());
     private static final String KEY_ROLES_ALLOWED = "roles-allowed";
     private static final String KEY_AUTHENTICATOR = "authenticator";
     private static final String KEY_AUTHORIZER = "authorizer";
@@ -86,10 +80,9 @@ public final class GrpcSecurityInterceptor
     private static final String KEY_AUDIT = "audit";
     private static final String KEY_AUDIT_EVENT_TYPE = "audit-event-type";
     private static final String KEY_AUDIT_MESSAGE_FORMAT = "audit-message-format";
-    private static final String KEY_QUERY_PARAM_HANDLERS = "query-params";
-    private static final String DEFAULT_AUDIT_EVENT_TYPE = "request";
-    private static final String DEFAULT_AUDIT_MESSAGE_FORMAT = "%3$s %1$s \"%2$s\" %5$s %6$s requested by %4$s";
-    private static final GrpcSecurityInterceptor DEFAULT_INSTANCE = builder().build();
+    private static final String DEFAULT_AUDIT_EVENT_TYPE = "grpcRequest";
+    private static final String DEFAULT_AUDIT_MESSAGE_FORMAT = "%2$s %1$s %4$s %5$s requested by %3$s";
+    private static final GrpcSecurityHandler DEFAULT_INSTANCE = builder().build();
 
     private final Optional<Set<String>> rolesAllowed;
     private final Optional<ClassToInstanceStore<Object>> customObjects;
@@ -102,14 +95,13 @@ public final class GrpcSecurityInterceptor
     private final Optional<Boolean> audited;
     private final Optional<String> auditEventType;
     private final Optional<String> auditMessageFormat;
-    private final List<QueryParamHandler> queryParamHandlers = new LinkedList<>();
     private final boolean combined;
     private final Map<String, Config> configMap = new HashMap<>();
 
     // lazily initialized (as it requires a context value to first create it)
-    private final AtomicReference<GrpcSecurityInterceptor> combinedHandler = new AtomicReference<>();
+    private final AtomicReference<GrpcSecurityHandler> combinedHandler = new AtomicReference<>();
 
-    private GrpcSecurityInterceptor(Builder builder) {
+    private GrpcSecurityHandler(Builder builder) {
         // must copy values to be safely immutable
         this.rolesAllowed = builder.rolesAllowed.flatMap(strings -> {
             Set<String> newRoles = new HashSet<>(strings);
@@ -133,8 +125,6 @@ public final class GrpcSecurityInterceptor
         auditMessageFormat = builder.auditMessageFormat;
         authorize = builder.authorize;
         combined = builder.combined;
-
-        queryParamHandlers.addAll(builder.queryParamHandlers);
 
         config.ifPresent(conf -> conf.asNodeList().get().forEach(node -> configMap.put(node.name(), node)));
     }
@@ -193,7 +183,7 @@ public final class GrpcSecurityInterceptor
      * @param defaults Default values to copy
      * @return an instance configured from the config (using defaults from defaults parameter for missing values)
      */
-    static GrpcSecurityInterceptor create(Config config, GrpcSecurityInterceptor defaults) {
+    static GrpcSecurityHandler create(Config config, GrpcSecurityHandler defaults) {
         Builder builder = builder(defaults);
 
         config.get(KEY_ROLES_ALLOWED).asList(String.class)
@@ -220,8 +210,6 @@ public final class GrpcSecurityInterceptor
                 .ifPresent(builder::auditEventType);
         config.get(KEY_AUDIT_MESSAGE_FORMAT).asString().or(() -> defaults.auditMessageFormat)
                 .ifPresent(builder::auditMessageFormat);
-        config.get(KEY_QUERY_PARAM_HANDLERS).asList(QueryParamHandler::create)
-                .ifPresent(it -> it.forEach(builder::addQueryParamHandler));
 
         // now resolve implicit behavior
 
@@ -270,7 +258,7 @@ public final class GrpcSecurityInterceptor
         config.get(key).as(clazz).or(() -> defaultValue).ifPresent(builderMethod);
     }
 
-    static GrpcSecurityInterceptor create() {
+    static GrpcSecurityHandler create() {
         // constant is OK, object is immutable
         return DEFAULT_INSTANCE;
     }
@@ -279,7 +267,7 @@ public final class GrpcSecurityInterceptor
         return new Builder();
     }
 
-    private static Builder builder(GrpcSecurityInterceptor toCopy) {
+    private static Builder builder(GrpcSecurityHandler toCopy) {
         return new Builder().configureFrom(toCopy);
     }
 
@@ -308,7 +296,7 @@ public final class GrpcSecurityInterceptor
             {
             call.close(Status.FAILED_PRECONDITION
                     .withDescription("Security context not present. Maybe you forgot to "
-                                    + "Routing.builder().register(SecurityAdapter.from"
+                                    + "GrpcRouting.builder().register(SecurityAdapter.from"
                                     + "(security))..."), new Metadata());
             return new EmptyListener<>();
             }
@@ -321,7 +309,7 @@ public final class GrpcSecurityInterceptor
             if (null == combinedHandler.get())
                 {
                 // we may have a default handler configured
-                GrpcSecurityInterceptor defaultHandler = GrpcSecurity.GRPC_SECURITY_INTERCEPTOR.get();
+                GrpcSecurityHandler defaultHandler = GrpcSecurity.GRPC_SECURITY_INTERCEPTOR.get();
 
                 if (defaultHandler == null)
                     {
@@ -388,8 +376,9 @@ public final class GrpcSecurityInterceptor
                     }
                 });
 
-//    // auditing
-//    res.whenSent().thenAccept(sr -> processAudit(req, sr, securityContext));
+
+    ServerCall.Listener<ReqT> listener;
+    CallWrapper<ReqT, RespT>  callWrapper = new CallWrapper<>(call);
 
     try
         {
@@ -397,76 +386,47 @@ public final class GrpcSecurityInterceptor
 
         if (proceed)
             {
-            return next.startCall(call, headers);
+            listener = next.startCall(callWrapper, headers);
             }
         else
             {
-            call.close(Status.PERMISSION_DENIED, new Metadata());
-            return new EmptyListener<>();
+            callWrapper.close(Status.PERMISSION_DENIED, new Metadata());
+            listener = new EmptyListener<>();
             }
         }
     catch (Throwable throwable)
         {
         LOGGER.log(Level.SEVERE, "Unexpected exception during security processing", throwable);
-        call.close(Status.INTERNAL, new Metadata());
-        return new EmptyListener<>();
+        callWrapper.close(Status.INTERNAL, new Metadata());
+        listener = new EmptyListener<>();
         }
+
+    return new AuditingListener<>(listener, callWrapper, headers, securityContext);
     }
 
-    private void processAudit(ServerRequest req, ServerResponse res, SecurityContext securityContext) {
+    private <ReqT, RespT>void processAudit(ServerCall<ReqT, RespT> call,
+                                           Metadata headers,
+                                           SecurityContext securityContext,
+                                           Status status) {
         // make sure we actually should audit
         if (!audited.orElse(true)) {
             // explicitly disabled
             return;
         }
 
-        if (!audited.isPresent()) {
-            // use defaults
-            if (req.method() instanceof Http.Method) {
-                switch ((Http.Method) req.method()) {
-                case GET:
-                case HEAD:
-                    // get and head are not audited by default
-                    return;
-                case OPTIONS:
-                case POST:
-                case PUT:
-                case DELETE:
-                case TRACE:
-                default:
-                    //do nothing - we want to audit
-                }
-            }
-        }
-
-        //audit
-        AuditEvent.AuditSeverity auditSeverity;
-
-        switch (res.status().family()) {
-        case INFORMATIONAL:
-        case SUCCESSFUL:
-        case REDIRECTION:
-            auditSeverity = AuditEvent.AuditSeverity.SUCCESS;
-            break;
-        case CLIENT_ERROR:
-        case SERVER_ERROR:
-        case OTHER:
-        default:
-            auditSeverity = AuditEvent.AuditSeverity.FAILURE;
-            break;
-        }
-
+        AuditEvent.AuditSeverity severity = status.isOk()
+                ? AuditEvent.AuditSeverity.SUCCESS
+                : AuditEvent.AuditSeverity.FAILURE;
+        
         SecurityAuditEvent auditEvent = SecurityAuditEvent
-                .audit(auditSeverity,
+                .audit(severity,
                        auditEventType.orElse(DEFAULT_AUDIT_EVENT_TYPE),
                        auditMessageFormat.orElse(DEFAULT_AUDIT_MESSAGE_FORMAT))
-                .addParam(plain("method", req.method()))
-                .addParam(plain("path", req.path()))
-                .addParam(plain("status", String.valueOf(res.status().code())))
+                .addParam(plain("method", call.getMethodDescriptor().getFullMethodName()))
+                .addParam(plain("status", status.getCode()))
                 .addParam(plain("subject", securityContext.user().orElse(SecurityContext.ANONYMOUS)))
-                .addParam(plain("transport", "http"))
-                .addParam(plain("resourceType", "http"))
-                .addParam(plain("targetUri", req.uri()));
+                .addParam(plain("transport", "grpc"))
+                .addParam(plain("resourceType", "grpc"));
 
         securityContext.service().ifPresent(svc -> auditEvent.addParam(plain("service", svc.toString())));
 
@@ -577,7 +537,6 @@ public final class GrpcSecurityInterceptor
                 .tracingSpan(parentSpan);
     }
 
-    @SuppressWarnings("ThrowableNotThrown")
     private CompletionStage<AtxResult> processAuthorization(
             SecurityContext context,
             Tracer tracer,
@@ -625,10 +584,6 @@ public final class GrpcSecurityInterceptor
                 break;
             case FAILURE_FINISH:
             case SUCCESS_FINISH:
-                int defaultStatus = (response.status() == AuthenticationResponse.SecurityStatus.FAILURE_FINISH)
-                        ? Http.Status.FORBIDDEN_403.code()
-                        : Http.Status.OK_200.code();
-
                 atzSpan.finish();
                 future.complete(AtxResult.STOP);
                 return;
@@ -657,22 +612,13 @@ public final class GrpcSecurityInterceptor
     }
 
     /**
-     * List of query parameter handlers.
-     *
-     * @return list of handlers
-     */
-    public List<QueryParamHandler> queryParamHandlers() {
-        return Collections.unmodifiableList(queryParamHandlers);
-    }
-
-    /**
      * Use a named authenticator (as supported by security - if not defined, default authenticator is used).
      * Will enable authentication.
      *
      * @param explicitAuthenticator name of authenticator as configured in {@link Security}
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor authenticator(String explicitAuthenticator) {
+    public GrpcSecurityHandler authenticator(String explicitAuthenticator) {
         return builder(this).authenticator(explicitAuthenticator).build();
     }
 
@@ -684,7 +630,7 @@ public final class GrpcSecurityInterceptor
      * @param explicitAuthorizer name of authorizer as configured in {@link Security}
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor authorizer(String explicitAuthorizer) {
+    public GrpcSecurityHandler authorizer(String explicitAuthorizer) {
         return builder(this).authorizer(explicitAuthorizer).build();
     }
 
@@ -692,13 +638,13 @@ public final class GrpcSecurityInterceptor
      * An array of allowed roles for this path - must have a security provider supporting roles (either authentication
      * or authorization provider).
      * This method enables authentication and authorization (you can disable them again by calling
-     * {@link GrpcSecurityInterceptor#skipAuthorization()}
+     * {@link GrpcSecurityHandler#skipAuthorization()}
      * and {@link #skipAuthentication()} if needed).
      *
      * @param roles if subject is any of these roles, allow access
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor rolesAllowed(String... roles) {
+    public GrpcSecurityHandler rolesAllowed(String... roles) {
         return builder(this).rolesAllowed(roles).authorize(true).authenticate(true).build();
 
     }
@@ -710,7 +656,7 @@ public final class GrpcSecurityInterceptor
      *
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor authenticationOptional() {
+    public GrpcSecurityHandler authenticationOptional() {
         return builder(this).authenticationOptional(true).build();
     }
 
@@ -720,7 +666,7 @@ public final class GrpcSecurityInterceptor
      *
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor authenticate() {
+    public GrpcSecurityHandler authenticate() {
         return builder(this).authenticate(true).build();
     }
 
@@ -730,7 +676,7 @@ public final class GrpcSecurityInterceptor
      *
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor skipAuthentication() {
+    public GrpcSecurityHandler skipAuthentication() {
         return builder(this).authenticate(false).build();
     }
 
@@ -741,7 +687,7 @@ public final class GrpcSecurityInterceptor
      * @param object An object expected by security provider
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor customObject(Object object) {
+    public GrpcSecurityHandler customObject(Object object) {
         return builder(this).customObject(object).build();
     }
 
@@ -751,7 +697,7 @@ public final class GrpcSecurityInterceptor
      * @param eventType audit event type to use
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor auditEventType(String eventType) {
+    public GrpcSecurityHandler auditEventType(String eventType) {
         return builder(this).auditEventType(eventType).build();
     }
 
@@ -761,7 +707,7 @@ public final class GrpcSecurityInterceptor
      * @param messageFormat audit message format to use
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor auditMessageFormat(String messageFormat) {
+    public GrpcSecurityHandler auditMessageFormat(String messageFormat) {
         return builder(this).auditMessageFormat(messageFormat).build();
     }
 
@@ -771,7 +717,7 @@ public final class GrpcSecurityInterceptor
      *
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor authorize() {
+    public GrpcSecurityHandler authorize() {
         return builder(this).authorize(true).build();
     }
 
@@ -782,7 +728,7 @@ public final class GrpcSecurityInterceptor
      *
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor skipAuthorization() {
+    public GrpcSecurityHandler skipAuthorization() {
         return builder(this).authorize(false).build();
     }
 
@@ -799,7 +745,7 @@ public final class GrpcSecurityInterceptor
      *
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor audit() {
+    public GrpcSecurityHandler audit() {
         return builder(this).audit(true).build();
     }
 
@@ -816,22 +762,10 @@ public final class GrpcSecurityInterceptor
      *
      * @return new handler instance with configuration of this instance updated with this method
      */
-    public GrpcSecurityInterceptor skipAudit() {
+    public GrpcSecurityHandler skipAudit() {
         return builder(this).audit(false).build();
     }
 
-    /**
-     * Add a query parameter extraction configuration.
-     *
-     * @param queryParamName name of a query parameter to extract
-     * @param headerHandler  handler to extract it and store it in a header field
-     * @return new handler instance
-     */
-    public GrpcSecurityInterceptor queryParam(String queryParamName, TokenHandler headerHandler) {
-        return builder(this)
-                .addQueryParamHandler(QueryParamHandler.create(queryParamName, headerHandler))
-                .build();
-    }
 
     private static final class AtxResult {
         private static final AtxResult PROCEED = new AtxResult(true);
@@ -919,7 +853,7 @@ public final class GrpcSecurityInterceptor
 
     // WARNING: builder methods must not have side-effects, as they are used to build instance from configuration
     // if you want side effects, use methods on GrpcSecurityInterceptor
-    private static final class Builder implements io.helidon.common.Builder<GrpcSecurityInterceptor> {
+    private static final class Builder implements io.helidon.common.Builder<GrpcSecurityHandler> {
         private Optional<Set<String>> rolesAllowed = Optional.empty();
         private Optional<ClassToInstanceStore<Object>> customObjects = Optional.empty();
         private Optional<Config> config = Optional.empty();
@@ -931,15 +865,14 @@ public final class GrpcSecurityInterceptor
         private Optional<Boolean> audited = Optional.empty();
         private Optional<String> auditEventType = Optional.empty();
         private Optional<String> auditMessageFormat = Optional.empty();
-        private final List<QueryParamHandler> queryParamHandlers = new LinkedList<>();
         private boolean combined;
 
         private Builder() {
         }
 
         @Override
-        public GrpcSecurityInterceptor build() {
-            return new GrpcSecurityInterceptor(this);
+        public GrpcSecurityHandler build() {
+            return new GrpcSecurityHandler(this);
         }
 
         private Builder combined() {
@@ -949,7 +882,7 @@ public final class GrpcSecurityInterceptor
         }
 
         // add to this builder
-        private Builder configureFrom(GrpcSecurityInterceptor handler) {
+        private Builder configureFrom(GrpcSecurityHandler handler) {
             handler.rolesAllowed.ifPresent(this::rolesAllowed);
             handler.customObjects.ifPresent(this::customObjects);
             handler.config.ifPresent(this::config);
@@ -961,7 +894,6 @@ public final class GrpcSecurityInterceptor
             handler.auditEventType.ifPresent(this::auditEventType);
             handler.auditMessageFormat.ifPresent(this::auditMessageFormat);
             handler.authorize.ifPresent(this::authorize);
-            this.queryParamHandlers.addAll(handler.queryParamHandlers());
 
             return this;
         }
@@ -974,17 +906,6 @@ public final class GrpcSecurityInterceptor
                         this.customObjects = Optional.of(ctis);
                     });
 
-            return this;
-        }
-
-        /**
-         * Add a new handler to extract query parameter and store it in security request header.
-         *
-         * @param handler handler to extract data
-         * @return updated builder instance
-         */
-        public Builder addQueryParamHandler(QueryParamHandler handler) {
-            this.queryParamHandlers.add(handler);
             return this;
         }
 
@@ -1120,66 +1041,72 @@ public final class GrpcSecurityInterceptor
     }
 
     /**
-     * Handler of query parameters - extracts them and stores
-     * them in a security header, so security can access them.
-     */
-    public static final class QueryParamHandler {
-        private final String queryParamName;
-        private final TokenHandler headerHandler;
-
-        private QueryParamHandler(QueryParamMapping mapping) {
-            this.queryParamName = mapping.queryParamName();
-            this.headerHandler = mapping.tokenHandler();
-        }
-
-        /**
-         * Create an instance from configuration.
-         *
-         * @param config configuration instance
-         * @return new instance of query parameter handler
-         */
-        public static QueryParamHandler create(Config config) {
-            return create(QueryParamMapping.create(config));
-        }
-
-        /**
-         * Create an instance from existing mapping.
-         *
-         * @param mapping existing mapping
-         * @return new instance of query parameter handler
-         */
-        public static QueryParamHandler create(QueryParamMapping mapping) {
-            return new QueryParamHandler(mapping);
-        }
-
-        /**
-         * Create an instance from parameter name and explicit {@link TokenHandler}.
-         *
-         * @param queryParamName name of parameter
-         * @param headerHandler  handler to extract parameter and store the header
-         * @return new instance of query parameter handler
-         */
-        public static QueryParamHandler create(String queryParamName, TokenHandler headerHandler) {
-            return create(QueryParamMapping.create(queryParamName, headerHandler));
-        }
-
-        void extract(ServerRequest req, Map<String, List<String>> headers) {
-            List<String> values = req.queryParams().all(queryParamName);
-
-            values.forEach(token -> {
-                               String tokenValue = headerHandler.extractToken(token);
-                               headerHandler.addHeader(headers, tokenValue);
-                           }
-            );
-        }
-    }
-
-    /**
      * An empty {@link ServerCall.Listener} used to terminate a call if
      * authentication fails.
      *
      * @param <T>  the type of the call
      */
-    protected static class EmptyListener<T> extends ServerCall.Listener<T> {
-    }
+    protected static class EmptyListener<T> extends ServerCall.Listener<T>
+        {
+        }
+
+    /**
+     * A logging {@link ServerCall.Listener}.
+     *
+     * @param <ReqT>  the request type
+     */
+    protected class AuditingListener<ReqT, RespT>
+            extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>
+        {
+        private CallWrapper<ReqT, RespT> call;
+        private Metadata headers;
+        private SecurityContext securityContext;
+
+        public AuditingListener(ServerCall.Listener<ReqT> delegate,
+                                CallWrapper<ReqT, RespT> call,
+                                Metadata headers,
+                                SecurityContext securityContext)
+            {
+            super(delegate);
+            this.call = call;
+            this.headers = headers;
+            this.securityContext = securityContext;
+            }
+
+        @Override
+        public void onCancel()
+            {
+            processAudit(call, headers, securityContext, call.getCloseStatus());
+            }
+
+        @Override
+        public void onComplete()
+            {
+            processAudit(call, headers, securityContext, call.getCloseStatus());
+            }
+        }
+
+
+    protected class CallWrapper<ReqT, RespT>
+            extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>
+        {
+        private Status closeStatus;
+
+        public CallWrapper(ServerCall<ReqT, RespT> delegate)
+            {
+            super(delegate);
+            }
+
+        @Override
+        public void close(Status status, Metadata trailers)
+            {
+            closeStatus = status;
+            super.close(status, trailers);
+            }
+
+        public Status getCloseStatus()
+            {
+            return closeStatus;
+            }
+        }
 }

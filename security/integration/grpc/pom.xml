@@ -27,7 +27,7 @@
         <version>1.0.1-SNAPSHOT</version>
     </parent>
     <artifactId>helidon-security-integration-grpc</artifactId>
-    <name>Helidon Security Integration Webserver</name>
+    <name>Helidon Security Integration gRPC Server</name>
 
     <dependencies>
         <dependency>
@@ -54,6 +54,12 @@
         <!--
         Must explicitly mention used providers in tests, as some have dependency on this project (e.g. oidc)
         -->
+        <dependency>
+            <groupId>io.helidon.security.integration</groupId>
+            <artifactId>helidon-security-integration-webserver</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
         <dependency>
             <groupId>io.helidon.security.providers</groupId>
             <artifactId>helidon-security-providers-http-auth</artifactId>

@@ -7,7 +7,6 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
-import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
 import io.opentracing.Tracer;
@@ -69,7 +68,7 @@ public class GrpcTracing
             }
 
         final String operationName = f_operationNameConstructor.constructOperationName(call.getMethodDescriptor());
-        final Span span          = getSpanFromHeaders(headerMap, operationName);
+        final Span   span          = getSpanFromHeaders(headerMap, operationName);
 
         for (ServerRequestAttribute attr : f_tracedAttributes)
             {
@@ -90,14 +89,14 @@ public class GrpcTracing
                     Metadata metadata = new Metadata();
 
                     metadata.merge(headers);
-                  //  metadata.removeAll(AuthServerInterceptor.AUTHORIZATION);
+                    metadata.removeAll(ContextKeys.AUTHORIZATION);
 
                     span.setTag("grpc.headers", metadata.toString());
                     break;
                 }
             }
 
-        Context ctxWithSpan         = Context.current().withValue(OpenTracingContextKey.getKey(), span);
+        Context                   ctxWithSpan         = Context.current().withValue(OpenTracingContextKey.getKey(), span);
         ServerCall.Listener<ReqT> listenerWithContext = Contexts.interceptCall(ctxWithSpan, call, headers, next);
 
 

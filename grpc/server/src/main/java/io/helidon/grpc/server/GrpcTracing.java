@@ -15,10 +15,8 @@ import io.opentracing.contrib.grpc.OperationNameConstructor;
 import io.opentracing.propagation.Format;
 import io.opentracing.propagation.TextMapExtractAdapter;
 
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -28,33 +26,26 @@ public class GrpcTracing
     // ----- constructors ---------------------------------------------------
 
     /**
-     * Private constructor called by the {@link Builder}.
+     * public constructor.
      *
-     * @param tracer                    the Open Tracing {@link Tracer}
-     * @param operationNameConstructor  the operation name constructor
-     * @param streaming                 flag indicating whether to log streaming
-     * @param verbose                   flag indicating verbose logging
-     * @param tracedAttributes          the set of attributes to log in spans
+     * @param tracer       the Open Tracing {@link Tracer}
+     * @param traceConfig  the trace configuration
      */
-    private GrpcTracing(Tracer                      tracer,
-            OperationNameConstructor operationNameConstructor,
-            boolean                     streaming,
-            boolean                     verbose,
-            Set<ServerRequestAttribute> tracedAttributes)
+    public GrpcTracing(Tracer tracer, TraceConfiguration traceConfig)
         {
         f_tracer                   = tracer;
-        f_operationNameConstructor = operationNameConstructor;
-        f_streaming                = streaming;
-        f_verbose                  = verbose;
-        f_tracedAttributes         = tracedAttributes;
+        f_operationNameConstructor = traceConfig.operationNameConstructor();
+        f_streaming                = traceConfig.isStreaming();
+        f_verbose                  = traceConfig.isVerbose();
+        f_tracedAttributes         = traceConfig.tracedAttributes();
         }
 
     // ----- ServerTracingInterceptor methods -------------------------------
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT>        call,
-            Metadata                       headers,
-            ServerCallHandler<ReqT, RespT> next)
+                                                                 Metadata                       headers,
+                                                                 ServerCallHandler<ReqT, RespT> next)
         {
         Map<String, String> headerMap = new HashMap<>();
 
@@ -133,115 +124,6 @@ public class GrpcTracing
             }
 
         return span;
-        }
-
-    // ----- inner class: Builder -------------------------------------------
-
-    /**
-     * Builds the configuration of a ServerTracingInterceptor.
-     */
-    public static class Builder
-        {
-        // ----- constructors -----------------------------------------------
-
-        /**
-         * @param tracer to use for this interceptor
-         *               Creates a Builder with default configuration
-         */
-        public Builder(Tracer tracer)
-            {
-            f_tracer                   = tracer;
-            m_operationNameConstructor = OperationNameConstructor.DEFAULT;
-            m_streaming                = false;
-            m_verbose                  = false;
-            m_tracedAttributes         = Collections.emptySet();
-            }
-
-        // ----- Builder methods --------------------------------------------
-
-        /**
-         * @param operationNameConstructor for all spans created by this interceptor
-         *
-         * @return this Builder with configured operation name
-         */
-        public Builder withOperationName(OperationNameConstructor operationNameConstructor)
-            {
-            m_operationNameConstructor = operationNameConstructor;
-            return this;
-            }
-
-        /**
-         * @param attributes to set as tags on server spans
-         *                   created by this interceptor
-         *
-         * @return this Builder configured to trace request attributes
-         */
-        public Builder withTracedAttributes(ServerRequestAttribute... attributes)
-            {
-            m_tracedAttributes = new HashSet<>(Arrays.asList(attributes));
-            return this;
-            }
-
-        /**
-         * Logs streaming events to server spans.
-         *
-         * @return this Builder configured to log streaming events
-         */
-        public Builder withStreaming()
-            {
-            m_streaming = true;
-            return this;
-            }
-
-        /**
-         * Logs all request life-cycle events to server spans.
-         *
-         * @return this Builder configured to be verbose
-         */
-        public Builder withVerbosity()
-            {
-            m_verbose = true;
-            return this;
-            }
-
-        /**
-         * @return a ServerTracingInterceptor with this Builder's configuration
-         */
-        public GrpcTracing build()
-            {
-            return new GrpcTracing(f_tracer,
-                    m_operationNameConstructor,
-                    m_streaming,
-                    m_verbose,
-                    m_tracedAttributes);
-            }
-
-        // ----- data members -----------------------------------------------
-
-        /**
-         * The Open Tracing {@link Tracer}.
-         */
-        private final Tracer f_tracer;
-
-        /**
-         * A flag indicating whether to log streaming.
-         */
-        private OperationNameConstructor m_operationNameConstructor;
-
-        /**
-         * A flag indicating verbose logging.
-         */
-        private boolean m_streaming;
-
-        /**
-         * A flag indicating verbose logging.
-         */
-        private boolean m_verbose;
-
-        /**
-         * The set of attributes to log in spans.
-         */
-        private Set<ServerRequestAttribute> m_tracedAttributes;
         }
 
     private class TracingListener<ReqT>

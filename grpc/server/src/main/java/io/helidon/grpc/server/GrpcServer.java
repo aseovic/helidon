@@ -300,11 +300,15 @@ public interface GrpcServer
             GrpcTracing tracingInterceptor = null;
             if (tracer != null)
                 {
-                tracingInterceptor = new GrpcTracing.Builder(tracer)
-                        .withVerbosity()
-                        .withTracedAttributes(ServerRequestAttribute.CALL_ATTRIBUTES, ServerRequestAttribute.HEADERS, ServerRequestAttribute.METHOD_NAME)
-                        .build();
+                TraceConfiguration traceConfig = configuration.traceConfig();
+                if (traceConfig == null)
+                    {
+                    // default trace configuration
+                    traceConfig = new TraceConfiguration.Builder().build();
+                    }
+                tracingInterceptor = new GrpcTracing(tracer, traceConfig);
                 }
+
             for (GrpcService.ServiceConfig cfg : routing.services())
                 {
                 List<ServerInterceptor>     interceptors = new ArrayList<>();
@@ -320,10 +324,7 @@ public interface GrpcServer
                     interceptors.add(new ContextSettingServerInterceptor(contextMap));
                     }
 
-                for (ServerInterceptor interceptor : routing.interceptors())
-                    {
-                    interceptors.add(interceptor);
-                    }
+                interceptors.addAll(routing.interceptors());
 
                 interceptors.addAll(cfg.interceptors());
 
@@ -333,5 +334,4 @@ public interface GrpcServer
             return server;
             }
         }
-
     }

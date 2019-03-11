@@ -34,7 +34,7 @@ public class Server
                         .collectorUri(URI.create("http://localhost:9411/api/v2/spans"))
                         .build();
 
-        TraceConfiguration traceConfig = new TraceConfiguration.Builder()
+        TracingConfiguration tracingConfig = new TracingConfiguration.Builder()
                 .withStreaming()
                 .withVerbosity()
                 .withTracedAttributes(ServerRequestAttribute.CALL_ATTRIBUTES, ServerRequestAttribute.HEADERS, ServerRequestAttribute.METHOD_NAME)
@@ -42,7 +42,7 @@ public class Server
 
         // Get gRPC server config from the "grpc" section of application.yaml
         GrpcServerConfiguration serverConfig =
-                GrpcServerConfiguration.builder(config.get("grpc")).tracer(tracer).traceConfig(traceConfig).build();
+                GrpcServerConfiguration.builder(config.get("grpc")).tracer(tracer).tracingConfig(tracingConfig).build();
 
         GrpcServer grpcServer = GrpcServer.create(serverConfig, createRouting(config));
 

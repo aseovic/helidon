@@ -84,11 +84,11 @@ public interface GrpcServerConfiguration
     Tracer tracer();
 
     /**
-     * Returns trace configuration.
+     * Returns tracing configuration.
      *
-     * @return a trace configuration.
+     * @return a tracing configuration.
      */
-    TraceConfiguration traceConfig();
+    TracingConfiguration tracingConfig();
 
     /**
      * Creates new instance with defaults from external configuration source.
@@ -146,7 +146,7 @@ static GrpcServerBasicConfig defaultConfig()
 
         private Tracer tracer;
 
-        private TraceConfiguration traceConfig;
+        private TracingConfiguration tracingConfig;
 
         private Builder()
             {
@@ -203,19 +203,19 @@ static GrpcServerBasicConfig defaultConfig()
         /**
          * Set trace configuration.
          *
-         * @param traceConfig the tracer configuration to set
+         * @param tracingConfig the tracing configuration to set
          * @return an updated builder
          */
-        public Builder traceConfig(TraceConfiguration traceConfig)
+        public Builder tracingConfig(TracingConfiguration tracingConfig)
             {
-            this.traceConfig = traceConfig;
+            this.tracingConfig = tracingConfig;
             return this;
             }
 
         @Override
         public GrpcServerConfiguration build()
             {
-            return new GrpcServerBasicConfig(name, port, useNativeTransport, useTLS, tlsCert, tlsKey, tlsCACert, tracer, traceConfig);
+            return new GrpcServerBasicConfig(name, port, useNativeTransport, useTLS, tlsCert, tlsKey, tlsCACert, tracer, tracingConfig);
             }
         }
     }

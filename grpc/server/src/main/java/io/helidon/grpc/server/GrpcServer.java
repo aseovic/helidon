@@ -300,13 +300,13 @@ public interface GrpcServer
             GrpcTracing tracingInterceptor = null;
             if (tracer != null)
                 {
-                TraceConfiguration traceConfig = configuration.traceConfig();
-                if (traceConfig == null)
+                TracingConfiguration tracingConfig = configuration.tracingConfig();
+                if (tracingConfig == null)
                     {
                     // default trace configuration
-                    traceConfig = new TraceConfiguration.Builder().build();
+                    tracingConfig = new TracingConfiguration.Builder().build();
                     }
-                tracingInterceptor = new GrpcTracing(tracer, traceConfig);
+                tracingInterceptor = new GrpcTracing(tracer, tracingConfig);
                 }
 
             for (GrpcService.ServiceConfig cfg : routing.services())

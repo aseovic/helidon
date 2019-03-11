@@ -10,7 +10,7 @@ import java.util.Set;
 /**
  * Configuration class for tracer.
  */
-public class TraceConfiguration
+public class TracingConfiguration
     {
     // ---- constructor ------------------------------------------------
 
@@ -22,7 +22,7 @@ public class TraceConfiguration
      * @param verbose                   flag indicating verbose logging
      * @param tracedAttributes          the set of attributes to log in spans
      */
-    private TraceConfiguration(OperationNameConstructor operationNameConstructor,
+    private TracingConfiguration(OperationNameConstructor operationNameConstructor,
                               Set<ServerRequestAttribute> tracedAttributes,
                               boolean streaming,
                               boolean verbose)
@@ -130,11 +130,11 @@ public class TraceConfiguration
             }
 
         /**
-         * @return a TraceConfiguration with this Builder's configuration
+         * @return a TracingConfiguration with this Builder's configuration
          */
-        public TraceConfiguration build()
+        public TracingConfiguration build()
             {
-            return new TraceConfiguration(operationNameConstructor, tracedAttributes, streaming, verbose);
+            return new TracingConfiguration(operationNameConstructor, tracedAttributes, streaming, verbose);
             }
 
         /**

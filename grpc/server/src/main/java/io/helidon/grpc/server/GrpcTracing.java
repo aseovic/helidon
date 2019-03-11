@@ -28,16 +28,16 @@ public class GrpcTracing
     /**
      * public constructor.
      *
-     * @param tracer       the Open Tracing {@link Tracer}
-     * @param traceConfig  the trace configuration
+     * @param tracer         the Open Tracing {@link Tracer}
+     * @param tracingConfig  the tracing configuration
      */
-    public GrpcTracing(Tracer tracer, TraceConfiguration traceConfig)
+    public GrpcTracing(Tracer tracer, TracingConfiguration tracingConfig)
         {
         f_tracer                   = tracer;
-        f_operationNameConstructor = traceConfig.operationNameConstructor();
-        f_streaming                = traceConfig.isStreaming();
-        f_verbose                  = traceConfig.isVerbose();
-        f_tracedAttributes         = traceConfig.tracedAttributes();
+        f_operationNameConstructor = tracingConfig.operationNameConstructor();
+        f_streaming                = tracingConfig.isStreaming();
+        f_verbose                  = tracingConfig.isVerbose();
+        f_tracedAttributes         = tracingConfig.tracedAttributes();
         }
 
     // ----- ServerTracingInterceptor methods -------------------------------

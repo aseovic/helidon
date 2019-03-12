@@ -1,37 +1,38 @@
+/*
+ * Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package io.helidon.grpc.server;
 
-
 import io.opentracing.Tracer;
-
-import java.io.Serializable;
-
 
 /**
  * Configuration class for the {@link GrpcServer} implementations.
  */
 public class GrpcServerBasicConfig
-        implements GrpcServerConfiguration, Serializable
-    {
-    // ---- constructors ------------------------------------------------
-
-    /**
-     * Default constructor for serialization.
-     */
-    // ToDo: (JK) Does this class need to be serializable, the Web Server config is not?
-    public GrpcServerBasicConfig()
-        {
-        }
+        implements GrpcServerConfiguration {
 
     /**
      * Construct {@link GrpcServerBasicConfig} instance with native transport and TLS disabled.
      *
-     * @param name  the server name
-     * @param port  the port to listen on
+     * @param name the server name
+     * @param port the port to listen on
      */
-    GrpcServerBasicConfig(String name, int port)
-        {
+    GrpcServerBasicConfig(String name, int port) {
         this(name, port, false, false, null, null, null, null, null);
-        }
+    }
 
     /**
      * Construct {@link GrpcServerBasicConfig} instance.
@@ -49,9 +50,15 @@ public class GrpcServerBasicConfig
      * @param tracer          the tracer to use
      * @param tracingConfig   the tracing configuration
      */
-    public GrpcServerBasicConfig(String name, int port, boolean nativeTransport, boolean tls, String tlsCert, String tlsKey, String tlsCaCert
-                                , Tracer tracer, TracingConfiguration tracingConfig)
-        {
+    public GrpcServerBasicConfig(String name,
+                                 int port,
+                                 boolean nativeTransport,
+                                 boolean tls,
+                                 String tlsCert,
+                                 String tlsKey,
+                                 String tlsCaCert,
+                                 Tracer tracer,
+                                 TracingConfiguration tracingConfig) {
         this.name = name;
         this.port = port;
         this.nativeTransport = nativeTransport;
@@ -61,7 +68,7 @@ public class GrpcServerBasicConfig
         this.tlsCaCert = tlsCaCert;
         this.tracer = tracer;
         this.tracingConfig = tracingConfig;
-        }
+    }
 
     // ---- accessors ---------------------------------------------------
 
@@ -71,10 +78,9 @@ public class GrpcServerBasicConfig
      * @return the server name
      */
     @Override
-    public String name()
-        {
+    public String name() {
         return name;
-        }
+    }
 
     /**
      * Get the server port.
@@ -82,14 +88,13 @@ public class GrpcServerBasicConfig
      * @return the server port
      */
     @Override
-    public int port()
-        {
+    public int port() {
         return port;
-        }
+    }
 
     /**
      * Determine whether use native transport if possible.
-     * <p/>
+     * <p>
      * If native transport support is enabled, gRPC server will use epoll on
      * Linux, or kqueue on OS X. Otherwise, the standard NIO transport will
      * be used.
@@ -97,10 +102,9 @@ public class GrpcServerBasicConfig
      * @return {@code true} if native transport should be used
      */
     @Override
-    public boolean useNativeTransport()
-        {
+    public boolean useNativeTransport() {
         return nativeTransport;
-        }
+    }
 
     /**
      * Determine whether TLS is enabled.
@@ -108,10 +112,9 @@ public class GrpcServerBasicConfig
      * @return {@code true} if TLS is enabled
      */
     @Override
-    public boolean isTLS()
-        {
+    public boolean isTLS() {
         return tls;
-        }
+    }
 
     /**
      * Obtain the location of the TLS certs file to use.
@@ -119,10 +122,9 @@ public class GrpcServerBasicConfig
      * @return the location of the TLS certs file to use
      */
     @Override
-    public String tlsCert()
-        {
+    public String tlsCert() {
         return tlsCert;
-        }
+    }
 
     /**
      * Obtain the location of the TLS key file to use.
@@ -130,10 +132,9 @@ public class GrpcServerBasicConfig
      * @return the location of the TLS key file to use
      */
     @Override
-    public String tlsKey()
-        {
+    public String tlsKey() {
         return tlsKey;
-        }
+    }
 
     /**
      * Obtain the location of the TLS CA certs file to use.
@@ -141,22 +142,19 @@ public class GrpcServerBasicConfig
      * @return the location of the TLS CA certs file to use
      */
     @Override
-    public String tlsCaCert()
-        {
+    public String tlsCaCert() {
         return tlsCaCert;
-        }
+    }
 
     @Override
-    public Tracer tracer()
-        {
+    public Tracer tracer() {
         return tracer;
-        }
+    }
 
     @Override
-    public TracingConfiguration tracingConfig()
-        {
+    public TracingConfiguration tracingConfig() {
         return tracingConfig;
-        }
+    }
 
     // ---- data members ------------------------------------------------
 
@@ -177,4 +175,4 @@ public class GrpcServerBasicConfig
     private Tracer tracer;
 
     private TracingConfiguration tracingConfig;
-    }
+}

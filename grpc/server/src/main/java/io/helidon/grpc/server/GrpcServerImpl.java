@@ -1,32 +1,20 @@
 /*
- * Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package io.helidon.grpc.server;
-
-
-import io.grpc.BindableService;
-import io.grpc.HandlerRegistry;
-import io.grpc.ManagedChannel;
-import io.grpc.MethodDescriptor;
-import io.grpc.Server;
-import io.grpc.ServerInterceptor;
-import io.grpc.ServerInterceptors;
-import io.grpc.ServerMethodDefinition;
-import io.grpc.ServerServiceDefinition;
-import io.grpc.inprocess.InProcessChannelBuilder;
-import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.netty.GrpcSslContexts;
-import io.grpc.netty.NettyServerBuilder;
-import io.grpc.util.MutableHandlerRegistry;
-
-import io.netty.channel.EventLoopGroup;
-import io.netty.channel.ServerChannel;
-import io.netty.channel.nio.NioEventLoopGroup;
-import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.ssl.ClientAuth;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslProvider;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -46,18 +34,38 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import io.grpc.BindableService;
+import io.grpc.HandlerRegistry;
+import io.grpc.ManagedChannel;
+import io.grpc.MethodDescriptor;
+import io.grpc.Server;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
+import io.grpc.ServerMethodDefinition;
+import io.grpc.ServerServiceDefinition;
+import io.grpc.inprocess.InProcessChannelBuilder;
+import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.netty.GrpcSslContexts;
+import io.grpc.netty.NettyServerBuilder;
+import io.grpc.util.MutableHandlerRegistry;
+import io.netty.channel.EventLoopGroup;
+import io.netty.channel.ServerChannel;
+import io.netty.channel.nio.NioEventLoopGroup;
+import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
 import org.eclipse.microprofile.health.HealthCheck;
 
 import static java.lang.String.format;
 
-
 /**
- * gRPC Server implementation.
+ * A gRPC Server implementation.
  *
- * @author Aleksandar Seovic  2017.09.26
+ * @author Aleksandar Seovic
  */
-public class GrpcServerImpl implements GrpcServer
-    {
+public class GrpcServerImpl implements GrpcServer {
     private CompletableFuture<GrpcServer> startFuture = new CompletableFuture<>();
     private CompletableFuture<GrpcServer> shutdownFuture = new CompletableFuture<>();
 
@@ -66,111 +74,99 @@ public class GrpcServerImpl implements GrpcServer
     /**
      * Create a {@link GrpcServerImpl}.
      */
-    GrpcServerImpl()
-        {
-        this(GrpcServerConfiguration.defaultConfig());
-        }
+    GrpcServerImpl() {
+        this(GrpcServerConfiguration.builder().build());
+    }
 
-    GrpcServerImpl(GrpcServerConfiguration config)
-        {
+    /**
+     * Create a {@link GrpcServerImpl}.
+     *
+     * @param config  the configuration for this server
+     */
+    GrpcServerImpl(GrpcServerConfiguration config) {
         this.config = config;
-        }
+    }
 
     // ---- GrpcServer interface --------------------------------------------
 
-    public CompletionStage<GrpcServer> start()
-        {
-        String  sName = config.name();
-        int     port  = config.port();
-        boolean fTLS  = config.isTLS();
+    @Override
+    public CompletionStage<GrpcServer> start() {
+        String sName = config.name();
+        int port = config.port();
+        boolean fTLS = config.isTLS();
 
-        try
-            {
+        try {
             NettyServerBuilder builder;
 
-            if (fTLS)
-                {
+            if (fTLS) {
                 // configure TLS
                 // see: https://github.com/grpc/grpc-java/blob/master/SECURITY.md
 
-                String sCertFile       = config.tlsCert();
-                String sKeyFile        = config.tlsKey();
+                String sCertFile = config.tlsCert();
+                String sKeyFile = config.tlsKey();
                 String sClientCertFile = config.tlsCaCert();
 
-                if (sCertFile == null || sCertFile.isEmpty())
-                    {
+                if (sCertFile == null || sCertFile.isEmpty()) {
                     throw new IllegalStateException("gRPC server is configured to use TLS but cert file property "
-                                                    + PROP_TLS_CERT + " is not set");
-                    }
+                                                            + PROP_TLS_CERT + " is not set");
+                }
 
-                if (sKeyFile == null || sKeyFile.isEmpty())
-                    {
+                if (sKeyFile == null || sKeyFile.isEmpty()) {
                     throw new IllegalStateException("gRPC server is configured to use TLS but key file property "
-                                                    + PROP_TLS_KEY + " is not set");
-                    }
+                                                            + PROP_TLS_KEY + " is not set");
+                }
 
-                File fileCerts       = new File(sCertFile);
-                File fileKey         = new File(sKeyFile);
+                File fileCerts = new File(sCertFile);
+                File fileKey = new File(sKeyFile);
                 X509Certificate[] aX509Certificates;
 
-                if (!fileCerts.exists() || !fileCerts.isFile())
-                    {
+                if (!fileCerts.exists() || !fileCerts.isFile()) {
                     throw new IllegalStateException("gRPC server is configured to use TLS but certs file "
-                                                    + sCertFile + " either does not exist or is not a file");
-                    }
+                                                            + sCertFile + " either does not exist or is not a file");
+                }
 
-                if (!fileKey.exists() || !fileKey.isFile())
-                    {
+                if (!fileKey.exists() || !fileKey.isFile()) {
                     throw new IllegalStateException("gRPC server is configured to use TLS but key file "
-                                                    + sKeyFile + " either does not exist or is not a file");
-                    }
+                                                            + sKeyFile + " either does not exist or is not a file");
+                }
 
-                if (sClientCertFile != null)
-                    {
+                if (sClientCertFile != null) {
                     File fileClientCerts = new File(sClientCertFile);
 
-                    if (!fileClientCerts.exists() || !fileClientCerts.isFile())
-                        {
+                    if (!fileClientCerts.exists() || !fileClientCerts.isFile()) {
                         throw new IllegalStateException("gRPC server is configured to use TLS but client cert file "
-                                                        + sClientCertFile + " either does not exist or is not a file");
-                        }
+                                                                + sClientCertFile + " either does not exist or is not a file");
+                    }
 
                     aX509Certificates = loadX509Cert(fileClientCerts);
-                    }
-                else
-                    {
+                } else {
                     aX509Certificates = new X509Certificate[0];
-                    }
+                }
 
                 SslContextBuilder sslContextBuilder = SslContextBuilder.forServer(fileCerts, fileKey);
 
                 GrpcSslContexts.configure(sslContextBuilder, SslProvider.OPENSSL);
 
-                if (aX509Certificates.length > 0)
-                    {
+                if (aX509Certificates.length > 0) {
                     sslContextBuilder.trustManager(aX509Certificates)
-                                     .clientAuth(ClientAuth.REQUIRE);
-                    }
-                else
-                    {
+                            .clientAuth(ClientAuth.REQUIRE);
+                } else {
                     sslContextBuilder.clientAuth(ClientAuth.OPTIONAL);
-                    }
+                }
 
                 builder = NettyServerBuilder.forPort(port).sslContext(sslContextBuilder.build());
-                }
-            else
-                {
+            } else {
                 builder = NettyServerBuilder.forPort(port);
-                }
+            }
 
             HandlerRegistry handlerRegistry = this.handlerRegistry;
 
             server = configureNetty(builder)
-                        .directExecutor()
-                        .addService(healthService)
-                        .fallbackHandlerRegistry(handlerRegistry)
-                        .build()
-                        .start();
+                    .directExecutor()
+                    .addService(healthService)
+                    .fallbackHandlerRegistry(handlerRegistry)
+                    .build()
+                    .start();
 
             inProcessServer = InProcessServerBuilder
                     .forName(sName)
@@ -179,27 +175,24 @@ public class GrpcServerImpl implements GrpcServer
                     .build()
                     .start();
 
-            LOGGER.log(Level.INFO, () -> format("gRPC server [%s]: listening on port %d (TLS=%s)", sName, server.getPort(), fTLS));
+            LOGGER.log(Level.INFO,
+                       () -> format("gRPC server [%s]: listening on port %d (TLS=%s)", sName, server.getPort(), fTLS));
 
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
             startFuture.complete(this);
-            }
-        catch (Throwable e)
-            {
+        } catch (Throwable e) {
             LOGGER.log(Level.SEVERE, format("gRPC server [%s]: failed to start on port %d (TLS=%s)", sName, port, fTLS), e);
             startFuture.completeExceptionally(e);
-            }
-        return startFuture;
         }
+        return startFuture;
+    }
 
-    public CompletionStage<GrpcServer> shutdown()
-        {
+    @Override
+    public CompletionStage<GrpcServer> shutdown() {
         String name = config.name();
 
-        try
-            {
-            if (server != null)
-                {
+        try {
+            if (server != null) {
                 server.shutdown();
                 inProcessServer.shutdown();
                 server.awaitTermination();
@@ -210,91 +203,86 @@ public class GrpcServerImpl implements GrpcServer
                 inProcessServer = null;
 
                 shutdownFuture.complete(this);
-                }
             }
-        catch (Throwable e)
-            {
+        } catch (Throwable e) {
             LOGGER.log(Level.SEVERE, format("gRPC server [%s]: server failed to shut down", name), e);
             shutdownFuture.completeExceptionally(e);
-            }
-
-        return shutdownFuture;
         }
 
-    public GrpcServerConfiguration configuration()
-        {
+        return shutdownFuture;
+    }
+
+    @Override
+    public GrpcServerConfiguration configuration() {
         return config;
-        }
+    }
 
-    public CompletionStage<GrpcServer> whenShutdown()
-        {
+    @Override
+    public CompletionStage<GrpcServer> whenShutdown() {
         return shutdownFuture;
-        }
+    }
 
-    public boolean isRunning()
-        {
+    @Override
+    public boolean isRunning() {
         return server != null && !(server.isShutdown() || server.isTerminated());
-        }
+    }
 
-    public int port()
-        {
+    @Override
+    public int port() {
         return isRunning() ? server.getPort() : -1;
-        }
+    }
 
-    public HealthCheck[] healthChecks()
-        {
+    @Override
+    public HealthCheck[] healthChecks() {
         return healthService.healthChecks().toArray(new HealthCheck[0]);
-        }
+    }
 
     // ---- helper methods --------------------------------------------------
 
-    private NettyServerBuilder configureNetty(NettyServerBuilder builder)
-        {
-        boolean fUseNative = config.useNativeTransport();
+    private NettyServerBuilder configureNetty(NettyServerBuilder builder) {
+        //boolean fUseNative = config.useNativeTransport();
 
         Class<? extends ServerChannel> channelType = null;
-        EventLoopGroup boss    = null;
+        EventLoopGroup boss = null;
         EventLoopGroup workers = null;
 
-        // TODO: add back native transport support, so the check bellow makes sense
-        
-        if (channelType == null)
-            {
+        // ToDo: add back native transport support, so the check bellow makes sense
+
+        if (channelType == null) {
             LOGGER.log(Level.FINE, () -> "Using NIO transport");
             channelType = NioServerSocketChannel.class;
-            boss    = new NioEventLoopGroup(1);
+            boss = new NioEventLoopGroup(1);
             workers = new NioEventLoopGroup();
-            }
+        }
 
         return builder
                 .channelType(channelType)
                 .bossEventLoopGroup(boss)
                 .workerEventLoopGroup(workers);
-        }
+    }
 
     /**
      * Deploy the specified {@link BindableService} to this {@link GrpcServerImpl}.
      *
      * @param serviceCfg the service to deploy
+     * @param globalInterceptors the global {@link io.grpc.ServerInterceptor}s to wrap all services with
      *
-     * @throws NullPointerException if {@code service} is {@code null}
+     * @throws NullPointerException if {@code serviceCfg} is {@code null}
      */
-    public void deploy(GrpcService.ServiceConfig serviceCfg, List<ServerInterceptor> globalInterceptors)
-        {
+    public void deploy(GrpcService.ServiceConfig serviceCfg, List<ServerInterceptor> globalInterceptors) {
         Objects.requireNonNull(serviceCfg);
 
-        String                  serverName  = config.name();
-        BindableService         service     = serviceCfg.service();
-        ServerServiceDefinition ssd         = service.bindService();
-        String                  serviceName = ssd.getServiceDescriptor().getName();
+        String serverName = config.name();
+        BindableService service = serviceCfg.service();
+        ServerServiceDefinition ssd = service.bindService();
+        String serviceName = ssd.getServiceDescriptor().getName();
 
         List<ServerInterceptor> interceptors = new ArrayList<>(globalInterceptors);
         interceptors.addAll(serviceCfg.interceptors());
 
-        for (int i = interceptors.size() - 1; i >= 0; i--)
-            {
+        for (int i = interceptors.size() - 1; i >= 0; i--) {
             ssd = ServerInterceptors.intercept(ssd, interceptors.get(i));
-            }
+        }
 
         handlerRegistry.addService(ssd);
         mapServices.put(service.getClass().getName(), ssd);
@@ -304,88 +292,78 @@ public class GrpcServerImpl implements GrpcServer
                                  serverName, serviceName));
 
         Iterator<String> methods = ssd.getMethods()
-                                      .stream()
-                                      .map(ServerMethodDefinition::getMethodDescriptor)
-                                      .map(MethodDescriptor::getFullMethodName)
-                                      .sorted()
-                                      .iterator();
+                .stream()
+                .map(ServerMethodDefinition::getMethodDescriptor)
+                .map(MethodDescriptor::getFullMethodName)
+                .sorted()
+                .iterator();
 
-        if (methods.hasNext())
-            {
+        if (methods.hasNext()) {
             LOGGER.info(() -> format("gRPC server [%s]:       with methods [%s]",
                                      serverName,
                                      methods.next()));
-            }
-        while (methods.hasNext())
-            {
+        }
+        while (methods.hasNext()) {
             LOGGER.info(() -> format("gRPC server [%s]:                    [%s]",
                                      serverName,
                                      methods.next()));
-            }
         }
+    }
 
     /**
      * Undeploy the specified {@link BindableService} from this {@link GrpcServerImpl}.
      *
-     * @param service  the service to undeploy
-     * @param sName    the gRPC server name
-     *
+     * @param service the service to undeploy
+     * @param sName   the gRPC server name
      * @throws NullPointerException if {@code service} is {@code null}
      */
-    public void undeploy(BindableService service, String sName)
-        {
+    public void undeploy(BindableService service, String sName) {
         Objects.requireNonNull(service);
 
         String serviceClassName = service.getClass().getName();
         ServerServiceDefinition ssd = mapServices.get(serviceClassName);
-        if (null == ssd)
-            {
+        if (null == ssd) {
             return;
-            }
+        }
 
         handlerRegistry.removeService(ssd);
         mapServices.remove(serviceClassName);
 
         LOGGER.info(() -> format("gRPC server [%s]: unregistered service [%s]",
-                                sName,
-                                ssd.getServiceDescriptor().getName()));
-        }
+                                 sName,
+                                 ssd.getServiceDescriptor().getName()));
+    }
 
     /**
      * Obtain an immutable {@link List} of registered {@link ServerServiceDefinition}s.
      *
-     * @return  an immutable {@link List} of registered {@link ServerServiceDefinition}s
+     * @return an immutable {@link List} of registered {@link ServerServiceDefinition}s
      */
-    public List<ServerServiceDefinition> getServices()
-        {
+    public List<ServerServiceDefinition> getServices() {
         return Collections.unmodifiableList(handlerRegistry.getServices());
-        }
+    }
 
     /**
      * @return a new in-process {@link ManagedChannel} for interacting with
-     * the services managed by this {@link GrpcServerImpl}.
+     *         the services managed by this {@link GrpcServerImpl}.
      */
-    public ManagedChannel createInProcessChannel()
-        {
+    public ManagedChannel createInProcessChannel() {
         return InProcessChannelBuilder.forName(config.name()).build();
-        }
+    }
 
     private static X509Certificate[] loadX509Cert(File... aFile)
-            throws CertificateException, IOException
-        {
-        CertificateFactory cf     = CertificateFactory.getInstance("X.509");
-        X509Certificate[]  aCerts = new X509Certificate[aFile.length];
+            throws CertificateException, IOException {
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate[] aCerts = new X509Certificate[aFile.length];
 
-        for (int i = 0; i < aFile.length; i++)
-            {
-            try (InputStream in = new FileInputStream(aFile[i]))
-                {
+        for (int i = 0; i < aFile.length; i++) {
+            try (InputStream in = new FileInputStream(aFile[i])) {
                 aCerts[i] = (X509Certificate) cf.generateCertificate(in);
-                }
             }
+        }
 
         return aCerts;
-        }
+    }
 
     // ---- static members --------------------------------------------------
 
@@ -409,22 +387,22 @@ public class GrpcServerImpl implements GrpcServer
     /**
      * Configuration values.
      */
-    protected GrpcServerConfiguration config;
+    private GrpcServerConfiguration config;
 
     /**
      * The TCP-based gRPC server.
      */
-    protected Server server;
+    private Server server;
 
     /**
      * The in-process gRPC server.
      */
-    protected Server inProcessServer;
+    private Server inProcessServer;
 
     /**
-     * The health status manager
+     * The health status manager.
      */
-    protected HealthServiceImpl healthService = new HealthServiceImpl();
+    private HealthServiceImpl healthService = new HealthServiceImpl();
 
     /**
      * The {@link HandlerRegistry} to register services.
@@ -435,4 +413,4 @@ public class GrpcServerImpl implements GrpcServer
      * The map of service class name to {@link ServerServiceDefinition}.
      */
     private Map<String, ServerServiceDefinition> mapServices = new ConcurrentHashMap<>();
-    }
+}

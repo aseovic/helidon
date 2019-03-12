@@ -141,6 +141,7 @@
         <version.lib.oci-java-sdk-objectstorage>1.2.44</version.lib.oci-java-sdk-objectstorage>
         <version.lib.ojdbc8>12.2.0.1</version.lib.ojdbc8>
         <version.lib.opentracing>0.31.0</version.lib.opentracing>
+        <version.lib.opentracing.grpc>0.0.12</version.lib.opentracing.grpc>
         <version.lib.prometheus>0.4.0</version.lib.prometheus>
         <version.lib.protobuf.java>3.5.1</version.lib.protobuf.java>
         <version.lib.reactivestreams>1.0.2</version.lib.reactivestreams>
@@ -732,6 +733,11 @@
                 <groupId>io.grpc</groupId>
                 <artifactId>grpc-netty</artifactId>
                 <version>${version.lib.grpc}</version>
+            </dependency>
+            <dependency>
+              <groupId>io.opentracing.contrib</groupId>
+              <artifactId>opentracing-grpc</artifactId>
+              <version>${version.lib.opentracing.grpc}</version>
             </dependency>
             <dependency>
                 <groupId>com.google.protobuf</groupId>

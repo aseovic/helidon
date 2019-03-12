@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,16 +16,22 @@
 
 package io.helidon.security.integration.grpc;
 
-import io.grpc.ForwardingServerCall;
-import io.grpc.ForwardingServerCallListener;
-import io.grpc.Metadata;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.Status;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 import io.helidon.common.CollectionsHelper;
 import io.helidon.common.OptionalHelper;
-import io.helidon.common.reactive.Flow;
 import io.helidon.config.Config;
 import io.helidon.grpc.server.GrpcService;
 import io.helidon.security.AuditEvent;
@@ -38,25 +44,17 @@ import io.helidon.security.SecurityContext;
 import io.helidon.security.SecurityRequest;
 import io.helidon.security.SecurityRequestBuilder;
 import io.helidon.security.internal.SecurityAuditEvent;
+
+import io.grpc.ForwardingServerCall;
+import io.grpc.ForwardingServerCallListener;
+import io.grpc.Metadata;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.tag.Tags;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import static io.helidon.security.AuditEvent.AuditParam.plain;
 
@@ -68,8 +66,7 @@ import static io.helidon.security.AuditEvent.AuditParam.plain;
 // we need to have all fields optional and this is cleaner than checking for null
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public final class GrpcSecurityHandler
-        implements ServerInterceptor, Consumer<GrpcService.ServiceConfig>
-    {
+        implements ServerInterceptor, Consumer<GrpcService.ServiceConfig> {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurityHandler.class.getName());
     private static final String KEY_ROLES_ALLOWED = "roles-allowed";
     private static final String KEY_AUTHENTICATOR = "authenticator";
@@ -282,58 +279,55 @@ public final class GrpcSecurityHandler
     }
 
     @Override
-    public void accept(GrpcService.ServiceConfig serviceConfig)
-        {
+    public void accept(GrpcService.ServiceConfig serviceConfig) {
         serviceConfig.addContextValue(GrpcSecurity.GRPC_SECURITY_INTERCEPTOR, this);
-        }
+    }
 
     @Override
-    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next)
-        {
+    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call,
+                                                                 Metadata headers,
+                                                                 ServerCallHandler<ReqT, RespT> next) {
         SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get();
 
-        if (securityContext == null)
-            {
+        if (securityContext == null) {
             call.close(Status.FAILED_PRECONDITION
-                    .withDescription("Security context not present. Maybe you forgot to "
-                                    + "GrpcRouting.builder().register(SecurityAdapter.from"
-                                    + "(security))..."), new Metadata());
+                               .withDescription("Security context not present. Maybe you forgot to "
+                                                        + "GrpcRouting.builder().intercept(GrpcSecurity.create"
+                                                        + "(security))..."), new Metadata());
             return new EmptyListener<>();
-            }
+        }
 
         if (combined) {
             return processSecurity(securityContext, call, headers, next);
         } else {
             // the following condition may be met for multiple threads - and we don't really care
             // as the result is exactly the same in all cases and doesn't have side effects
-            if (null == combinedHandler.get())
-                {
+            if (null == combinedHandler.get()) {
                 // we may have a default handler configured
                 GrpcSecurityHandler defaultHandler = GrpcSecurity.GRPC_SECURITY_INTERCEPTOR.get();
 
-                if (defaultHandler == null)
-                    {
+                if (defaultHandler == null) {
                     defaultHandler = DEFAULT_INSTANCE;
-                    }
+                }
 
                 // intentional same instance comparison, as I want to prevent endless loop
                 //noinspection ObjectEquality
-                if (defaultHandler == DEFAULT_INSTANCE)
-                    {
+                if (defaultHandler == DEFAULT_INSTANCE) {
                     combinedHandler.set(this);
-                    }
-                else
-                    {
+                } else {
                     combinedHandler.compareAndSet(null,
                                                   builder(defaultHandler).configureFrom(this).combined().build());
-                    }
                 }
+            }
 
             return combinedHandler.get().processSecurity(securityContext, call, headers, next);
-            }
         }
+    }
 
-    private <ReqT, RespT> ServerCall.Listener<ReqT> processSecurity(SecurityContext securityContext, ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+    private <ReqT, RespT> ServerCall.Listener<ReqT> processSecurity(SecurityContext securityContext,
+                                                                    ServerCall<ReqT, RespT> call,
+                                                                    Metadata headers,
+                                                                    ServerCallHandler<ReqT, RespT> next) {
         // authentication and authorization
         Tracer tracer = securityContext.tracer();
 
@@ -345,25 +339,22 @@ public final class GrpcSecurityHandler
         securitySpan.log(CollectionsHelper.mapOf("securityId", securityContext.id()));
 
         securityContext.endpointConfig(securityContext.endpointConfig()
-                                                  .derive()
-                                                  .configMap(configMap)
-                                                  .customObjects(customObjects.orElse(new ClassToInstanceStore<>()))
-                                                  .build());
+                                               .derive()
+                                               .configMap(configMap)
+                                               .customObjects(customObjects.orElse(new ClassToInstanceStore<>()))
+                                               .build());
 
-    CompletionStage<Boolean> stage = processAuthentication(call, headers, securityContext, tracer, securitySpan)
-            .thenCompose(atnResult -> {
-            if (atnResult.proceed)
-                {
-                // authentication was OK or disabled, we should continue
-                return processAuthorization(securityContext, tracer, securitySpan);
-                }
-            else
-                {
-                // authentication told us to stop processing
-                return CompletableFuture.completedFuture(AtxResult.STOP);
-                }
-            })
-            .thenApply(atzResult -> {
+        CompletionStage<Boolean> stage = processAuthentication(call, headers, securityContext, tracer, securitySpan)
+                .thenCompose(atnResult -> {
+                    if (atnResult.proceed) {
+                        // authentication was OK or disabled, we should continue
+                        return processAuthorization(securityContext, tracer, securitySpan);
+                    } else {
+                        // authentication told us to stop processing
+                        return CompletableFuture.completedFuture(AtxResult.STOP);
+                    }
+                })
+                .thenApply(atzResult -> {
                     if (atzResult.proceed) {
                         // authorization was OK, we can continue processing
                         securitySpan.log("status: PROCEED");
@@ -376,38 +367,31 @@ public final class GrpcSecurityHandler
                     }
                 });
 
+        ServerCall.Listener<ReqT> listener;
+        CallWrapper<ReqT, RespT> callWrapper = new CallWrapper<>(call);
 
-    ServerCall.Listener<ReqT> listener;
-    CallWrapper<ReqT, RespT>  callWrapper = new CallWrapper<>(call);
+        try {
+            boolean proceed = stage.toCompletableFuture().get();
 
-    try
-        {
-        boolean proceed = stage.toCompletableFuture().get();
-
-        if (proceed)
-            {
-            listener = next.startCall(callWrapper, headers);
+            if (proceed) {
+                listener = next.startCall(callWrapper, headers);
+            } else {
+                callWrapper.close(Status.PERMISSION_DENIED, new Metadata());
+                listener = new EmptyListener<>();
             }
-        else
-            {
-            callWrapper.close(Status.PERMISSION_DENIED, new Metadata());
+        } catch (Throwable throwable) {
+            LOGGER.log(Level.SEVERE, "Unexpected exception during security processing", throwable);
+            callWrapper.close(Status.INTERNAL, new Metadata());
             listener = new EmptyListener<>();
-            }
-        }
-    catch (Throwable throwable)
-        {
-        LOGGER.log(Level.SEVERE, "Unexpected exception during security processing", throwable);
-        callWrapper.close(Status.INTERNAL, new Metadata());
-        listener = new EmptyListener<>();
         }
 
-    return new AuditingListener<>(listener, callWrapper, headers, securityContext);
+        return new AuditingListener<>(listener, callWrapper, headers, securityContext);
     }
 
-    private <ReqT, RespT>void processAudit(ServerCall<ReqT, RespT> call,
-                                           Metadata headers,
-                                           SecurityContext securityContext,
-                                           Status status) {
+    private <ReqT, RespT> void processAudit(ServerCall<ReqT, RespT> call,
+                                            Metadata headers,
+                                            SecurityContext securityContext,
+                                            Status status) {
         // make sure we actually should audit
         if (!audited.orElse(true)) {
             // explicitly disabled
@@ -417,7 +401,7 @@ public final class GrpcSecurityHandler
         AuditEvent.AuditSeverity severity = status.isOk()
                 ? AuditEvent.AuditSeverity.SUCCESS
                 : AuditEvent.AuditSeverity.FAILURE;
-        
+
         SecurityAuditEvent auditEvent = SecurityAuditEvent
                 .audit(severity,
                        auditEventType.orElse(DEFAULT_AUDIT_EVENT_TYPE),
@@ -450,6 +434,7 @@ public final class GrpcSecurityHandler
                 .start();
 
         SecurityClientBuilder<AuthenticationResponse> clientBuilder = securityContext.atnClientBuilder();
+
         configureSecurityRequest(clientBuilder, atnSpan);
 
         clientBuilder.explicitProvider(explicitAuthenticator.orElse(null)).submit().thenAccept(response -> {
@@ -766,7 +751,6 @@ public final class GrpcSecurityHandler
         return builder(this).audit(false).build();
     }
 
-
     private static final class AtxResult {
         private static final AtxResult PROCEED = new AtxResult(true);
         private static final AtxResult STOP = new AtxResult(false);
@@ -780,74 +764,6 @@ public final class GrpcSecurityHandler
         @SuppressWarnings("unused")
         private AtxResult(SecurityRequest ignored) {
             this.proceed = true;
-        }
-    }
-
-    private abstract static class ResponseProcessor<T, R> implements Flow.Processor<T, R> {
-        private final CountDownLatch subscribedLatch = new CountDownLatch(1);
-        private final Flow.Publisher<T> externalPublisher;
-        private final AtomicBoolean isSubscribed = new AtomicBoolean();
-        private Flow.Subscriber<? super R> subscriber;
-        private volatile Flow.Subscription mySubscription;
-        private volatile Flow.Subscription subscribersSubscription;
-
-        ResponseProcessor(Flow.Publisher<T> externalPublisher) {
-            this.externalPublisher = externalPublisher;
-        }
-
-        @Override
-        public void subscribe(Flow.Subscriber<? super R> subscriber) {
-            if (!isSubscribed.compareAndSet(false, true)) {
-                subscriber.onError(new IllegalStateException("This publisher only supports a single subscriber."));
-                return;
-            }
-            this.subscriber = subscriber;
-            //somebody subscribed to us!
-            this.subscribersSubscription = new Flow.Subscription() {
-                @Override
-                public void request(long n) {
-                    try {
-                        subscribedLatch.await();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                        mySubscription.cancel();
-                        return;
-                    }
-                    mySubscription.request(n);
-                }
-
-                @Override
-                public void cancel() {
-                    try {
-                        subscribedLatch.await();
-                    } catch (InterruptedException e) {
-                        Thread.currentThread().interrupt();
-                    }
-                    mySubscription.cancel();
-                }
-            };
-            externalPublisher.subscribe(this);
-            subscriber.onSubscribe(subscribersSubscription);
-        }
-
-        @Override
-        public void onSubscribe(Flow.Subscription subscription) {
-            this.mySubscription = subscription;
-            subscribedLatch.countDown();
-        }
-
-        @Override
-        public void onError(Throwable throwable) {
-            subscriber.onError(throwable);
-        }
-
-        @Override
-        public void onComplete() {
-            subscriber.onComplete();
-        }
-
-        Flow.Subscriber<? super R> subscriber() {
-            return subscriber;
         }
     }
 
@@ -1044,69 +960,59 @@ public final class GrpcSecurityHandler
      * An empty {@link ServerCall.Listener} used to terminate a call if
      * authentication fails.
      *
-     * @param <T>  the type of the call
+     * @param <T> the type of the call
      */
-    protected static class EmptyListener<T> extends ServerCall.Listener<T>
-        {
-        }
+    static class EmptyListener<T> extends ServerCall.Listener<T> {
+    }
 
     /**
      * A logging {@link ServerCall.Listener}.
      *
-     * @param <ReqT>  the request type
+     * @param <ReqT> the request type
      */
-    protected class AuditingListener<ReqT, RespT>
-            extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>
-        {
+    private class AuditingListener<ReqT, RespT>
+            extends ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT> {
         private CallWrapper<ReqT, RespT> call;
         private Metadata headers;
         private SecurityContext securityContext;
 
-        public AuditingListener(ServerCall.Listener<ReqT> delegate,
+        private AuditingListener(ServerCall.Listener<ReqT> delegate,
                                 CallWrapper<ReqT, RespT> call,
                                 Metadata headers,
-                                SecurityContext securityContext)
-            {
+                                SecurityContext securityContext) {
             super(delegate);
             this.call = call;
             this.headers = headers;
             this.securityContext = securityContext;
-            }
-
-        @Override
-        public void onCancel()
-            {
-            processAudit(call, headers, securityContext, call.getCloseStatus());
-            }
-
-        @Override
-        public void onComplete()
-            {
-            processAudit(call, headers, securityContext, call.getCloseStatus());
-            }
         }
 
+        @Override
+        public void onCancel() {
+            processAudit(call, headers, securityContext, call.getCloseStatus());
+        }
 
-    protected class CallWrapper<ReqT, RespT>
-            extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT>
-        {
+        @Override
+        public void onComplete() {
+            processAudit(call, headers, securityContext, call.getCloseStatus());
+        }
+    }
+
+    private class CallWrapper<ReqT, RespT>
+            extends ForwardingServerCall.SimpleForwardingServerCall<ReqT, RespT> {
         private Status closeStatus;
 
-        public CallWrapper(ServerCall<ReqT, RespT> delegate)
-            {
+        private CallWrapper(ServerCall<ReqT, RespT> delegate) {
             super(delegate);
-            }
+        }
 
         @Override
-        public void close(Status status, Metadata trailers)
-            {
+        public void close(Status status, Metadata trailers) {
             closeStatus = status;
             super.close(status, trailers);
-            }
-
-        public Status getCloseStatus()
-            {
-            return closeStatus;
-            }
         }
+
+        Status getCloseStatus() {
+            return closeStatus;
+        }
+    }
 }

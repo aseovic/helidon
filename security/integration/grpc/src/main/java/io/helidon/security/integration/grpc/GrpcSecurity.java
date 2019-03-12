@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,25 +16,6 @@
 
 package io.helidon.security.integration.grpc;
 
-import io.grpc.Context;
-import io.grpc.Grpc;
-import io.grpc.Metadata;
-import io.grpc.ServerCall;
-import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
-import io.grpc.Status;
-import io.helidon.config.Config;
-import io.helidon.grpc.server.GrpcRouting;
-import io.helidon.grpc.server.GrpcService;
-import io.helidon.security.EndpointConfig;
-import io.helidon.security.Security;
-import io.helidon.security.SecurityContext;
-import io.helidon.security.SecurityEnvironment;
-import io.opentracing.Span;
-import io.opentracing.SpanContext;
-import io.opentracing.contrib.grpc.OpenTracingContextKey;
-
-import javax.security.auth.Subject;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,9 +23,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.IntSupplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import io.helidon.config.Config;
+import io.helidon.grpc.server.GrpcRouting;
+import io.helidon.grpc.server.GrpcService;
+import io.helidon.security.EndpointConfig;
+import io.helidon.security.Security;
+import io.helidon.security.SecurityContext;
+import io.helidon.security.SecurityEnvironment;
+
+import io.grpc.Context;
+import io.grpc.Grpc;
+import io.grpc.Metadata;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.Status;
+import io.opentracing.Span;
+import io.opentracing.SpanContext;
+import io.opentracing.contrib.grpc.OpenTracingContextKey;
 
 /**
  * Integration of security into Web Server.
@@ -94,8 +93,7 @@ import java.util.logging.Logger;
  * </pre>
  */
 public final class GrpcSecurity
-        implements ServerInterceptor
-    {
+        implements ServerInterceptor {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurity.class.getName());
 
     /**
@@ -116,23 +114,6 @@ public final class GrpcSecurity
      */
     public static final Context.Key<GrpcSecurityHandler> GRPC_SECURITY_INTERCEPTOR =
             Context.key("DefaultGrpcSecurityInterceptor");
-
-    /**
-     * The gRpc {@link Context.Key} to use to add and retrieve a {@link Subject}
-     * from a gRpc {@link Context}.
-     */
-    public static final Context.Key<Subject> SUBJECT = Context.key("Subject");
-
-    /**
-     * The {@link Context.Key} to use to retrieve the callers remote address.
-     */
-    public static final Context.Key<String> REMOTE_ADDRESS = Context.key("RemoteAddress");
-
-    /**
-     * The {@link Context.Key} to use to retrieve the callers remote address hsh.
-     */
-    public static final Context.Key<IntSupplier> REMOTE_ADDRESS_HASH = Context.key("RemoteAddressHash");
-
 
     private static final AtomicInteger SECURITY_COUNTER = new AtomicInteger();
 
@@ -358,52 +339,45 @@ public final class GrpcSecurity
     }
 
     @Override
-    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next)
-        {
+    public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call,
+                                                                 Metadata headers,
+                                                                 ServerCallHandler<ReqT, RespT> next) {
         Context context = registerContext(call, headers);
 
-        try
-            {
+        try {
             GrpcSecurityHandler configuredHandler = GrpcSecurity.GRPC_SECURITY_INTERCEPTOR.get(context);
-            GrpcSecurityHandler handler           = configuredHandler == null ? defaultHandler : configuredHandler;
+            GrpcSecurityHandler handler = configuredHandler == null ? defaultHandler : configuredHandler;
 
-            return context.call(() ->  handler.interceptCall(call, headers, next));
-            }
-        catch (Throwable throwable)
-            {
+            return context.call(() -> handler.interceptCall(call, headers, next));
+        } catch (Throwable throwable) {
             LOGGER.log(Level.SEVERE, "Unexpected exception during security processing", throwable);
             call.close(Status.INTERNAL, new Metadata());
             return new GrpcSecurityHandler.EmptyListener<>();
-            }
         }
+    }
 
     @SuppressWarnings("unchecked")
-    private <ReqT, RespT> Context registerContext(ServerCall<ReqT, RespT> call, Metadata headers)
-        {
+    private <ReqT, RespT> Context registerContext(ServerCall<ReqT, RespT> call, Metadata headers) {
         Context grpcContext;
 
-        if (SECURITY_CONTEXT.get() == null)
-            {
-            SocketAddress             remoteSocket = call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
-            String                    address      = remoteSocket == null ? null : remoteSocket.toString();
-            Map<String, List<String>> headerMap    = new HashMap<>();
+        if (SECURITY_CONTEXT.get() == null) {
+            SocketAddress remoteSocket = call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
+            String address = remoteSocket == null ? null : remoteSocket.toString();
+            Map<String, List<String>> headerMap = new HashMap<>();
 
-            for (String name : headers.keys())
-                {
-                Metadata.Key     key      = Metadata.Key.of(name, Metadata.ASCII_STRING_MARSHALLER);
+            for (String name : headers.keys()) {
+                Metadata.Key key = Metadata.Key.of(name, Metadata.ASCII_STRING_MARSHALLER);
                 Iterable<Object> iterable = headers.getAll(key);
-                List<String>     values   = new ArrayList<>();
+                List<String> values = new ArrayList<>();
 
-                if (iterable != null)
-                    {
-                    for (Object o : iterable)
-                        {
+                if (iterable != null) {
+                    for (Object o : iterable) {
                         values.add(String.valueOf(o));
-                        }
                     }
+                }
 
                 headerMap.put(name, values);
-                }
+            }
 
             SecurityEnvironment env = security.environmentBuilder()
                     .path(call.getMethodDescriptor().getFullMethodName())
@@ -415,21 +389,19 @@ public final class GrpcSecurity
             EndpointConfig ec = EndpointConfig.builder()
                     .build();
 
-            Span            span        = OpenTracingContextKey.getKey().get();
-            SpanContext     spanContext = span == null ? null : span.context();
-            SecurityContext context     = security.contextBuilder(String.valueOf(SECURITY_COUNTER.incrementAndGet()))
+            Span span = OpenTracingContextKey.getKey().get();
+            SpanContext spanContext = span == null ? null : span.context();
+            SecurityContext context = security.contextBuilder(String.valueOf(SECURITY_COUNTER.incrementAndGet()))
                     .tracingSpan(spanContext)
                     .env(env)
                     .endpointConfig(ec)
                     .build();
 
             grpcContext = Context.current().withValue(SECURITY_CONTEXT, context);
-            }
-        else
-            {
+        } else {
             grpcContext = Context.current();
-            }
+        }
 
         return grpcContext;
-        }
+    }
 }

@@ -181,6 +181,33 @@ public interface GrpcServerConfiguration {
         }
 
         /**
+         * Set the name of the gRPC server.
+         * <p>
+         * Configuration key: {@code name}
+         *
+         * @param name  the name of the gRPC server
+         *
+         * @return an updated builder
+         */
+        public Builder name(String name) {
+            this.name = name;
+            return this;
+        }
+
+        /**
+         * Sets server port. If port is {@code 0} or less then any available ephemeral port will be used.
+         * <p>
+         * Configuration key: {@code port}
+         *
+         * @param port the server port
+         * @return an updated builder
+         */
+        public Builder port(int port) {
+            this.port = port < 0 ? 0 : port;
+            return this;
+        }
+
+        /**
          * Sets an <a href="http://opentracing.io">opentracing.io</a> tracer. (Default is {@link GlobalTracer}.)
          *
          * @param tracer a tracer to set

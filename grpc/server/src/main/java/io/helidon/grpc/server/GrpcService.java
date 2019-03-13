@@ -111,7 +111,11 @@ public interface GrpcService
      * @param <T>       they type of the request result
      */
     default <T> void complete(StreamObserver<T> observer, T value) {
-        observer.onNext(value);
+        try {
+            observer.onNext(value);
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
         observer.onCompleted();
     }
 

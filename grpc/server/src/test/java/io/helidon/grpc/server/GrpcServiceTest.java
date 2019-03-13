@@ -16,52 +16,355 @@
 
 package io.helidon.grpc.server;
 
+import java.util.Objects;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
+import java.util.concurrent.Executor;
+import java.util.concurrent.Executors;
 
-import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
-import org.mockito.InOrder;
 
-import static org.mockito.ArgumentMatchers.same;
-import static org.mockito.Mockito.inOrder;
-import static org.mockito.Mockito.mock;
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.nullValue;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * @author Jonathan Knight
  */
 public class GrpcServiceTest {
 
+    private static final Executor EXECUTOR = Executors.newSingleThreadExecutor();
+
     @Test
-    @SuppressWarnings("unchecked")
-    public void shouldCompleteCallUsingCompletionStage() {
-        CompletionStage<String> stage    = CompletableFuture.completedFuture("foo");
-        StreamObserver<String>  observer = mock(StreamObserver.class);
-        GrpcService             service  = new GrpcServiceStub();
+    public void shouldHaveDefaultName() {
+        GrpcService service  = new GrpcServiceStub();
 
-        service.complete(observer, stage);
+        assertThat(service.name(), is(GrpcServiceStub.class.getSimpleName()));
+    }
 
-        InOrder inOrder = inOrder(observer);
+    @Test
+    public void shouldHaveNullService()  {
+        GrpcService service  = new GrpcServiceStub();
 
-        inOrder.verify(observer).onNext("foo");
-        inOrder.verify(observer).onCompleted();
+        assertThat(service.bindService(), is(nullValue()));
+    }
+
+    @Test
+    public void shouldHaveNullHealthChecks()  {
+        GrpcService service  = new GrpcServiceStub();
+
+        assertThat(service.hc(), is(nullValue()));
+    }
+
+    @Test
+    public void shouldCompleteCall() {
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.complete(observer, "foo");
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    public void shouldCompleteCallUsingExceptionalCompletionStage() {
-        CompletableFuture<String> stage    = new CompletableFuture();
-        RuntimeException          error    = new RuntimeException("Oops!");
-        StreamObserver<String>    observer = mock(StreamObserver.class);
-        GrpcService               service  = new GrpcServiceStub();
-
-        stage.completeExceptionally(error);
+    public void shouldCompleteCallUsingCompletionStage() {
+        CompletionStage<String>    stage    = CompletableFuture.completedFuture("foo");
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
 
         service.complete(observer, stage);
 
-        InOrder inOrder = inOrder(observer);
+        assertThat(observer.awaitTerminalEvent(), is(true));
 
-        inOrder.verify(observer).onError(same(error));
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalCompletionStage() {
+        CompletableFuture<String>  future   = new CompletableFuture<>();
+        RuntimeException           error    = new RuntimeException("Oops!");
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        future.completeExceptionally(error);
+
+        service.complete(observer, future);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(error)
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingAsyncCompletionStage() {
+        CompletionStage<String>    stage    = CompletableFuture.completedFuture("foo");
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, stage);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalAsyncCompletionStage() {
+        CompletableFuture<String>  future   = new CompletableFuture<>();
+        RuntimeException           error    = new RuntimeException("Oops!");
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        future.completeExceptionally(error);
+
+        service.completeAsync(observer, future);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(error)
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingAsyncCompletionStageAndExecutor() {
+        CompletionStage<String>    stage    = CompletableFuture.completedFuture("foo");
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, stage, EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalAsyncCompletionStageAndExecutor() {
+        CompletableFuture<String>  future   = new CompletableFuture<>();
+        RuntimeException           error    = new RuntimeException("Oops!");
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        future.completeExceptionally(error);
+
+        service.completeAsync(observer, future, EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(error)
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingCallable() {
+        Callable<String>           callable = () -> "foo";
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.complete(observer, callable);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalCallable() {
+        RuntimeException           error    = new RuntimeException("Oops!");
+        Callable<String>           callable = () -> { throw error; };
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.complete(observer, callable);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(error)
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingAsyncCallable() {
+        Callable<String>           callable = () -> "foo";
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, callable);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalAsyncCallable() {
+        RuntimeException           error    = new RuntimeException("Oops!");
+        Callable<String>           callable = () -> { throw error; };
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, callable);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(e -> Objects.equals(e.getCause(), error))
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingAsyncCallableAndExecutor() {
+        Callable<String>           callable = () -> "foo";
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, callable, EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalAsyncCallableAndExecutor() {
+        RuntimeException           error    = new RuntimeException("Oops!");
+        Callable<String>           callable = () -> { throw error; };
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, callable, EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(e -> Objects.equals(e.getCause(), error))
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingRunnable() {
+        Runnable                   runnable = () -> {};
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.complete(observer, runnable, "foo");
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalRunnable() {
+        RuntimeException           error    = new RuntimeException("Oops!");
+        Runnable                   runnable = () -> { throw error; };
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.complete(observer, runnable, "foo");
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(error)
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingAsyncRunnable() {
+        Runnable                   callable = () -> {};
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, callable, "foo");
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalAsyncRunnable() {
+        RuntimeException           error    = new RuntimeException("Oops!");
+        Runnable                   runnable = () -> { throw error; };
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, runnable, "foo");
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(e -> Objects.equals(e.getCause(), error))
+            .assertValueCount(0)
+            .assertNotComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingAsyncRunnableAndExecutor() {
+        Runnable                   runnable = () -> {};
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, runnable, "foo", EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertValueCount(1)
+                .assertValue("foo")
+                .assertComplete();
+    }
+
+    @Test
+    public void shouldCompleteCallUsingExceptionalAsyncRunnableAndExecutor() {
+        RuntimeException           error    = new RuntimeException("Oops!");
+        Runnable                   runnable = () -> { throw error; };
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+
+        service.completeAsync(observer, runnable, "foo", EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(e -> Objects.equals(e.getCause(), error))
+            .assertValueCount(0)
+            .assertNotComplete();
     }
 
 

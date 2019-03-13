@@ -22,10 +22,23 @@ import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthGrpc;
 
 /**
+ * A simple gRPC health check client.
+ *
  * @author Aleksandar Seovic
  */
 public class HealthClient {
-    public static void main(String[] args) throws Exception {
+
+    private HealthClient() {
+    }
+
+    /**
+     * The program entry point.
+     *
+     * @param args  the program arguments
+     *
+     * @throws Exception  if an error occurs
+     */
+    public static void main(String[] args) {
         Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408).usePlaintext().build();
 
         HealthGrpc.HealthBlockingStub health = HealthGrpc.newBlockingStub(channel);

@@ -31,6 +31,11 @@
     <artifactId>helidon-grpc-server</artifactId>
     <name>Helidon gRPC Server</name>
 
+    <properties>
+        <version.zipkin-junit>2.12.5</version.zipkin-junit>
+        <version.junit.vintage>5.4.0</version.junit.vintage>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.helidon.grpc</groupId>
@@ -125,6 +130,21 @@
             <artifactId>javax.activation-api</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.zipkin.zipkin2</groupId>
+            <artifactId>zipkin-junit</artifactId>
+            <version>${version.zipkin-junit}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.junit.vintage</groupId>
+            <artifactId>junit-vintage-engine</artifactId>
+            <version>${version.junit.vintage}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Thanks for using https://jar-download.com -->
+
     </dependencies>
 
     <build>

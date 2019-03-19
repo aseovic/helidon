@@ -31,6 +31,11 @@
     <artifactId>helidon-grpc-server</artifactId>
     <name>Helidon gRPC Server</name>
 
+    <properties>
+        <version.zipkin-junit>2.12.5</version.zipkin-junit>
+        <version.lib.bedrock>5.0.11</version.lib.bedrock>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>io.helidon.grpc</groupId>
@@ -125,6 +130,19 @@
             <artifactId>javax.activation-api</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>io.zipkin.zipkin2</groupId>
+            <artifactId>zipkin-junit</artifactId>
+            <version>${version.lib.zipkin.junit}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.oracle.bedrock</groupId>
+            <artifactId>bedrock-testing-support</artifactId>
+            <version>${version.lib.bedrock}</version>
+        </dependency>
+
+        <!-- Thanks for using https://jar-download.com -->
+
     </dependencies>
 
     <build>

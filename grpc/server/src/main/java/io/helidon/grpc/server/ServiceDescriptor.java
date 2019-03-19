@@ -38,7 +38,6 @@ import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.stub.ServerCalls;
 import org.eclipse.microprofile.health.HealthCheck;
-import org.eclipse.microprofile.health.HealthCheckResponse;
 import org.eclipse.microprofile.metrics.MetricType;
 
 /**
@@ -575,33 +574,6 @@ public class ServiceDescriptor {
             }
 
             return sb.toString();
-        }
-
-        // ---- inner class: ConstantHealthCheck ----------------------------
-
-        /**
-         * Simple {@link org.eclipse.microprofile.health.HealthCheck} implementation
-         * that always returns the same response.
-         */
-        private static class ConstantHealthCheck implements HealthCheck {
-            private final HealthCheckResponse response;
-
-            private ConstantHealthCheck(HealthCheckResponse response) {
-                this.response = response;
-            }
-
-            static HealthCheck up(String name) {
-                return new ConstantHealthCheck(HealthCheckResponse.named(name).up().build());
-            }
-
-            static HealthCheck down(String name) {
-                return new ConstantHealthCheck(HealthCheckResponse.named(name).down().build());
-            }
-
-            @Override
-            public HealthCheckResponse call() {
-                return response;
-            }
         }
     }
 }

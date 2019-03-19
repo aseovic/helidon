@@ -16,18 +16,25 @@
 
 package io.helidon.grpc.server;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionStage;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
+import java.util.function.Consumer;
+import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.CoreMatchers.is;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * @author Jonathan Knight
@@ -59,7 +66,6 @@ public class GrpcServiceTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldCompleteCallUsingCompletionStage() {
         CompletionStage<String>    stage    = CompletableFuture.completedFuture("foo");
         TestStreamObserver<String> observer = new TestStreamObserver<>();
@@ -351,6 +357,157 @@ public class GrpcServiceTest {
         observer.assertError(e -> Objects.equals(e.getCause(), error))
             .assertValueCount(0)
             .assertNotComplete();
+    }
+
+
+    @Test
+    public void shouldStream() {
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+        List<String> list     = Arrays.asList("One", "Two", "Three");
+
+        service.stream(observer, list.stream());
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertComplete()
+                .assertValueCount(3)
+                .assertValues("One", "Two", "Three");
+    }
+
+    @Test
+    public void shouldStreamAsync() {
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+        List<String>               list     = Arrays.asList("One", "Two", "Three");
+
+        service.streamAsync(observer, list.stream(), EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertComplete()
+                .assertValueCount(3)
+                .assertValues("One", "Two", "Three");
+    }
+
+    @Test
+    public void shouldStreamFromSupplier() {
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+        List<String>               list     = Arrays.asList("One", "Two", "Three");
+
+        service.stream(observer, list::stream);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertComplete()
+                .assertValueCount(3)
+                .assertValues("One", "Two", "Three");
+    }
+
+    @Test
+    public void shouldStreamAsyncFromSupplier() {
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+        List<String>               list     = Arrays.asList("One", "Two", "Three");
+
+        service.streamAsync(observer, list::stream, EXECUTOR);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertComplete()
+                .assertValueCount(3)
+                .assertValues("One", "Two", "Three");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldStreamFromSupplierHandlingError() {
+        RuntimeException                   error    = new RuntimeException("Oops!");
+        Supplier<Stream<? extends String>> supplier = mock(Supplier.class);
+        TestStreamObserver<String>         observer = new TestStreamObserver<>();
+        GrpcService                        service  = new GrpcServiceStub();
+
+        when(supplier.get()).thenThrow(error);
+
+        service.stream(observer, supplier);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertError(e -> Objects.equals(e, error))
+                .assertValueCount(0)
+                .assertNotComplete();
+    }
+
+    @Test
+    public void shouldStreamUsingCompletionStage() {
+        CompletableFuture<Void>    future   = new CompletableFuture<>();
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+        Consumer<String> consumer = service.stream(observer, future);
+
+        consumer.accept("One");
+        consumer.accept("Two");
+        consumer.accept("Three");
+        future.complete(null);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertComplete()
+                .assertValueCount(3)
+                .assertValues("One", "Two", "Three");
+    }
+
+    @Test
+    public void shouldStreamAsyncUsingCompletionStage() {
+        CompletableFuture<Void>    future   = new CompletableFuture<>();
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+        Consumer<String>           consumer = service.streamAsync(observer, future);
+
+        consumer.accept("One");
+        consumer.accept("Two");
+        consumer.accept("Three");
+
+        observer.awaitCount(3);
+
+        future.complete(null);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertComplete()
+                .assertValueCount(3);
+
+        assertThat(observer.values(), containsInAnyOrder("One", "Two", "Three"));
+    }
+
+    @Test
+    public void shouldStreamAsyncWithExecutorUsingCompletionStage() {
+        CompletableFuture<Void>    future   = new CompletableFuture<>();
+        TestStreamObserver<String> observer = new TestStreamObserver<>();
+        GrpcService                service  = new GrpcServiceStub();
+        Consumer<String>           consumer = service.streamAsync(observer, future, EXECUTOR);
+
+        consumer.accept("One");
+        consumer.accept("Two");
+        consumer.accept("Three");
+        observer.awaitCount(3);
+
+        future.complete(null);
+
+        assertThat(observer.awaitTerminalEvent(), is(true));
+
+        observer.assertNoErrors()
+                .assertComplete()
+                .assertValueCount(3);
+
+        assertThat(observer.values(), containsInAnyOrder("One", "Two", "Three"));
     }
 
 

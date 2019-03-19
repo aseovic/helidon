@@ -16,6 +16,7 @@
 
 package io.helidon.grpc.server;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 
@@ -36,20 +37,19 @@ public class ContextSettingServerInterceptor
         implements ServerInterceptor {
 
     /**
-     * The {@link Map} of {@link Context.Key}s and values to set into the call {@link io.grpc.Context}.
+     * The {@link ServiceDescriptor} for the service being intercepted.
      */
-    private final Map<Context.Key<?>, Object> contextMap;
+    private final ServiceDescriptor serviceDescriptor;
 
     /**
      * Create a {@link ContextSettingServerInterceptor}.
      *
-     * @param contextMap  the {@link Map} of {@link Context.Key}s and values to set
-     *                    into the call {@link io.grpc.Context}
+     * @param serviceDescriptor  the {@link ServiceDescriptor} for the service being intercepted
      *
-     * @throws java.lang.NullPointerException  if the {@code contextMap} parameter is {@code null}
+     * @throws java.lang.NullPointerException  if the {@code serviceDescriptor} parameter is {@code null}
      */
-    public ContextSettingServerInterceptor(Map<Context.Key<?>, Object> contextMap) {
-        this.contextMap = Objects.requireNonNull(contextMap, "The contextMap parameter cannot be null");
+    public ContextSettingServerInterceptor(ServiceDescriptor serviceDescriptor) {
+        this.serviceDescriptor = Objects.requireNonNull(serviceDescriptor, "The serviceDescriptor parameter cannot be null");
     }
 
     @Override
@@ -57,17 +57,23 @@ public class ContextSettingServerInterceptor
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call,
                                                                  Metadata headers,
                                                                  ServerCallHandler<ReqT, RespT> next) {
-        if (contextMap.isEmpty()) {
-            return next.startCall(call, headers);
-        } else {
-            Context context = Context.current();
 
+        Context context = Context.current();
+        String fullMethodName = call.getMethodDescriptor().getFullMethodName();
+        String methodName = ServiceDescriptor.Builder.extractMethodName(fullMethodName);
+        MethodDescriptor methodDescriptor = serviceDescriptor.method(methodName);
+        Map<Context.Key<?>, Object> contextMap = new HashMap<>();
+
+        contextMap.putAll(serviceDescriptor.context());
+        contextMap.putAll(methodDescriptor.context());
+
+        if (!contextMap.isEmpty()) {
             for (Map.Entry<Context.Key<?>, Object> entry : contextMap.entrySet()) {
                 Context.Key<Object> key = (Context.Key<Object>) entry.getKey();
                 context = context.withValue(key, entry.getValue());
             }
-
-            return Contexts.interceptCall(context, call, headers, next);
         }
+
+        return Contexts.interceptCall(context, call, headers, next);
     }
 }

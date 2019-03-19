@@ -53,7 +53,6 @@ import io.opentracing.contrib.grpc.OpenTracingContextKey;
  * <ul>
  * <li>{@link #create(Security)}</li>
  * <li>{@link #create(Config)}</li>
- * <li>{@link #create(Security, Config)}</li>
  * </ul>
  * <p>
  * Example:
@@ -107,7 +106,7 @@ public final class GrpcSecurity
      * The SecurityContext gRPC metadata header key.
      */
     public static final Context.Key<SecurityContext> SECURITY_CONTEXT =
-            Context.key("SecurityContext");
+            Context.key("Helidon.SecurityContext");
 
     /**
      * The default security interceptor gRPC metadata header key.
@@ -118,16 +117,14 @@ public final class GrpcSecurity
     private static final AtomicInteger SECURITY_COUNTER = new AtomicInteger();
 
     private final Security security;
-    private final Config config;
     private final GrpcSecurityHandler defaultHandler;
 
-    private GrpcSecurity(Security security, Config config) {
-        this(security, config, GrpcSecurityHandler.create());
+    private GrpcSecurity(Security security) {
+        this(security, GrpcSecurityHandler.create());
     }
 
-    private GrpcSecurity(Security security, Config config, GrpcSecurityHandler defaultHandler) {
+    private GrpcSecurity(Security security, GrpcSecurityHandler defaultHandler) {
         this.security = security;
-        this.config = config;
         this.defaultHandler = defaultHandler;
     }
 
@@ -145,7 +142,7 @@ public final class GrpcSecurity
      * @return routing config consumer
      */
     public static GrpcSecurity create(Security security) {
-        return new GrpcSecurity(security, null);
+        return new GrpcSecurity(security);
     }
 
     /**
@@ -158,20 +155,7 @@ public final class GrpcSecurity
      */
     public static GrpcSecurity create(Config config) {
         Security security = Security.create(config);
-        return create(security, config);
-    }
-
-    /**
-     * Create a consumer of routing config to be {@link GrpcRouting.Builder#register(GrpcService) registered} with
-     * web server routing to process security requests.
-     * This method expects initialized security and creates web server integration from a config instance
-     *
-     * @param security Security instance to use
-     * @param config   Config instance to load security and web server integration from configuration
-     * @return routing config consumer
-     */
-    public static GrpcSecurity create(Security security, Config config) {
-        return new GrpcSecurity(security, config);
+        return create(security);
     }
 
     /**
@@ -335,7 +319,7 @@ public final class GrpcSecurity
      */
     public GrpcSecurity securityDefaults(GrpcSecurityHandler defaultHandler) {
         Objects.requireNonNull(defaultHandler, "Default security handler must not be null");
-        return new GrpcSecurity(security, config, defaultHandler);
+        return new GrpcSecurity(security);
     }
 
     @Override
@@ -403,5 +387,23 @@ public final class GrpcSecurity
         }
 
         return grpcContext;
+    }
+
+    /**
+     * Obtain the {@link Security} instance being used.
+     *
+     * @return  the {@link Security} instance being used
+     */
+    Security getSecurity() {
+        return security;
+    }
+
+    /**
+     * Obtain the default {@link GrpcSecurityHandler}.
+     *
+     * @return  the default {@link GrpcSecurityHandler}
+     */
+    GrpcSecurityHandler getDefaultHandler() {
+        return defaultHandler;
     }
 }

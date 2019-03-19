@@ -20,34 +20,67 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.grpc.Status;
 import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
+import io.grpc.services.HealthStatusManager;
 import io.grpc.stub.StreamObserver;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.health.HealthCheckResponse.State;
 
 /**
+ * An implementation of the {@link HealthGrpc} service.
+ *
  * @author Aleksandar Seovic
  */
 class HealthServiceImpl
         extends HealthGrpc.HealthImplBase {
-    private Map<String, HealthCheck> mapHealthChecks = new ConcurrentHashMap<>();
 
+    /**
+     * A map of {@link HealthCheck}s keyed by service name.
+     */
+    private final Map<String, HealthCheck> mapHealthChecks = new ConcurrentHashMap<>();
+
+    /**
+     * Create a {@link HealthServiceImpl}.
+     */
+    HealthServiceImpl() {
+        // register the empty service name to represent the global health check
+        // see: https://github.com/grpc/grpc/blob/master/doc/health-checking.md
+        mapHealthChecks.put(HealthStatusManager.SERVICE_NAME_ALL_SERVICES,
+                            ConstantHealthCheck.up(HealthStatusManager.SERVICE_NAME_ALL_SERVICES));
+    }
+
+    /**
+     * Add a {@link HealthCheck}.
+     * @param name         the name of the service that the health check is for
+     * @param healthCheck  the {@link HealthCheck} implementation
+     */
     void add(String name, HealthCheck healthCheck) {
         mapHealthChecks.put(name, healthCheck);
     }
 
+    /**
+     * Obtain the collection of registered {@link HealthCheck}s.
+     *
+     * @return  the collection of registered {@link HealthCheck}s
+     */
     Collection<HealthCheck> healthChecks() {
         return mapHealthChecks.values();
     }
 
+    @Override
     public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> responseObserver) {
         String service = request.getService();
         HealthCheck check = mapHealthChecks.get(service);
+
         if (check == null) {
-            responseObserver.onNext(toHealthCheckResponse(HealthCheckResponse.ServingStatus.SERVICE_UNKNOWN));
-            responseObserver.onCompleted();
+            // If no health check is registered for the requested service then respond with a not found error.
+            // See method comments:
+            // https://github.com/grpc/grpc-java/blob/7df2d5feebf8bc5ecfcea3edba290db500382dcf/services/src/generated/main/grpc/io/grpc/health/v1/HealthGrpc.java#L149
+            String message = "Service '" + service + "' does not exist or does not have a registered health check";
+            responseObserver.onError(Status.NOT_FOUND.withDescription(message).asException());
         } else {
             responseObserver.onNext(toHealthCheckResponse(check.call()));
             responseObserver.onCompleted();

@@ -16,6 +16,7 @@
 
 package io.helidon.grpc.server;
 
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import io.helidon.metrics.RegistryFactory;
@@ -37,7 +38,7 @@ import org.eclipse.microprofile.metrics.Timer;
  * A {@link io.grpc.ServerInterceptor} that enables capturing of gRPC call metrics.
  */
 public class GrpcMetrics
-        implements ServerInterceptor {
+        implements ServerInterceptor, ServiceDescriptorAware {
 
     /**
      * The registry of vendor metrics.
@@ -55,6 +56,11 @@ public class GrpcMetrics
      * The type of metrics to be captured.
      */
     private MetricType type;
+
+    /**
+     * Service descriptor.
+     */
+    private ServiceDescriptor serviceDescriptor;
 
     /**
      * Create a {@link GrpcMetrics}.
@@ -106,26 +112,43 @@ public class GrpcMetrics
     }
 
     @Override
+    public void setServiceDescriptor(ServiceDescriptor descriptor) {
+        this.serviceDescriptor = descriptor;
+    }
+
+    @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call,
                                                                  Metadata headers,
                                                                  ServerCallHandler<ReqT, RespT> next) {
 
-        String name = call.getMethodDescriptor().getFullMethodName().replace('/', '.');
+        String fullMethodName = call.getMethodDescriptor().getFullMethodName();
+        String methodName = ServiceDescriptor.Builder.extractMethodName(fullMethodName);
+        String metricName = fullMethodName.replace('/', '.');
 
         ServerCall<ReqT, RespT> serverCall;
+        MetricType type = this.type;
+
+        if (serviceDescriptor != null) {
+            type = Optional.ofNullable(serviceDescriptor.metricType()).orElse(type);
+
+            MethodDescriptor method = serviceDescriptor.method(methodName);
+            if (method != null) {
+                type = Optional.ofNullable(method.metricType()).orElse(type);
+            }
+        }
 
         switch (type) {
             case COUNTER:
-                serverCall = new CountedServerCall<>(APP_REGISTRY.counter(name), call);
+                serverCall = new CountedServerCall<>(APP_REGISTRY.counter(metricName), call);
                 break;
             case METERED:
-                serverCall = new MeteredServerCall<>(APP_REGISTRY.meter(name), call);
+                serverCall = new MeteredServerCall<>(APP_REGISTRY.meter(metricName), call);
                 break;
             case HISTOGRAM:
-                serverCall = new HistogramServerCall<>(APP_REGISTRY.histogram(name), call);
+                serverCall = new HistogramServerCall<>(APP_REGISTRY.histogram(metricName), call);
                 break;
             case TIMER:
-                serverCall = new TimedServerCall<>(APP_REGISTRY.timer(name), call);
+                serverCall = new TimedServerCall<>(APP_REGISTRY.timer(metricName), call);
                 break;
             case GAUGE:
             case INVALID:

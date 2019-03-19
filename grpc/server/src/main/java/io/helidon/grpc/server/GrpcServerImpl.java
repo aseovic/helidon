@@ -278,7 +278,12 @@ public class GrpcServerImpl implements GrpcServer {
         String serviceName = ssd.getServiceDescriptor().getName();
 
         List<ServerInterceptor> interceptors = new ArrayList<>(globalInterceptors);
-        interceptors.addAll(serviceDescriptor.interceptors());
+        for (ServerInterceptor serviceInterceptor : serviceDescriptor.interceptors()) {
+            if (serviceInterceptor instanceof ServiceDescriptorAware) {
+                ((ServiceDescriptorAware) serviceInterceptor).setServiceDescriptor(serviceDescriptor);
+            }
+            interceptors.add(serviceInterceptor);
+        }
 
         for (int i = interceptors.size() - 1; i >= 0; i--) {
             ssd = ServerInterceptors.intercept(ssd, interceptors.get(i));

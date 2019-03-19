@@ -478,7 +478,7 @@ public class ServiceDescriptor {
 
         // ---- helpers -----------------------------------------------------
 
-        private static String extractMethodName(String fullMethodName) {
+        static String extractMethodName(String fullMethodName) {
             int index = fullMethodName.lastIndexOf('/');
             return index == -1 ? fullMethodName : fullMethodName.substring(index + 1);
         }

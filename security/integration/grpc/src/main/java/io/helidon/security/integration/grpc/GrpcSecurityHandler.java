@@ -18,6 +18,7 @@ package io.helidon.security.integration.grpc;
 
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -33,6 +34,7 @@ import java.util.logging.Logger;
 import io.helidon.common.CollectionsHelper;
 import io.helidon.common.OptionalHelper;
 import io.helidon.config.Config;
+import io.helidon.grpc.server.MethodDescriptor;
 import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.security.AuditEvent;
 import io.helidon.security.AuthenticationResponse;
@@ -59,8 +61,8 @@ import io.opentracing.tag.Tags;
 import static io.helidon.security.AuditEvent.AuditParam.plain;
 
 /**
- * Handles security for web server. This handler is registered either by hand on router config,
- * or automatically from configuration when integration done through {@link GrpcSecurity#create(Config)}
+ * Handles security for the gRPC server. This handler is registered either by hand on the gRPC routing config,
+ * or automatically from configuration when integration is done through {@link GrpcSecurity#create(Config)}
  * or {@link GrpcSecurity#create(Security, Config)}.
  */
 // we need to have all fields optional and this is cleaner than checking for null
@@ -278,9 +280,23 @@ public final class GrpcSecurityHandler
         span.finish();
     }
 
+    /**
+     * Modifies a {@link ServiceDescriptor.Config} to add this {@link GrpcSecurityHandler}.
+     *
+     * @param config  the {@link ServiceDescriptor.Config} to modify
+     */
     @Override
-    public void accept(ServiceDescriptor.Config serviceConfig) {
-        serviceConfig.addContextValue(GrpcSecurity.GRPC_SECURITY_INTERCEPTOR, this);
+    public void accept(ServiceDescriptor.Config config) {
+        config.addContextValue(GrpcSecurity.GRPC_SECURITY_INTERCEPTOR, this);
+    }
+
+    /**
+     * Modifies a {@link MethodDescriptor.Config} to add this {@link GrpcSecurityHandler}.
+     *
+     * @param config  the {@link MethodDescriptor.Config} to modify
+     */
+    //@Override
+    public void accept(MethodDescriptor.Config config) {
     }
 
     @Override
@@ -749,6 +765,96 @@ public final class GrpcSecurityHandler
      */
     public GrpcSecurityHandler skipAudit() {
         return builder(this).audit(false).build();
+    }
+
+    /**
+     * Obtain the roles allowed for this {@link GrpcSecurityHandler}.
+     *
+     * @return  an {@link Optional} containing the the roles allowed for
+     *          this {@link GrpcSecurityHandler} if any have been configured
+     */
+    Optional<Set<String>> getRolesAllowed() {
+        return rolesAllowed.map(Collections::unmodifiableSet);
+    }
+
+    /**
+     * Obtain the explicit authenticator for this {@link GrpcSecurityHandler}.
+     *
+     * @return  an {@link Optional} containing the the explicit authenticator for
+     *          this {@link GrpcSecurityHandler} if any have been configured
+     */
+    Optional<String> getExplicitAuthenticator() {
+        return explicitAuthenticator;
+    }
+
+    /**
+     * Obtain the explicit authorizer for this {@link GrpcSecurityHandler}.
+     *
+     * @return  an {@link Optional} containing the the explicit authorizer for
+     *          this {@link GrpcSecurityHandler} if any have been configured
+     */
+    Optional<String> getExplicitAuthorizer() {
+        return explicitAuthorizer;
+    }
+
+    /**
+     * Obtain whether this {@link GrpcSecurityHandler} performs authentication.
+     *
+     * @return  an {@link Optional} containing {@code true} if  this
+     *          {@link GrpcSecurityHandler} performs authentication
+     */
+    Optional<Boolean> isAuthenticate() {
+        return authenticate;
+    }
+
+    /**
+     * Obtain whether this {@link GrpcSecurityHandler} allows anonymous access.
+     *
+     * @return  an {@link Optional} containing {@code true} if  this
+     *          {@link GrpcSecurityHandler} allows anonymous access
+     */
+    Optional<Boolean> isAuthenticationOptional() {
+        return authenticationOptional;
+    }
+
+    /**
+     * Obtain whether this {@link GrpcSecurityHandler} performs authorization.
+     *
+     * @return  an {@link Optional} containing {@code true} if  this
+     *          {@link GrpcSecurityHandler} performs authorization
+     */
+    Optional<Boolean> isAuthorize() {
+        return authorize;
+    }
+
+    /**
+     * Obtain whether this {@link GrpcSecurityHandler} audits security operations.
+     *
+     * @return  an {@link Optional} containing {@code true} if  this
+     *          {@link GrpcSecurityHandler} audits security operations
+     */
+    Optional<Boolean> isAudited() {
+        return audited;
+    }
+
+    /**
+     * Obtain the audit event type override.
+     *
+     * @return  an {@link Optional} containing the audit event type
+     *          override if one has been set
+     */
+    Optional<String> getAuditEventType() {
+        return auditEventType;
+    }
+
+    /**
+     * Obtain the audit message format override.
+     *
+     * @return  an {@link Optional} containing the audit message format
+     *          override if one has been set
+     */
+    Optional<String> getAuditMessageFormat() {
+        return auditMessageFormat;
     }
 
     private static final class AtxResult {

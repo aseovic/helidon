@@ -17,14 +17,11 @@
 package io.helidon.grpc.server;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
-import io.grpc.Context;
 import io.grpc.ServerInterceptor;
 import io.opentracing.Tracer;
 import org.eclipse.microprofile.health.HealthCheck;
@@ -284,16 +281,12 @@ public interface GrpcServer {
 
             for (ServiceDescriptor service : routing.services()) {
                 List<ServerInterceptor> interceptors = new ArrayList<>();
-                Map<Context.Key<?>, Object> contextMap = new HashMap<>(service.context());
 
                 if (tracingInterceptor != null) {
                     interceptors.add(tracingInterceptor);
                 }
 
-                if (contextMap.size() > 0) {
-                    interceptors.add(new ContextSettingServerInterceptor(contextMap));
-                }
-
+                interceptors.add(new ContextSettingServerInterceptor(service));
                 interceptors.addAll(routing.interceptors());
 
                 server.deploy(service, interceptors);

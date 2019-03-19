@@ -16,6 +16,12 @@
 
 package io.helidon.grpc.server;
 
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Objects;
+
+import io.grpc.Context;
 import io.grpc.ServerCallHandler;
 import org.eclipse.microprofile.metrics.MetricType;
 
@@ -32,15 +38,18 @@ public class MethodDescriptor<ReqT, ResT> {
     private final io.grpc.MethodDescriptor<ReqT, ResT> descriptor;
     private final ServerCallHandler<ReqT, ResT> callHandler;
     private final MetricType metricType;
+    private final Map<Context.Key, Object> context;
 
     private MethodDescriptor(String name,
                      io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                      ServerCallHandler<ReqT, ResT> callHandler,
-                     MetricType metricType) {
+                     MetricType metricType,
+                     Map<Context.Key, Object> context) {
         this.name = name;
         this.descriptor = descriptor;
         this.callHandler = callHandler;
         this.metricType = metricType;
+        this.context = context;
     }
 
     /**
@@ -73,6 +82,17 @@ public class MethodDescriptor<ReqT, ResT> {
      */
     public MetricType metricType() {
         return metricType;
+    }
+
+    /**
+     * Obtain the {@link Map} of {@link Context.Key}s and values to add to the
+     * call context when this method is invoked.
+     *
+     * @return  an unmodifiable {@link Map} of {@link Context.Key}s and values to
+     *          add to the call context when this method is invoked
+     */
+    public Map<Context.Key, Object> context() {
+        return Collections.unmodifiableMap(context);
     }
 
     static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
@@ -128,6 +148,20 @@ public class MethodDescriptor<ReqT, ResT> {
          * @return this {@link Config} instance for fluent call chaining
          */
         Config<ReqT, ResT> disableMetrics();
+
+        /**
+         * Add a {@link Context.Key} and value to be added to the call {@link io.grpc.Context}
+         * when this method is invoked.
+         *
+         * @param key    the {@link Context.Key} to add
+         * @param value  the value to map to the {@link Context.Key}
+         * @param <T>    the type of the {@link Context.Key} and value
+         *
+         * @return this {@link Config} instance for fluent call chaining
+         *
+         * @throws java.lang.NullPointerException if the key parameter is null
+         */
+        <T> Config<ReqT, ResT>  addContextKey(Context.Key<T> key, T value);
     }
 
     /**
@@ -141,6 +175,8 @@ public class MethodDescriptor<ReqT, ResT> {
         private final io.grpc.MethodDescriptor<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;
 
+        private final Map<Context.Key, Object> context = new HashMap<>();
+
         private MetricType metricType;
 
         Builder(String name,
@@ -151,22 +187,27 @@ public class MethodDescriptor<ReqT, ResT> {
             this.callHandler = callHandler;
         }
 
+        @Override
         public Builder<ReqT, ResT> counted() {
             return metricType(MetricType.COUNTER);
         }
 
+        @Override
         public Builder<ReqT, ResT> metered() {
             return metricType(MetricType.METERED);
         }
 
+        @Override
         public Builder<ReqT, ResT> histogram() {
             return metricType(MetricType.HISTOGRAM);
         }
 
+        @Override
         public Builder<ReqT, ResT> timed() {
             return metricType(MetricType.TIMER);
         }
 
+        @Override
         public Builder<ReqT, ResT> disableMetrics() {
             return metricType(MetricType.INVALID);
         }
@@ -177,8 +218,14 @@ public class MethodDescriptor<ReqT, ResT> {
         }
 
         @Override
+        public <T> Builder<ReqT, ResT> addContextKey(Context.Key<T> key, T value) {
+            context.put(Objects.requireNonNull(key, "The context key cannot be null"), value);
+            return this;
+        }
+
+        @Override
         public MethodDescriptor<ReqT, ResT> build() {
-            return new MethodDescriptor<>(name, descriptor, callHandler, metricType);
+            return new MethodDescriptor<>(name, descriptor, callHandler, metricType, context);
         }
     }
 }

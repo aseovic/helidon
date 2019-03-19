@@ -25,6 +25,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import io.helidon.grpc.core.SafeStreamObserver;
+
 import io.grpc.stub.StreamObserver;
 
 import static io.helidon.grpc.server.BindableServiceImpl.completeWithResult;
@@ -69,12 +71,9 @@ public interface GrpcService {
      * @param <T>       they type of the request result
      */
     default <T> void complete(StreamObserver<T> observer, T value) {
-        try {
-            observer.onNext(value);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
-        observer.onCompleted();
+        StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
+        safe.onNext(value);
+        safe.onCompleted();
     }
 
     /**
@@ -300,18 +299,19 @@ public interface GrpcService {
      * @param <T>       they type of the request result
      */
     default <T> void stream(StreamObserver<T> observer, Supplier<Stream<? extends T>> supplier) {
+        StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
         Throwable thrown = null;
 
         try {
-            supplier.get().forEach(observer::onNext);
+            supplier.get().forEach(safe::onNext);
         } catch (Throwable t) {
             thrown = t;
         }
 
         if (thrown == null) {
-            observer.onCompleted();
+            safe.onCompleted();
         } else {
-            observer.onError(thrown);
+            safe.onError(thrown);
         }
     }
 
@@ -347,8 +347,9 @@ public interface GrpcService {
      */
     // todo: a bit of a chicken or egg when used with Coherence streaming methods, isn't it?
     default <T> Consumer<T> stream(StreamObserver<T> observer, CompletionStage<Void> stage) {
-        stage.whenComplete(completeWithoutResult(observer));
-        return observer::onNext;
+        StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
+        stage.whenComplete(completeWithoutResult(safe));
+        return safe::onNext;
     }
 
     /**
@@ -366,8 +367,9 @@ public interface GrpcService {
      * @return a {@link Consumer} that can be used to send values to the {@link StreamObserver#onNext(Object)} method
      */
     default <T> Consumer<T> streamAsync(StreamObserver<T> observer, CompletionStage<Void> stage) {
-        stage.whenCompleteAsync(completeWithoutResult(observer));
-        return value -> CompletableFuture.runAsync(() -> observer.onNext(value));
+        StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
+        stage.whenCompleteAsync(completeWithoutResult(safe));
+        return value -> CompletableFuture.runAsync(() -> safe.onNext(value));
     }
 
     /**
@@ -387,7 +389,8 @@ public interface GrpcService {
      * @return a {@link Consumer} that can be used to send values to the {@link StreamObserver#onNext(Object)} method
      */
     default <T> Consumer<T> streamAsync(StreamObserver<T> observer, CompletionStage<Void> stage, Executor executor) {
-        stage.whenCompleteAsync(completeWithoutResult(observer), executor);
-        return value -> CompletableFuture.runAsync(() -> observer.onNext(value), executor);
+        StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
+        stage.whenCompleteAsync(completeWithoutResult(safe), executor);
+        return value -> CompletableFuture.runAsync(() -> safe.onNext(value), executor);
     }
 }

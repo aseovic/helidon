@@ -22,6 +22,7 @@ import java.util.stream.Stream;
 import io.helidon.grpc.examples.common.Strings.StringMessage;
 import io.helidon.grpc.server.CollectingObserver;
 import io.helidon.grpc.server.GrpcService;
+import io.helidon.grpc.server.ServiceDescriptor;
 
 import io.grpc.stub.StreamObserver;
 
@@ -31,8 +32,8 @@ import io.grpc.stub.StreamObserver;
 public class StringService
         implements GrpcService {
     @Override
-    public void update(Methods methods) {
-        methods.descriptor(Strings.getDescriptor())
+    public void update(ServiceDescriptor.Config config) {
+        config.proto(Strings.getDescriptor())
                 .unary("Upper", this::upper)
                 .unary("Lower", this::lower)
                 .serverStreaming("Split", this::split)

@@ -44,20 +44,6 @@ public class GrpcServiceTest {
     }
 
     @Test
-    public void shouldHaveNullService()  {
-        GrpcService service  = new GrpcServiceStub();
-
-        assertThat(service.bindService(), is(nullValue()));
-    }
-
-    @Test
-    public void shouldHaveNullHealthChecks()  {
-        GrpcService service  = new GrpcServiceStub();
-
-        assertThat(service.hc(), is(nullValue()));
-    }
-
-    @Test
     public void shouldCompleteCall() {
         TestStreamObserver<String> observer = new TestStreamObserver<>();
         GrpcService                service  = new GrpcServiceStub();
@@ -371,7 +357,7 @@ public class GrpcServiceTest {
     private class GrpcServiceStub
             implements GrpcService {
         @Override
-        public void update(Methods methods) {
+        public void update(ServiceDescriptor.Config config) {
         }
     }
 }

@@ -21,47 +21,38 @@ import java.util.concurrent.CompletionException;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import io.grpc.BindableService;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.stub.StreamObserver;
-import org.eclipse.microprofile.health.HealthCheck;
 
 /**
- * A {@link GrpcService} implementation.
+ * A {@link io.grpc.BindableService} implementation that creates {@link io.grpc.ServerServiceDefinition}
+ * from a {@link ServiceDescriptor}.
  *
  * @author Aleksandar Seovic
  */
-class GrpcServiceImpl
-        implements GrpcService {
-
+class BindableServiceImpl implements BindableService {
     /**
-     * The definition of this service.
+     * The descriptor of this service.
      */
-    private final ServerServiceDefinition serviceDefinition;
+    private final ServiceDescriptor descriptor;
 
-    /**
-     * This service's {@link HealthCheck}.
-     */
-    private final HealthCheck healthCheck;
-
-    GrpcServiceImpl(ServerServiceDefinition serviceDefinition, HealthCheck healthCheck) {
-        this.serviceDefinition = serviceDefinition;
-        this.healthCheck = healthCheck;
+    BindableServiceImpl(ServiceDescriptor descriptor) {
+        this.descriptor = descriptor;
     }
 
+    // ---- BindableService implementation ----------------------------------
+
+    @SuppressWarnings("unchecked")
     @Override
     public ServerServiceDefinition bindService() {
-        return serviceDefinition;
+        ServerServiceDefinition.Builder builder = ServerServiceDefinition.builder(descriptor.name());
+        descriptor.methods()
+                .forEach(method -> builder.addMethod(method.descriptor(), method.callHandler()));
+        return builder.build();
     }
 
-    @Override
-    public void update(Methods methods) {
-        // no-op
-    }
-
-    @Override
-    public HealthCheck hc() {
-        return healthCheck;
-    }
+    // ---- helpers ---------------------------------------------------------
 
     static <T> Supplier<T> createSupplier(Callable<T> callable) {
         return new CallableSupplier<>(callable);

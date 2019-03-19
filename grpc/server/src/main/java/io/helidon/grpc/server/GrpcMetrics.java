@@ -105,16 +105,6 @@ public class GrpcMetrics
         return new GrpcMetrics(MetricType.TIMER);
     }
 
-    /**
-     * A static factory method to create a {@link GrpcMetrics} instance
-     * that only tracks vendor metrics.
-     *
-     * @return a {@link GrpcMetrics} instance that only tracks vendor metrics
-     */
-    public static GrpcMetrics vendorOnly() {
-        return new GrpcMetrics(MetricType.INVALID);
-    }
-
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call,
                                                                  Metadata headers,

@@ -17,6 +17,7 @@
 package io.helidon.grpc.server;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -281,9 +282,9 @@ public interface GrpcServer {
                 tracingInterceptor = new GrpcTracing(tracer, tracingConfig);
             }
 
-            for (GrpcService.ServiceConfig cfg : routing.services()) {
+            for (ServiceDescriptor service : routing.services()) {
                 List<ServerInterceptor> interceptors = new ArrayList<>();
-                Map<Context.Key<?>, Object> contextMap = cfg.context();
+                Map<Context.Key<?>, Object> contextMap = new HashMap<>(service.context());
 
                 if (tracingInterceptor != null) {
                     interceptors.add(tracingInterceptor);
@@ -295,9 +296,7 @@ public interface GrpcServer {
 
                 interceptors.addAll(routing.interceptors());
 
-                interceptors.addAll(cfg.interceptors());
-
-                server.deploy(cfg, interceptors);
+                server.deploy(service, interceptors);
             }
 
             return server;

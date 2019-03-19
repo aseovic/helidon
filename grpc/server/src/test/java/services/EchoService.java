@@ -17,6 +17,7 @@
 package services;
 
 import io.helidon.grpc.server.GrpcService;
+import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.grpc.server.test.Echo;
 
 import io.grpc.stub.StreamObserver;
@@ -30,9 +31,9 @@ public class EchoService
         implements GrpcService {
 
     @Override
-    public void update(Methods methods) {
-        methods.descriptor(Echo.getDescriptor())
-               .unary("Echo", this::echo);
+    public void update(ServiceDescriptor.Config config) {
+        config.proto(Echo.getDescriptor())
+                .unary("Echo", this::echo);
     }
 
     /**

@@ -31,9 +31,9 @@ public class GrpcRoutingImpl
         implements GrpcRouting {
 
     /**
-     * The {@link List} of registered {@link GrpcService.ServiceConfig} instances.
+     * The {@link List} of registered {@link ServiceDescriptor} instances.
      */
-    private List<GrpcService.ServiceConfig> services;
+    private List<ServiceDescriptor> services;
 
     /**
      * The {@link List} of the global {@link io.grpc.ServerInterceptor}s that should
@@ -44,17 +44,17 @@ public class GrpcRoutingImpl
     /**
      * Create a {@link GrpcRoutingImpl}.
      *
-     * @param services      the {@link List} of registered {@link GrpcService.ServiceConfig} instances
+     * @param services      the {@link List} of registered {@link ServiceDescriptor} instances
      * @param interceptors  the {@link List} of the global {@link io.grpc.ServerInterceptor}s that should
      *                      be applied to all services
      */
-    GrpcRoutingImpl(List<GrpcService.ServiceConfig> services, List<ServerInterceptor> interceptors) {
+    GrpcRoutingImpl(List<ServiceDescriptor> services, List<ServerInterceptor> interceptors) {
         this.services = new ArrayList<>(Objects.requireNonNull(services));
         this.interceptors = new ArrayList<>(Objects.requireNonNull(interceptors));
     }
 
     @Override
-    public List<GrpcService.ServiceConfig> services() {
+    public List<ServiceDescriptor> services() {
         return services;
     }
 

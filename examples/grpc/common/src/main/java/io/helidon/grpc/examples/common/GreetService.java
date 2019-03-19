@@ -24,6 +24,7 @@ import io.helidon.grpc.examples.common.Greet.GreetResponse;
 import io.helidon.grpc.examples.common.Greet.SetGreetingRequest;
 import io.helidon.grpc.examples.common.Greet.SetGreetingResponse;
 import io.helidon.grpc.server.GrpcService;
+import io.helidon.grpc.server.ServiceDescriptor;
 
 import io.grpc.stub.StreamObserver;
 import org.eclipse.microprofile.health.HealthCheckResponse;
@@ -47,9 +48,8 @@ public class GreetService implements GrpcService {
     }
 
     @Override
-    public void update(Methods methods) {
-        methods
-                .descriptor(Greet.getDescriptor())
+    public void update(ServiceDescriptor.Config config) {
+        config.proto(Greet.getDescriptor())
                 .unary("Greet", this::greet)
                 .unary("SetGreeting", this::setGreeting)
                 .healthCheck(this::healthCheck);

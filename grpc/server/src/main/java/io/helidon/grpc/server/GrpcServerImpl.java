@@ -262,23 +262,23 @@ public class GrpcServerImpl implements GrpcServer {
     }
 
     /**
-     * Deploy the specified {@link BindableService} to this {@link GrpcServerImpl}.
+     * Deploy the specified {@link ServiceDescriptor service} to this {@link GrpcServer}.
      *
-     * @param serviceCfg the service to deploy
+     * @param serviceDescriptor the service to deploy
      * @param globalInterceptors the global {@link io.grpc.ServerInterceptor}s to wrap all services with
      *
-     * @throws NullPointerException if {@code serviceCfg} is {@code null}
+     * @throws NullPointerException if {@code serviceDescriptor} is {@code null}
      */
-    public void deploy(GrpcService.ServiceConfig serviceCfg, List<ServerInterceptor> globalInterceptors) {
-        Objects.requireNonNull(serviceCfg);
+    public void deploy(ServiceDescriptor serviceDescriptor, List<ServerInterceptor> globalInterceptors) {
+        Objects.requireNonNull(serviceDescriptor);
 
         String serverName = config.name();
-        BindableService service = serviceCfg.service();
+        BindableService service = serviceDescriptor.bindableService();
         ServerServiceDefinition ssd = service.bindService();
         String serviceName = ssd.getServiceDescriptor().getName();
 
         List<ServerInterceptor> interceptors = new ArrayList<>(globalInterceptors);
-        interceptors.addAll(serviceCfg.interceptors());
+        interceptors.addAll(serviceDescriptor.interceptors());
 
         for (int i = interceptors.size() - 1; i >= 0; i--) {
             ssd = ServerInterceptors.intercept(ssd, interceptors.get(i));
@@ -286,7 +286,7 @@ public class GrpcServerImpl implements GrpcServer {
 
         handlerRegistry.addService(ssd);
         mapServices.put(service.getClass().getName(), ssd);
-        serviceCfg.healthChecks().forEach(healthCheck -> healthService.add(serviceName, healthCheck));
+        healthService.add(serviceName, serviceDescriptor.healthCheck());
 
         LOGGER.info(() -> format("gRPC server [%s]: registered service [%s]",
                                  serverName, serviceName));

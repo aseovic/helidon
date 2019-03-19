@@ -20,6 +20,7 @@ import java.util.Optional;
 
 import io.helidon.config.Config;
 import io.helidon.grpc.server.GrpcService;
+import io.helidon.grpc.server.ServiceDescriptor;
 
 import io.grpc.stub.StreamObserver;
 
@@ -43,8 +44,8 @@ public class GreetServiceJava
     }
 
     @Override
-    public void update(Methods methods) {
-        methods
+    public void update(ServiceDescriptor.Config config) {
+        config
                 .unary("Greet", this::greet)
                 .unary("SetGreeting", this::setGreeting);
     }

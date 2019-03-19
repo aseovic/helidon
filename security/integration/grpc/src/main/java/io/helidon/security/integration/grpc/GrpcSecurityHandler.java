@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 import io.helidon.common.CollectionsHelper;
 import io.helidon.common.OptionalHelper;
 import io.helidon.config.Config;
-import io.helidon.grpc.server.GrpcService;
+import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.security.AuditEvent;
 import io.helidon.security.AuthenticationResponse;
 import io.helidon.security.AuthorizationResponse;
@@ -66,7 +66,7 @@ import static io.helidon.security.AuditEvent.AuditParam.plain;
 // we need to have all fields optional and this is cleaner than checking for null
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public final class GrpcSecurityHandler
-        implements ServerInterceptor, Consumer<GrpcService.ServiceConfig> {
+        implements ServerInterceptor, Consumer<ServiceDescriptor.Config> {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurityHandler.class.getName());
     private static final String KEY_ROLES_ALLOWED = "roles-allowed";
     private static final String KEY_AUTHENTICATOR = "authenticator";
@@ -279,7 +279,7 @@ public final class GrpcSecurityHandler
     }
 
     @Override
-    public void accept(GrpcService.ServiceConfig serviceConfig) {
+    public void accept(ServiceDescriptor.Config serviceConfig) {
         serviceConfig.addContextValue(GrpcSecurity.GRPC_SECURITY_INTERCEPTOR, this);
     }
 

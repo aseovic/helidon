@@ -33,7 +33,7 @@
 
     <properties>
         <version.zipkin-junit>2.12.5</version.zipkin-junit>
-        <version.junit.vintage>5.4.0</version.junit.vintage>
+        <version.lib.bedrock>5.0.11</version.lib.bedrock>
     </properties>
 
     <dependencies>
@@ -133,14 +133,12 @@
         <dependency>
             <groupId>io.zipkin.zipkin2</groupId>
             <artifactId>zipkin-junit</artifactId>
-            <version>${version.zipkin-junit}</version>
-            <scope>test</scope>
+            <version>${version.lib.zipkin.junit}</version>
         </dependency>
         <dependency>
-            <groupId>org.junit.vintage</groupId>
-            <artifactId>junit-vintage-engine</artifactId>
-            <version>${version.junit.vintage}</version>
-            <scope>test</scope>
+            <groupId>com.oracle.bedrock</groupId>
+            <artifactId>bedrock-testing-support</artifactId>
+            <version>${version.lib.bedrock}</version>
         </dependency>
 
         <!-- Thanks for using https://jar-download.com -->

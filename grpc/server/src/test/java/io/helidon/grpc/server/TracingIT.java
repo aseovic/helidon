@@ -16,6 +16,8 @@
 
 package io.helidon.grpc.server;
 
+import com.oracle.bedrock.testsupport.deferred.Eventually;
+
 import java.net.URI;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -29,6 +31,7 @@ import io.helidon.tracing.TracerBuilder;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.opentracing.Tracer;
+
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -39,6 +42,7 @@ import zipkin2.junit.ZipkinRule;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static com.oracle.bedrock.deferred.DeferredHelper.invoking;
 
 /**
  * Tests for gRPC server with tracing.
@@ -98,8 +102,7 @@ public class TracingIT {
         // call the gRPC Echo service so that there should be tracing span sent to zipkin server
         EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
 
-        // wait a bit for span from zipkin
-        Thread.sleep(2000);
+        Eventually.assertThat(invoking(this).getSpanCount(), is(1));
 
         List<List<Span>> listTraces = zipkin.getTraces();
         assertThat(listTraces, is(notNullValue()));
@@ -107,8 +110,10 @@ public class TracingIT {
         String sTraces = listTraces.toString();
 
         assertThat("The traces should include method name", sTraces.contains("grpc.method_name"));
+        assertThat("The traces should include Echo method", sTraces.contains("EchoService/Echo"));
 
         assertThat("Tha traces should include headers", sTraces.contains("grpc.headers"));
+        assertThat("Tha traces should include attributes", sTraces.contains("grpc.call_attributes"));
     }
 
     // ----- helper methods -------------------------------------------------
@@ -119,11 +124,11 @@ public class TracingIT {
      * @throws Exception in case of an error
      */
     private static void startGrpcServer() throws Exception {
-        // Add the EchoService and enable GrpcMetrics
+        // Add the EchoService
         GrpcRouting routing = GrpcRouting.builder()
                                          .register(new EchoService())
                                          .build();
-
+        // Enable tracing
         Tracer tracer = (Tracer) TracerBuilder.create("Server")
                 .collectorUri(URI.create(zipkin.httpUrl() + "/api/v2/spans"))
                 .build();
@@ -145,5 +150,12 @@ public class TracingIT {
                         .get(10, TimeUnit.SECONDS);
 
        LOGGER.info("Started gRPC server at: localhost:" + grpcServer.port());
+    }
+
+    /**
+     * Return the span count collect.
+     */
+    public int getSpanCount() {
+        return zipkin.collectorMetrics().spans();
     }
 }

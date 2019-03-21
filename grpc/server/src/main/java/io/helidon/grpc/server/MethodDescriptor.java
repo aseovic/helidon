@@ -28,6 +28,8 @@ import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
 import org.eclipse.microprofile.metrics.MetricType;
 
+import static io.helidon.grpc.core.GrpcHelper.extractNamePrefix;
+
 /**
  * Encapsulates all metadata necessary to define a gRPC method.
  *
@@ -186,7 +188,7 @@ public class MethodDescriptor<ReqT, ResT> {
          *
          * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance for fluent call chaining
          */
-        Config intercept(ServerInterceptor... interceptors);
+        Config<ReqT, ResT> intercept(ServerInterceptor... interceptors);
     }
 
     /**
@@ -197,7 +199,7 @@ public class MethodDescriptor<ReqT, ResT> {
      */
     static final class Builder<ReqT, ResT> implements Config<ReqT, ResT>, io.helidon.common.Builder<MethodDescriptor<ReqT, ResT>> {
         private final String name;
-        private final io.grpc.MethodDescriptor<ReqT, ResT> descriptor;
+        private final io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;
 
         private List<ServerInterceptor> interceptors = new ArrayList<>();
@@ -210,8 +212,13 @@ public class MethodDescriptor<ReqT, ResT> {
                 io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                 ServerCallHandler<ReqT, ResT> callHandler) {
             this.name = name;
-            this.descriptor = descriptor;
             this.callHandler = callHandler;
+
+            String fullName = descriptor.getFullMethodName();
+            String prefix = extractNamePrefix(fullName);
+
+            this.descriptor = descriptor.toBuilder()
+                    .setFullMethodName(prefix + "/" + name);
         }
 
         @Override
@@ -239,6 +246,11 @@ public class MethodDescriptor<ReqT, ResT> {
             return metricType(MetricType.INVALID);
         }
 
+        Builder<ReqT, ResT> fullname(String name) {
+            descriptor.setFullMethodName(name);
+            return this;
+        }
+
         private Builder<ReqT, ResT> metricType(MetricType metricType) {
             this.metricType = metricType;
             return this;
@@ -258,7 +270,7 @@ public class MethodDescriptor<ReqT, ResT> {
 
         @Override
         public MethodDescriptor<ReqT, ResT> build() {
-            return new MethodDescriptor<>(name, descriptor, callHandler, metricType,
+            return new MethodDescriptor<>(name, descriptor.build(), callHandler, metricType,
                                           context, interceptors);
         }
     }

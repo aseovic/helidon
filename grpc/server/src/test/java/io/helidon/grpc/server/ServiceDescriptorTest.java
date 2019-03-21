@@ -16,9 +16,11 @@
 
 package io.helidon.grpc.server;
 
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
+import java.util.stream.Collectors;
 
 import io.helidon.grpc.core.JavaMarshaller;
 import io.helidon.grpc.core.MarshallerSupplier;
@@ -551,7 +553,43 @@ public class ServiceDescriptorTest {
         io.grpc.ServiceDescriptor actualDescriptor = ssd.getServiceDescriptor();
         assertThat(actualDescriptor, is(notNullValue()));
         assertThat(actualDescriptor.getName(), is(grpcDescriptor.getName()));
-        assertThat(actualDescriptor.getMethods(), is(grpcDescriptor.getMethods()));
+
+        Map<String, io.grpc.MethodDescriptor<?, ?>> methods = grpcDescriptor.getMethods()
+                .stream()
+                .collect(Collectors.toMap(io.grpc.MethodDescriptor::getFullMethodName, m -> m));
+
+        Collection<io.grpc.MethodDescriptor<?, ?>> methodsActual = actualDescriptor.getMethods();
+
+        for (io.grpc.MethodDescriptor<?, ?> method : methodsActual) {
+            assertThat(method.toString(), is(methods.get(method.getFullMethodName()).toString()));
+        }
+    }
+
+    @Test
+    public void shouldOverrideServiceName() {
+        BindableService service = new EchoStub();
+
+        ServiceDescriptor descriptor = ServiceDescriptor.builder(service)
+                .name("Foo")
+                .build();
+
+        assertThat(descriptor.name(), is("Foo"));
+
+        BindableService bindableService = descriptor.bindableService(Collections.emptyList());
+        assertThat(bindableService, is(notNullValue()));
+
+        ServerServiceDefinition ssd = bindableService.bindService();
+        assertThat(ssd, is(notNullValue()));
+
+        io.grpc.ServiceDescriptor actualDescriptor = ssd.getServiceDescriptor();
+        assertThat(actualDescriptor, is(notNullValue()));
+        assertThat(actualDescriptor.getName(), is("Foo"));
+
+        Collection<io.grpc.MethodDescriptor<?, ?>> methods = actualDescriptor.getMethods();
+
+        for (io.grpc.MethodDescriptor<?, ?> method : methods) {
+            assertThat(method.getFullMethodName().startsWith("Foo/"), is(true));
+        }
     }
 
     @Test
@@ -607,5 +645,4 @@ public class ServiceDescriptorTest {
             extends EchoServiceGrpc.EchoServiceImplBase {
 
     }
-
 }

@@ -39,6 +39,8 @@ import io.grpc.stub.ServerCalls;
 import org.eclipse.microprofile.health.HealthCheck;
 import org.eclipse.microprofile.metrics.MetricType;
 
+import static io.helidon.grpc.core.GrpcHelper.extractMethodName;
+
 /**
  * Encapsulates all metadata necessary to create and deploy a gRPC service.
  *
@@ -158,6 +160,16 @@ public class ServiceDescriptor {
      * Fluent configuration interface for the {@link io.helidon.grpc.server.ServiceDescriptor}.
      */
     public interface Config {
+        /**
+         * Set the name for the service.
+         *
+         * @param name the service name
+         * @return this {@link Config} instance for fluent call chaining
+         * @throws java.lang.NullPointerException if the name is null
+         * @throws java.lang.IllegalArgumentException if the name is a blank String
+         */
+        Config name(String name);
+
         /**
          * Register the proto for the service.
          *
@@ -369,9 +381,9 @@ public class ServiceDescriptor {
      * A {@link ServiceDescriptor} builder.
      */
     public static final class Builder implements Config, io.helidon.common.Builder<ServiceDescriptor> {
-        private final String name;
         private final Class<?> serviceClass;
 
+        private String name;
         private Descriptors.FileDescriptor proto;
         private MarshallerSupplier marshallerSupplier = MarshallerSupplier.defaultInstance();
         private Map<String, MethodDescriptor.Builder> methodBuilders = new LinkedHashMap<>();
@@ -404,6 +416,23 @@ public class ServiceDescriptor {
 
                 methodBuilders.put(methodName, descriptor);
             }
+        }
+
+        @Override
+        public Builder name(String name) {
+            if (name == null) {
+                throw new NullPointerException("name cannot be null");
+            }
+
+            if (name.trim().isEmpty()) {
+                throw new IllegalArgumentException("name cannot be blank");
+            }
+
+            this.name = name.trim();
+            for (Map.Entry<String, MethodDescriptor.Builder> entry : methodBuilders.entrySet()) {
+                entry.getValue().fullname(name + "/" + entry.getKey());
+            }
+            return this;
         }
 
         @Override
@@ -555,11 +584,6 @@ public class ServiceDescriptor {
         }
 
         // ---- helpers -----------------------------------------------------
-
-        static String extractMethodName(String fullMethodName) {
-            int index = fullMethodName.lastIndexOf('/');
-            return index == -1 ? fullMethodName : fullMethodName.substring(index + 1);
-        }
 
         @SuppressWarnings("unchecked")
         private <ReqT, ResT> MethodDescriptor.Builder<ReqT, ResT> createMethodDescriptor(

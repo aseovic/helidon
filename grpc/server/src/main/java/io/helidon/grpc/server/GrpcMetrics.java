@@ -34,6 +34,8 @@ import org.eclipse.microprofile.metrics.MetricRegistry;
 import org.eclipse.microprofile.metrics.MetricType;
 import org.eclipse.microprofile.metrics.Timer;
 
+import static io.helidon.grpc.core.GrpcHelper.extractMethodName;
+
 /**
  * A {@link io.grpc.ServerInterceptor} that enables capturing of gRPC call metrics.
  */
@@ -122,7 +124,7 @@ public class GrpcMetrics
                                                                  ServerCallHandler<ReqT, RespT> next) {
 
         String fullMethodName = call.getMethodDescriptor().getFullMethodName();
-        String methodName = ServiceDescriptor.Builder.extractMethodName(fullMethodName);
+        String methodName = extractMethodName(fullMethodName);
         String metricName = fullMethodName.replace('/', '.');
 
         ServerCall<ReqT, RespT> serverCall;

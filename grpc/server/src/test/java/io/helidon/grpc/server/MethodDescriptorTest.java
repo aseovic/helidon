@@ -54,9 +54,11 @@ public class MethodDescriptorTest {
         assertThat(descriptor.name(), is("foo"));
         assertThat(descriptor.metricType(), is(nullValue()));
         assertThat(descriptor.callHandler(), is(sameInstance(handler)));
-        assertThat(descriptor.descriptor(), is(sameInstance(grpcDescriptor)));
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(0));
+
+        io.grpc.MethodDescriptor methodDescriptor = descriptor.descriptor();
+        assertThat(methodDescriptor.getFullMethodName(), is("EchoService/foo"));
     }
 
     @Test
@@ -77,7 +79,6 @@ public class MethodDescriptorTest {
         assertThat(descriptor.name(), is("foo"));
         assertThat(descriptor.metricType(), is(MetricType.COUNTER));
         assertThat(descriptor.callHandler(), is(sameInstance(handler)));
-        assertThat(descriptor.descriptor(), is(sameInstance(grpcDescriptor)));
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(0));
     }
@@ -100,7 +101,6 @@ public class MethodDescriptorTest {
         assertThat(descriptor.name(), is("foo"));
         assertThat(descriptor.metricType(), is(MetricType.HISTOGRAM));
         assertThat(descriptor.callHandler(), is(sameInstance(handler)));
-        assertThat(descriptor.descriptor(), is(sameInstance(grpcDescriptor)));
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(0));
     }
@@ -123,7 +123,6 @@ public class MethodDescriptorTest {
         assertThat(descriptor.name(), is("foo"));
         assertThat(descriptor.metricType(), is(MetricType.METERED));
         assertThat(descriptor.callHandler(), is(sameInstance(handler)));
-        assertThat(descriptor.descriptor(), is(sameInstance(grpcDescriptor)));
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(0));
     }
@@ -146,7 +145,6 @@ public class MethodDescriptorTest {
         assertThat(descriptor.name(), is("foo"));
         assertThat(descriptor.metricType(), is(MetricType.TIMER));
         assertThat(descriptor.callHandler(), is(sameInstance(handler)));
-        assertThat(descriptor.descriptor(), is(sameInstance(grpcDescriptor)));
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(0));
     }
@@ -169,7 +167,6 @@ public class MethodDescriptorTest {
         assertThat(descriptor.name(), is("foo"));
         assertThat(descriptor.metricType(), is(MetricType.INVALID));
         assertThat(descriptor.callHandler(), is(sameInstance(handler)));
-        assertThat(descriptor.descriptor(), is(sameInstance(grpcDescriptor)));
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(0));
     }
@@ -193,7 +190,6 @@ public class MethodDescriptorTest {
         assertThat(descriptor.name(), is("foo"));
         assertThat(descriptor.metricType(), is(nullValue()));
         assertThat(descriptor.callHandler(), is(sameInstance(handler)));
-        assertThat(descriptor.descriptor(), is(sameInstance(grpcDescriptor)));
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(1));
         assertThat(descriptor.context().get(key), is("test-value"));
@@ -253,5 +249,25 @@ public class MethodDescriptorTest {
                 .build();
 
         assertThat(descriptor.interceptors(), contains(interceptor1, interceptor2, interceptor3));
+    }
+
+    @Test
+    public void shouldSetName() {
+        ServerCallHandler handler = mock(ServerCallHandler.class);
+        io.grpc.MethodDescriptor grpcDescriptor = EchoServiceGrpc.getServiceDescriptor()
+                .getMethods()
+                .stream()
+                .filter(md -> md.getFullMethodName().equals("EchoService/Echo"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Could not find echo method"));
+
+        Context.Key<String> key = Context.key("test");
+        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+                .fullname("Test/bar")
+                .build();
+
+        assertThat(descriptor, is(notNullValue()));
+        assertThat(descriptor.name(), is("foo"));
+        assertThat(descriptor.descriptor().getFullMethodName(), is("Test/bar"));
     }
 }

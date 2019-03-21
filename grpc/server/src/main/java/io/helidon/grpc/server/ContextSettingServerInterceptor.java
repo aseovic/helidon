@@ -27,6 +27,8 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 
+import static io.helidon.grpc.core.GrpcHelper.extractMethodName;
+
 /**
  * A {@link io.grpc.ServerInterceptor} that sets values into the
  * gRPC call context.
@@ -49,7 +51,7 @@ class ContextSettingServerInterceptor
 
         Context context = Context.current();
         String fullMethodName = call.getMethodDescriptor().getFullMethodName();
-        String methodName = ServiceDescriptor.Builder.extractMethodName(fullMethodName);
+        String methodName = extractMethodName(fullMethodName);
         MethodDescriptor methodDescriptor = serviceDescriptor.method(methodName);
         Map<Context.Key<?>, Object> contextMap = new HashMap<>();
 

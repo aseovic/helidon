@@ -98,7 +98,7 @@ public class TracingIT {
     // ----- test methods ---------------------------------------------------
 
     @Test
-    public void shouldTraceMethodNameAndHeaders() throws Exception{
+    public void shouldTraceMethodNameAndHeaders() throws Exception {
         // call the gRPC Echo service so that there should be tracing span sent to zipkin server
         EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
 

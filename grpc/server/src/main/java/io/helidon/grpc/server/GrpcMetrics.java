@@ -38,7 +38,7 @@ import org.eclipse.microprofile.metrics.Timer;
  * A {@link io.grpc.ServerInterceptor} that enables capturing of gRPC call metrics.
  */
 public class GrpcMetrics
-        implements ServerInterceptor, ServiceDescriptorAware {
+        implements ServerInterceptor, ServiceDescriptor.Aware {
 
     /**
      * The registry of vendor metrics.

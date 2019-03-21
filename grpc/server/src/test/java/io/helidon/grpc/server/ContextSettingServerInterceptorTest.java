@@ -38,12 +38,12 @@ import static org.mockito.Mockito.when;
 public class ContextSettingServerInterceptorTest {
 
     @Test
-    public void shouldNotAlterContext() {
+    public void shouldAddServiceDescriptor() {
         ServiceDescriptor serviceDescriptor = ServiceDescriptor.builder(createMockService())
                 .unary("test", this::dummyUnary)
                 .build();
 
-        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor(serviceDescriptor);
+        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor();
 
         Metadata headers = new Metadata();
         ServerCall<String, String> call = mock(ServerCall.class);
@@ -53,15 +53,15 @@ public class ContextSettingServerInterceptorTest {
         when(call.getMethodDescriptor()).thenReturn(serviceDescriptor.method("test").descriptor());
         when(next.startCall(any(ServerCall.class), any(Metadata.class))).thenReturn(listener);
 
+        interceptor.setServiceDescriptor(serviceDescriptor);
         ServerCall.Listener<String> result = interceptor.interceptCall(call, headers, next);
-
-        Context currentContext = Context.current();
 
         result.onMessage("testing...");
 
         Context contextCall = listener.getContext();
+        ServiceDescriptor descriptor = ServiceDescriptor.SERVICE_DESCRIPTOR_KEY.get(contextCall);
 
-        assertThat(contextCall, is(sameInstance(currentContext)));
+        assertThat(descriptor, is(sameInstance(serviceDescriptor)));
     }
 
     @Test
@@ -72,7 +72,7 @@ public class ContextSettingServerInterceptorTest {
                 .unary("test", this::dummyUnary)
                 .build();
 
-        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor(serviceDescriptor);
+        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor();
 
         Metadata headers = new Metadata();
         ServerCall<String, String> call = mock(ServerCall.class);
@@ -82,6 +82,7 @@ public class ContextSettingServerInterceptorTest {
         when(call.getMethodDescriptor()).thenReturn(serviceDescriptor.method("test").descriptor());
         when(next.startCall(any(ServerCall.class), any(Metadata.class))).thenReturn(listener);
 
+        interceptor.setServiceDescriptor(serviceDescriptor);
         ServerCall.Listener<String> result = interceptor.interceptCall(call, headers, next);
 
         Context currentContext = Context.current();
@@ -104,7 +105,7 @@ public class ContextSettingServerInterceptorTest {
                 .unary("test", this::dummyUnary, cfg -> cfg.addContextKey(key2, "test-method-value"))
                 .build();
 
-        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor(serviceDescriptor);
+        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor();
 
         Metadata headers = new Metadata();
         ServerCall<String, String> call = mock(ServerCall.class);
@@ -114,6 +115,7 @@ public class ContextSettingServerInterceptorTest {
         when(call.getMethodDescriptor()).thenReturn(serviceDescriptor.method("test").descriptor());
         when(next.startCall(any(ServerCall.class), any(Metadata.class))).thenReturn(listener);
 
+        interceptor.setServiceDescriptor(serviceDescriptor);
         ServerCall.Listener<String> result = interceptor.interceptCall(call, headers, next);
 
         Context currentContext = Context.current();
@@ -136,7 +138,7 @@ public class ContextSettingServerInterceptorTest {
                 .unary("test", this::dummyUnary, cfg -> cfg.addContextKey(key, "test-method-value"))
                 .build();
 
-        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor(serviceDescriptor);
+        ContextSettingServerInterceptor interceptor = new ContextSettingServerInterceptor();
 
         Metadata headers = new Metadata();
         ServerCall<String, String> call = mock(ServerCall.class);
@@ -146,6 +148,7 @@ public class ContextSettingServerInterceptorTest {
         when(call.getMethodDescriptor()).thenReturn(serviceDescriptor.method("test").descriptor());
         when(next.startCall(any(ServerCall.class), any(Metadata.class))).thenReturn(listener);
 
+        interceptor.setServiceDescriptor(serviceDescriptor);
         ServerCall.Listener<String> result = interceptor.interceptCall(call, headers, next);
 
         Context currentContext = Context.current();

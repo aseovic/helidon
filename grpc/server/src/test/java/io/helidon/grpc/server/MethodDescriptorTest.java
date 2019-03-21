@@ -20,6 +20,7 @@ import io.helidon.grpc.server.test.EchoServiceGrpc;
 
 import io.grpc.Context;
 import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
 import org.eclipse.microprofile.metrics.MetricType;
 import org.junit.jupiter.api.Test;
 
@@ -28,6 +29,8 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.collection.IsEmptyIterable.emptyIterable;
+import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.mockito.Mockito.mock;
 
 /**
@@ -196,4 +199,59 @@ public class MethodDescriptorTest {
         assertThat(descriptor.context().get(key), is("test-value"));
     }
 
+    @Test
+    public void shouldAddZeroInterceptors() {
+        ServerCallHandler handler = mock(ServerCallHandler.class);
+        io.grpc.MethodDescriptor grpcDescriptor = EchoServiceGrpc.getServiceDescriptor()
+                .getMethods()
+                .stream()
+                .filter(md -> md.getFullMethodName().equals("EchoService/Echo"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Could not find echo method"));
+
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+                .intercept()
+                .build();
+
+        assertThat(descriptor.interceptors(), is(emptyIterable()));
+    }
+
+    @Test
+    public void shouldAddOneInterceptor() {
+        ServerInterceptor interceptor = mock(ServerInterceptor.class);
+        ServerCallHandler handler = mock(ServerCallHandler.class);
+        io.grpc.MethodDescriptor grpcDescriptor = EchoServiceGrpc.getServiceDescriptor()
+                .getMethods()
+                .stream()
+                .filter(md -> md.getFullMethodName().equals("EchoService/Echo"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Could not find echo method"));
+
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+                .intercept(interceptor)
+                .build();
+
+        assertThat(descriptor.interceptors(), contains(interceptor));
+    }
+
+    @Test
+    public void shouldAddMultipleInterceptors() {
+        ServerInterceptor interceptor1 = mock(ServerInterceptor.class);
+        ServerInterceptor interceptor2 = mock(ServerInterceptor.class);
+        ServerInterceptor interceptor3 = mock(ServerInterceptor.class);
+        ServerCallHandler handler = mock(ServerCallHandler.class);
+        io.grpc.MethodDescriptor grpcDescriptor = EchoServiceGrpc.getServiceDescriptor()
+                .getMethods()
+                .stream()
+                .filter(md -> md.getFullMethodName().equals("EchoService/Echo"))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("Could not find echo method"));
+
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+                .intercept(interceptor1, interceptor2)
+                .intercept(interceptor3)
+                .build();
+
+        assertThat(descriptor.interceptors(), contains(interceptor1, interceptor2, interceptor3));
+    }
 }

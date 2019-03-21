@@ -18,14 +18,14 @@ package io.helidon.grpc.server;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Objects;
+
+import io.helidon.grpc.core.InterceptorPriority;
 
 import io.grpc.Context;
 import io.grpc.Contexts;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
 
 /**
  * A {@link io.grpc.ServerInterceptor} that sets values into the
@@ -33,24 +33,13 @@ import io.grpc.ServerInterceptor;
  *
  * @author Jonathan Knight
  */
-public class ContextSettingServerInterceptor
-        implements ServerInterceptor {
+class ContextSettingServerInterceptor
+        implements PriorityServerInterceptor, ServiceDescriptor.Aware {
 
     /**
      * The {@link ServiceDescriptor} for the service being intercepted.
      */
-    private final ServiceDescriptor serviceDescriptor;
-
-    /**
-     * Create a {@link ContextSettingServerInterceptor}.
-     *
-     * @param serviceDescriptor  the {@link ServiceDescriptor} for the service being intercepted
-     *
-     * @throws java.lang.NullPointerException  if the {@code serviceDescriptor} parameter is {@code null}
-     */
-    public ContextSettingServerInterceptor(ServiceDescriptor serviceDescriptor) {
-        this.serviceDescriptor = Objects.requireNonNull(serviceDescriptor, "The serviceDescriptor parameter cannot be null");
-    }
+    private ServiceDescriptor serviceDescriptor;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -66,6 +55,7 @@ public class ContextSettingServerInterceptor
 
         contextMap.putAll(serviceDescriptor.context());
         contextMap.putAll(methodDescriptor.context());
+        contextMap.put(ServiceDescriptor.SERVICE_DESCRIPTOR_KEY, serviceDescriptor);
 
         if (!contextMap.isEmpty()) {
             for (Map.Entry<Context.Key<?>, Object> entry : contextMap.entrySet()) {
@@ -75,5 +65,15 @@ public class ContextSettingServerInterceptor
         }
 
         return Contexts.interceptCall(context, call, headers, next);
+    }
+
+    @Override
+    public InterceptorPriority getInterceptorPriority() {
+        return InterceptorPriority.Context;
+    }
+
+    @Override
+    public void setServiceDescriptor(ServiceDescriptor descriptor) {
+        this.serviceDescriptor = descriptor;
     }
 }

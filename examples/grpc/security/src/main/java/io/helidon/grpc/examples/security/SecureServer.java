@@ -24,6 +24,7 @@ import io.helidon.grpc.examples.common.StringService;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
+import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.security.Security;
 import io.helidon.security.integration.grpc.GrpcSecurity;
 import io.helidon.security.providers.httpauth.HttpBasicAuthProvider;
@@ -55,9 +56,14 @@ public class SecureServer {
                 .addProvider(HttpBasicAuthProvider.create(config.get("http-basic-auth")))
                 .build();
 
+        ServiceDescriptor greetService = ServiceDescriptor.builder(new GreetService(config))
+                .intercept(GrpcSecurity.rolesAllowed("user"))
+                .intercept("SetGreeting", GrpcSecurity.rolesAllowed("admin"))
+                .build();
+
         GrpcRouting grpcRouting = GrpcRouting.builder()
                 .intercept(GrpcSecurity.create(security).securityDefaults(GrpcSecurity.authenticate()))
-                .register(new GreetService(config), GrpcSecurity.rolesAllowed("admin"))
+                .register(greetService)
                 .register(new StringService())
                 .build();
 

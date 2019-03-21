@@ -46,9 +46,30 @@ public class SecureGreetClient {
         GreetServiceGrpc.GreetServiceBlockingStub greetSvc = GreetServiceGrpc.newBlockingStub(channel)
                 .withCallCredentials(new BasicAuthCallCredentials(args));
 
-        Greet.GreetRequest request = Greet.GreetRequest.newBuilder().setName("Aleks").build();
-        Greet.GreetResponse response = greetSvc.greet(request);
+        greet(greetSvc);
+        setGreeting(greetSvc);
+        greet(greetSvc);
+    }
 
-        System.out.println(response);
+    private static void greet(GreetServiceGrpc.GreetServiceBlockingStub greetSvc) {
+        try {
+            Greet.GreetRequest request = Greet.GreetRequest.newBuilder().setName("Aleks").build();
+            Greet.GreetResponse response = greetSvc.greet(request);
+
+            System.out.println(response);
+        } catch (Exception e) {
+            System.err.println("Caught exception obtaining greeting: " + e.getMessage());
+        }
+    }
+
+    private static void setGreeting(GreetServiceGrpc.GreetServiceBlockingStub greetSvc) {
+        try {
+            Greet.SetGreetingRequest setRequest = Greet.SetGreetingRequest.newBuilder().setGreeting("Hey").build();
+            Greet.SetGreetingResponse setResponse = greetSvc.setGreeting(setRequest);
+
+            System.out.println(setResponse);
+        } catch (Exception e) {
+            System.err.println("Caught exception setting greeting: " + e.getMessage());
+        }
     }
 }

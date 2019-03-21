@@ -16,13 +16,16 @@
 
 package io.helidon.grpc.server;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
 import io.grpc.Context;
 import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
 import org.eclipse.microprofile.metrics.MetricType;
 
 /**
@@ -39,17 +42,20 @@ public class MethodDescriptor<ReqT, ResT> {
     private final ServerCallHandler<ReqT, ResT> callHandler;
     private final MetricType metricType;
     private final Map<Context.Key, Object> context;
+    private final List<ServerInterceptor> interceptors;
 
     private MethodDescriptor(String name,
                      io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                      ServerCallHandler<ReqT, ResT> callHandler,
                      MetricType metricType,
-                     Map<Context.Key, Object> context) {
+                     Map<Context.Key, Object> context,
+                     List<ServerInterceptor> interceptors) {
         this.name = name;
         this.descriptor = descriptor;
         this.callHandler = callHandler;
         this.metricType = metricType;
         this.context = context;
+        this.interceptors = new ArrayList<>(interceptors);
     }
 
     /**
@@ -93,6 +99,15 @@ public class MethodDescriptor<ReqT, ResT> {
      */
     public Map<Context.Key, Object> context() {
         return Collections.unmodifiableMap(context);
+    }
+
+    /**
+     * Obtain the {@link io.grpc.ServerInterceptor}s to use for this method.
+     *
+     * @return the {@link io.grpc.ServerInterceptor}s to use for this method
+     */
+    public List<ServerInterceptor> interceptors() {
+        return Collections.unmodifiableList(interceptors);
     }
 
     static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
@@ -161,7 +176,17 @@ public class MethodDescriptor<ReqT, ResT> {
          *
          * @throws java.lang.NullPointerException if the key parameter is null
          */
+
         <T> Config<ReqT, ResT>  addContextKey(Context.Key<T> key, T value);
+
+        /**
+         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
+         *
+         * @param interceptors the interceptor(s) to register
+         *
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance for fluent call chaining
+         */
+        Config intercept(ServerInterceptor... interceptors);
     }
 
     /**
@@ -174,6 +199,8 @@ public class MethodDescriptor<ReqT, ResT> {
         private final String name;
         private final io.grpc.MethodDescriptor<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;
+
+        private List<ServerInterceptor> interceptors = new ArrayList<>();
 
         private final Map<Context.Key, Object> context = new HashMap<>();
 
@@ -224,8 +251,15 @@ public class MethodDescriptor<ReqT, ResT> {
         }
 
         @Override
+        public Builder<ReqT, ResT> intercept(ServerInterceptor... interceptors) {
+            Collections.addAll(this.interceptors, interceptors);
+            return this;
+        }
+
+        @Override
         public MethodDescriptor<ReqT, ResT> build() {
-            return new MethodDescriptor<>(name, descriptor, callHandler, metricType, context);
+            return new MethodDescriptor<>(name, descriptor, callHandler, metricType,
+                                          context, interceptors);
         }
     }
 }

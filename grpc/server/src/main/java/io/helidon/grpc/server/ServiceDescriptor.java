@@ -23,7 +23,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.function.Consumer;
 
 import io.helidon.grpc.core.MarshallerSupplier;
@@ -46,6 +45,12 @@ import org.eclipse.microprofile.metrics.MetricType;
  * @author Aleksandar Seovic  2019.03.18
  */
 public class ServiceDescriptor {
+    /**
+     * The {@link io.grpc.Context.Key} to use to obtain the {@link io.grpc.ServiceDescriptor}.
+     */
+    public static final Context.Key<ServiceDescriptor> SERVICE_DESCRIPTOR_KEY =
+            Context.key("Helidon.ServiceDescriptor");
+
     private final String name;
     private final Map<String, MethodDescriptor> methods;
     private final List<ServerInterceptor> interceptors;
@@ -61,7 +66,7 @@ public class ServiceDescriptor {
                               HealthCheck healthCheck) {
         this.name = name;
         this.methods = methods;
-        this.interceptors = Collections.unmodifiableList(interceptors);
+        this.interceptors = new ArrayList<>(interceptors);
         this.context = Collections.unmodifiableMap(context);
         this.metricType = metricType;
         this.healthCheck = healthCheck;
@@ -125,15 +130,25 @@ public class ServiceDescriptor {
         return healthCheck;
     }
 
-    BindableService bindableService() {
-        return new BindableServiceImpl(this);
+    BindableService bindableService(List<ServerInterceptor> interceptors) {
+        return new BindableServiceImpl(this, interceptors);
     }
 
-    static Builder builder(GrpcService service) {
+    /**
+     * Create a {@link Builder}.
+     * @param service  the {@link GrpcService} to use to initialise the builder
+     * @return a {@link Builder}
+     */
+    public static Builder builder(GrpcService service) {
         return new Builder(service);
     }
 
-    static Builder builder(BindableService service) {
+    /**
+     * Create a {@link Builder}.
+     * @param service  the {@link BindableService} to use to initialise the builder
+     * @return a {@link Builder}
+     */
+    public static Builder builder(BindableService service) {
         return new Builder(service);
     }
 
@@ -166,6 +181,18 @@ public class ServiceDescriptor {
          * @return this {@link Config} instance for fluent call chaining
          */
         Config intercept(ServerInterceptor... interceptors);
+
+        /**
+         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for a named method of the service.
+         *
+         * @param methodName   the name of the method to intercept
+         * @param interceptors the interceptor(s) to register
+         *
+         * @return this {@link Config} instance for fluent call chaining
+         *
+         * @throws IllegalArgumentException if no method exists for the specified name
+         */
+        Config intercept(String methodName, ServerInterceptor... interceptors);
 
         /**
          * Add value to the {@link io.grpc.Context} for the service.
@@ -321,18 +348,33 @@ public class ServiceDescriptor {
         Config disableMetrics();
     }
 
+    // ---- inner class: Aware ----------------------------------------------
+
+    /**
+     * Allows users to specify that they would like to have access to a
+     * {@link io.helidon.grpc.server.ServiceDescriptor} within their {@link io.grpc.ServerInterceptor}
+     * implementation.
+     */
+    public interface Aware {
+        /**
+         * Set service descriptor.
+         * @param descriptor service descriptor instance
+         */
+        void setServiceDescriptor(ServiceDescriptor descriptor);
+    }
+
     // ---- inner class: Builder --------------------------------------------
 
     /**
-     * {@link io.helidon.grpc.server.ServiceDescriptor} builder implementation.
+     * A {@link ServiceDescriptor} builder.
      */
-    static final class Builder implements Config, io.helidon.common.Builder<ServiceDescriptor> {
+    public static final class Builder implements Config, io.helidon.common.Builder<ServiceDescriptor> {
         private final String name;
         private final Class<?> serviceClass;
 
         private Descriptors.FileDescriptor proto;
         private MarshallerSupplier marshallerSupplier = MarshallerSupplier.defaultInstance();
-        private Map<String, MethodDescriptor> methods = new LinkedHashMap<>();
+        private Map<String, MethodDescriptor.Builder> methodBuilders = new LinkedHashMap<>();
         private List<ServerInterceptor> interceptors = new ArrayList<>();
         private Map<Context.Key<?>, Object> context = new HashMap<>();
         private MetricType metricType;
@@ -357,110 +399,141 @@ public class ServiceDescriptor {
             for (ServerMethodDefinition smd : def.getMethods()) {
                 io.grpc.MethodDescriptor md      = smd.getMethodDescriptor();
                 ServerCallHandler        handler = smd.getServerCallHandler();
+                String                   methodName = extractMethodName(md.getFullMethodName());
+                MethodDescriptor.Builder descriptor = MethodDescriptor.builder(methodName, md, handler);
 
-                String           methodName = extractMethodName(md.getFullMethodName());
-                MethodDescriptor descriptor = MethodDescriptor.create(methodName, md, handler);
-                methods.put(methodName, descriptor);
+                methodBuilders.put(methodName, descriptor);
             }
         }
 
+        @Override
         public Builder proto(Descriptors.FileDescriptor proto) {
             this.proto = proto;
             return this;
         }
 
+        @Override
         public Builder marshallerSupplier(MarshallerSupplier marshallerSupplier) {
             this.marshallerSupplier = marshallerSupplier;
             return this;
         }
 
+        @Override
         public <ReqT, ResT> Builder unary(String name, ServerCalls.UnaryMethod<ReqT, ResT> method) {
             return unary(name, method, null);
         }
 
+        @Override
         public <ReqT, ResT> Builder unary(String name,
                                           ServerCalls.UnaryMethod<ReqT, ResT> method,
                                           Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
-            methods.put(name, createMethodDescriptor(name,
-                                                     io.grpc.MethodDescriptor.MethodType.UNARY,
-                                                     ServerCalls.asyncUnaryCall(method),
-                                                     configurer));
+            methodBuilders.put(name, createMethodDescriptor(name,
+                                                            io.grpc.MethodDescriptor.MethodType.UNARY,
+                                                            ServerCalls.asyncUnaryCall(method),
+                                                            configurer));
             return this;
         }
 
+        @Override
         public <ReqT, ResT> Builder serverStreaming(String name, ServerCalls.ServerStreamingMethod<ReqT, ResT> method) {
             return serverStreaming(name, method, null);
         }
 
+        @Override
         public <ReqT, ResT> Builder serverStreaming(String name,
                                                     ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
                                                     Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
-            methods.put(name, createMethodDescriptor(name,
-                                                     io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING,
-                                                     ServerCalls.asyncServerStreamingCall(method),
-                                                     configurer));
+            methodBuilders.put(name, createMethodDescriptor(name,
+                                                            io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING,
+                                                            ServerCalls.asyncServerStreamingCall(method),
+                                                            configurer));
             return this;
         }
 
+        @Override
         public <ReqT, ResT> Builder clientStreaming(String name, ServerCalls.ClientStreamingMethod<ReqT, ResT> method) {
             return clientStreaming(name, method, null);
         }
 
+        @Override
         public <ReqT, ResT> Builder clientStreaming(String name,
                                                     ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
                                                     Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
-            methods.put(name, createMethodDescriptor(name,
-                                                     io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING,
-                                                     ServerCalls.asyncClientStreamingCall(method),
-                                                     configurer));
+            methodBuilders.put(name, createMethodDescriptor(name,
+                                                            io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING,
+                                                            ServerCalls.asyncClientStreamingCall(method),
+                                                            configurer));
             return this;
         }
 
+        @Override
         public <ReqT, ResT> Builder bidirectional(String name, ServerCalls.BidiStreamingMethod<ReqT, ResT> method) {
             return bidirectional(name, method, null);
         }
 
+        @Override
         public <ReqT, ResT> Builder bidirectional(String name,
                                                   ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
                                                   Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
-            methods.put(name, createMethodDescriptor(name,
-                                                     io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,
-                                                     ServerCalls.asyncBidiStreamingCall(method),
-                                                     configurer));
+            methodBuilders.put(name, createMethodDescriptor(name,
+                                                            io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,
+                                                            ServerCalls.asyncBidiStreamingCall(method),
+                                                            configurer));
             return this;
         }
 
+        @Override
         public Builder intercept(ServerInterceptor... interceptors) {
-            Collections.addAll(this.interceptors, Objects.requireNonNull(interceptors));
+            Collections.addAll(this.interceptors, interceptors);
             return this;
         }
 
+        @Override
+        public Builder intercept(String methodName, ServerInterceptor... interceptors) {
+            MethodDescriptor.Builder method = methodBuilders.get(methodName);
+
+            if (method == null) {
+                throw new IllegalArgumentException("No method exists with name '" + methodName + "'");
+            }
+
+            method.intercept(interceptors);
+
+            return this;
+        }
+
+        @Override
         public <V> Builder addContextValue(Context.Key<V> key, V value) {
             context.put(key, value);
             return this;
         }
 
+        @Override
         public Builder healthCheck(HealthCheck healthCheck) {
             this.healthCheck = healthCheck;
             return this;
         }
 
+        @Override
         public Builder counted() {
             return metricType(MetricType.COUNTER);
         }
 
+        @Override
         public Builder metered() {
             return metricType(MetricType.METERED);
         }
 
+        @Override
         public Builder histogram() {
             return metricType(MetricType.HISTOGRAM);
         }
 
+        @Override
         public Builder timed() {
             return metricType(MetricType.TIMER);
         }
 
+        @Override
         public Builder disableMetrics() {
             return metricType(MetricType.INVALID);
         }
@@ -472,6 +545,12 @@ public class ServiceDescriptor {
 
         @Override
         public ServiceDescriptor build() {
+            Map<String, MethodDescriptor> methods = new LinkedHashMap<>();
+
+            for (Map.Entry<String, MethodDescriptor.Builder> entry : methodBuilders.entrySet()) {
+                methods.put(entry.getKey(), entry.getValue().build());
+            }
+
             return new ServiceDescriptor(name, methods, interceptors, context, metricType, healthCheck);
         }
 
@@ -483,7 +562,7 @@ public class ServiceDescriptor {
         }
 
         @SuppressWarnings("unchecked")
-        private <ReqT, ResT> MethodDescriptor<ReqT, ResT> createMethodDescriptor(
+        private <ReqT, ResT> MethodDescriptor.Builder<ReqT, ResT> createMethodDescriptor(
                 String methodName,
                 io.grpc.MethodDescriptor.MethodType methodType,
                 ServerCallHandler<ReqT, ResT> callHandler,
@@ -504,7 +583,7 @@ public class ServiceDescriptor {
                 configurer.accept(builder);
             }
 
-            return builder.build();
+            return builder;
         }
 
         private Class<?> getTypeFromMethodDescriptor(String methodName, boolean fInput) {

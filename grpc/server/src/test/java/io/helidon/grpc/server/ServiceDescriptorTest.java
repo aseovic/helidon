@@ -16,6 +16,7 @@
 
 package io.helidon.grpc.server;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.function.Consumer;
 
@@ -152,7 +153,7 @@ public class ServiceDescriptorTest {
     }
 
     @Test
-    public void shouldAddMultipleInterceptor() {
+    public void shouldAddMultipleInterceptors() {
         ServerInterceptor interceptor1 = mock(ServerInterceptor.class);
         ServerInterceptor interceptor2 = mock(ServerInterceptor.class);
         ServerInterceptor interceptor3 = mock(ServerInterceptor.class);
@@ -385,6 +386,75 @@ public class ServiceDescriptorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    public void shouldAddZeroMethodLevelInterceptors() {
+        ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
+                .unary("methodOne", this::dummyServerStreaming)
+                .intercept("methodOne")
+                .build();
+
+        MethodDescriptor<?, ?> methodDescriptor = descriptor.method("methodOne");
+
+        assertThat(methodDescriptor, is(notNullValue()));
+        assertThat(methodDescriptor.interceptors(), is(emptyIterable()));
+    }
+
+    @Test
+    public void shouldAddOneMethodLevelInterceptor() {
+        ServerInterceptor interceptor = mock(ServerInterceptor.class);
+
+        ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
+                .unary("methodOne", this::dummyServerStreaming)
+                .intercept("methodOne", interceptor)
+                .build();
+
+        MethodDescriptor<?, ?> methodDescriptor = descriptor.method("methodOne");
+
+        assertThat(methodDescriptor, is(notNullValue()));
+        assertThat(methodDescriptor.interceptors(), contains(interceptor));
+    }
+
+    @Test
+    public void shouldAddMultipleMethodLevelInterceptors() {
+        ServerInterceptor interceptor1 = mock(ServerInterceptor.class);
+        ServerInterceptor interceptor2 = mock(ServerInterceptor.class);
+        ServerInterceptor interceptor3 = mock(ServerInterceptor.class);
+
+        ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
+                .unary("methodOne", this::dummyServerStreaming)
+                .intercept("methodOne", interceptor1, interceptor2)
+                .intercept("methodOne", interceptor3)
+                .build();
+
+        MethodDescriptor<?, ?> methodDescriptor = descriptor.method("methodOne");
+
+        assertThat(methodDescriptor, is(notNullValue()));
+        assertThat(methodDescriptor.interceptors(), contains(interceptor1, interceptor2, interceptor3));
+    }
+
+    @Test
+    public void shouldAddMethodLevelInterceptorsToDifferentMethods() {
+        ServerInterceptor interceptor1 = mock(ServerInterceptor.class);
+        ServerInterceptor interceptor2 = mock(ServerInterceptor.class);
+        ServerInterceptor interceptor3 = mock(ServerInterceptor.class);
+
+        ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
+                .unary("methodOne", this::dummyServerStreaming)
+                .intercept("methodOne", interceptor1, interceptor2)
+                .unary("methodTwo", this::dummyServerStreaming)
+                .intercept("methodTwo", interceptor3)
+                .build();
+
+        MethodDescriptor<?, ?> methodDescriptor1 = descriptor.method("methodOne");
+        MethodDescriptor<?, ?> methodDescriptor2 = descriptor.method("methodTwo");
+
+        assertThat(methodDescriptor1, is(notNullValue()));
+        assertThat(methodDescriptor1.interceptors(), contains(interceptor1, interceptor2));
+        assertThat(methodDescriptor2, is(notNullValue()));
+        assertThat(methodDescriptor2.interceptors(), contains(interceptor3));
+    }
+
+    @Test
     public void shouldHaveNoMetricsByDefault() {
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService()).build();
 
@@ -453,7 +523,7 @@ public class ServiceDescriptorTest {
                 .unary("bar", this::dummyUnary)
                 .build();
 
-        io.grpc.MethodDescriptor<?, ?> methodDescriptor = descriptor.bindableService()
+        io.grpc.MethodDescriptor<?, ?> methodDescriptor = descriptor.bindableService(Collections.emptyList())
                 .bindService()
                 .getMethod("foo/bar")
                 .getMethodDescriptor();
@@ -472,7 +542,7 @@ public class ServiceDescriptorTest {
 
         assertThat(descriptor.name(), is(grpcDescriptor.getName()));
 
-        BindableService bindableService = descriptor.bindableService();
+        BindableService bindableService = descriptor.bindableService(Collections.emptyList());
         assertThat(bindableService, is(notNullValue()));
 
         ServerServiceDefinition ssd = bindableService.bindService();
@@ -486,8 +556,6 @@ public class ServiceDescriptorTest {
 
     @Test
     public void shouldBuildFromProtoFile() {
-        BindableService echoService = new EchoStub();
-
         GrpcService service = mock(GrpcService.class);
 
         when(service.name()).thenReturn("EchoService");
@@ -501,7 +569,7 @@ public class ServiceDescriptorTest {
 
         assertThat(descriptor.name(), is("EchoService"));
 
-        BindableService bindableService = descriptor.bindableService();
+        BindableService bindableService = descriptor.bindableService(Collections.emptyList());
         assertThat(bindableService, is(notNullValue()));
 
         ServerServiceDefinition ssd = bindableService.bindService();

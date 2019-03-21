@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package io.helidon.grpc.server;
+syntax = "proto3";
+option java_package = "io.helidon.grpc.server.test";
 
-/**
- * Allows users to specify that they would like to have access to a
- * {@link io.helidon.grpc.server.ServiceDescriptor} within their {@link io.grpc.ServerInterceptor}
- * implementation.
- *
- * @author Aleksandar Seovic  2019.03.18
- */
-public interface ServiceDescriptorAware {
-    /**
-     * Set service descriptor.
-     * @param descriptor service descriptor instance
-     */
-    void setServiceDescriptor(ServiceDescriptor descriptor);
+service EchoService {
+  rpc Echo (EchoRequest) returns (EchoResponse) {}
+}
+
+message EchoRequest {
+  string message = 1;
+}
+
+message EchoResponse {
+  string message = 1;
 }

@@ -42,12 +42,6 @@
             <artifactId>helidon-grpc-core</artifactId>
             <version>${project.version}</version>
         </dependency>
-        <dependency>
-            <groupId>io.helidon.grpc</groupId>
-            <artifactId>helidon-grpc-client</artifactId>
-            <version>${project.version}</version>
-            <scope>test</scope>
-        </dependency>
 
         <dependency>
             <groupId>io.helidon.common</groupId>
@@ -116,6 +110,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>io.helidon.tracing</groupId>
+            <artifactId>helidon-tracing-zipkin</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.glassfish.jersey.core</groupId>
             <artifactId>jersey-client</artifactId>
             <scope>test</scope>
@@ -133,16 +133,13 @@
         <dependency>
             <groupId>io.zipkin.zipkin2</groupId>
             <artifactId>zipkin-junit</artifactId>
-            <version>${version.lib.zipkin.junit}</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>com.oracle.bedrock</groupId>
             <artifactId>bedrock-testing-support</artifactId>
-            <version>${version.lib.bedrock}</version>
+            <scope>test</scope>
         </dependency>
-
-        <!-- Thanks for using https://jar-download.com -->
-
     </dependencies>
 
     <build>
@@ -184,6 +181,7 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
+                    <reuseForks>false</reuseForks>
                     <includes>
                         <include>**/*IT.java</include>
                     </includes>

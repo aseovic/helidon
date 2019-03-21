@@ -16,6 +16,7 @@
 
 package io.helidon.security.integration.grpc;
 
+import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +30,8 @@ import java.util.logging.Logger;
 import io.helidon.config.Config;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcService;
+import io.helidon.grpc.core.InterceptorPriority;
+import io.helidon.grpc.server.PriorityServerInterceptor;
 import io.helidon.security.EndpointConfig;
 import io.helidon.security.Security;
 import io.helidon.security.SecurityContext;
@@ -37,9 +40,9 @@ import io.helidon.security.SecurityEnvironment;
 import io.grpc.Context;
 import io.grpc.Grpc;
 import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -64,7 +67,7 @@ import io.opentracing.contrib.grpc.OpenTracingContextKey;
  * GrpcSecurity#create(Security) from(security)})
  * </pre>
  * <p>
- * Other methods are to create security enforcement points (gates) for specific servces.
+ * Other methods are to create security enforcement points (gates) for specific services.
  * These methods are starting points that provide an instance of {@link GrpcSecurityHandler} that has finer grained
  * methods to control the gate behavior. <br>
  * Note that if any gate is configured, auditing will be enabled by default if you want to audit any method, invoke
@@ -87,20 +90,20 @@ import io.opentracing.contrib.grpc.OpenTracingContextKey;
  * <pre>
  * // continue from example above...
  * // create a gate for method GET: authenticate all paths under /user and require role "user" for authorization
- * .register({@link io.helidon.grpc.server.GrpcService}, GrpcSecurity.{@link GrpcSecurity#rolesAllowed(String...)
+ * .intercept({@link io.helidon.grpc.server.GrpcService}, GrpcSecurity.{@link GrpcSecurity#rolesAllowed(String...)
  * rolesAllowed("user")})
  * </pre>
  */
 public final class GrpcSecurity
-        implements ServerInterceptor {
+        implements PriorityServerInterceptor {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurity.class.getName());
 
     /**
      * Security can accept additional headers to be added to security request.
-     * This will be used to obtain multivalue string map (a map of string to list of strings) from context (appropriate
+     * This will be used to obtain multi-value string map (a map of string to list of strings) from context (appropriate
      * to the integration).
      */
-    public static final String CONTEXT_ADD_HEADERS = "security.addHeaders";
+    public static final Context.Key<Map> CONTEXT_ADD_HEADERS = Context.key("security.addHeaders");
 
     /**
      * The SecurityContext gRPC metadata header key.
@@ -109,10 +112,30 @@ public final class GrpcSecurity
             Context.key("Helidon.SecurityContext");
 
     /**
-     * The default security interceptor gRPC metadata header key.
+     * The default security handler gRPC metadata header key.
      */
-    public static final Context.Key<GrpcSecurityHandler> GRPC_SECURITY_INTERCEPTOR =
-            Context.key("DefaultGrpcSecurityInterceptor");
+    public static final Context.Key<GrpcSecurityHandler> GRPC_SECURITY_HANDLER =
+            Context.key("Helidon.SecurityInterceptor");
+
+    /**
+     * The value used for the key of the security context environment's ABAC request remote address attribute.
+     */
+    public static final String ABAC_ATTRIBUTE_REMOTE_ADDRESS = "userIp";
+
+    /**
+     * The value used for the key of the security context environment's ABAC request remote port attribute.
+     */
+    public static final String ABAC_ATTRIBUTE_REMOTE_PORT = "userPort";
+
+    /**
+     * The value used for the key of the security context environment's ABAC request headers attribute.
+     */
+    public static final String ABAC_ATTRIBUTE_HEADERS = "metadata";
+
+    /**
+     * The value used for the key of the security context environment's ABAC request method descriptor attribute.
+     */
+    public static final String ABAC_ATTRIBUTE_METHOD = "methodDescriptor";
 
     private static final AtomicInteger SECURITY_COUNTER = new AtomicInteger();
 
@@ -129,13 +152,12 @@ public final class GrpcSecurity
     }
 
     /**
-     * Create a consumer of routing config to be {@link GrpcRouting.Builder#register(GrpcService)}) registered} with
+     * Create a consumer of gRPC routing config to be {@link GrpcRouting.Builder#register(GrpcService)}) registered} with
      * web server routing to process security requests.
-     * This method is to be used together with other routing methods to protect web resources programmatically.
+     * This method is to be used together with other routing methods to protect gRPC service or methods programmatically.
      * Example:
      * <pre>
-     * .get("/user[/{*}]", GrpcSecurity.authenticate()
-     * .rolesAllowed("user"))
+     * .intercept(GrpcSecurity.authenticate().rolesAllowed("user"))
      * </pre>
      *
      * @param security initialized security
@@ -146,7 +168,7 @@ public final class GrpcSecurity
     }
 
     /**
-     * Create a consumer of routing config to be {@link GrpcRouting.Builder#register(GrpcService) registered} with
+     * Create a consumer of gRPC routing config to be {@link GrpcRouting.Builder#register(GrpcService) registered} with
      * web server routing to process security requests.
      * This method configures security and web server integration from a config instance
      *
@@ -319,7 +341,12 @@ public final class GrpcSecurity
      */
     public GrpcSecurity securityDefaults(GrpcSecurityHandler defaultHandler) {
         Objects.requireNonNull(defaultHandler, "Default security handler must not be null");
-        return new GrpcSecurity(security);
+        return new GrpcSecurity(security, defaultHandler);
+    }
+
+    @Override
+    public InterceptorPriority getInterceptorPriority() {
+        return InterceptorPriority.Security;
     }
 
     @Override
@@ -329,10 +356,10 @@ public final class GrpcSecurity
         Context context = registerContext(call, headers);
 
         try {
-            GrpcSecurityHandler configuredHandler = GrpcSecurity.GRPC_SECURITY_INTERCEPTOR.get(context);
+            GrpcSecurityHandler configuredHandler = GrpcSecurity.GRPC_SECURITY_HANDLER.get(context);
             GrpcSecurityHandler handler = configuredHandler == null ? defaultHandler : configuredHandler;
 
-            return context.call(() -> handler.interceptCall(call, headers, next));
+            return context.call(() -> handler.handleSecurity(call, headers, next));
         } catch (Throwable throwable) {
             LOGGER.log(Level.SEVERE, "Unexpected exception during security processing", throwable);
             call.close(Status.INTERNAL, new Metadata());
@@ -341,13 +368,27 @@ public final class GrpcSecurity
     }
 
     @SuppressWarnings("unchecked")
-    private <ReqT, RespT> Context registerContext(ServerCall<ReqT, RespT> call, Metadata headers) {
+    <ReqT, RespT> Context registerContext(ServerCall<ReqT, RespT> call, Metadata headers) {
         Context grpcContext;
 
         if (SECURITY_CONTEXT.get() == null) {
             SocketAddress remoteSocket = call.getAttributes().get(Grpc.TRANSPORT_ATTR_REMOTE_ADDR);
-            String address = remoteSocket == null ? null : remoteSocket.toString();
+            String address = null;
+            int port = -1;
+
+            if (remoteSocket instanceof InetSocketAddress) {
+                address = ((InetSocketAddress) remoteSocket).getHostName();
+                port = ((InetSocketAddress) remoteSocket).getPort();
+            } else {
+                address = String.valueOf(remoteSocket);
+            }
+
             Map<String, List<String>> headerMap = new HashMap<>();
+            Map mapExtra = CONTEXT_ADD_HEADERS.get();
+
+            if (mapExtra != null) {
+                headerMap.putAll(mapExtra);
+            }
 
             for (String name : headers.keys()) {
                 Metadata.Key key = Metadata.Key.of(name, Metadata.ASCII_STRING_MARSHALLER);
@@ -363,15 +404,21 @@ public final class GrpcSecurity
                 headerMap.put(name, values);
             }
 
+            MethodDescriptor<ReqT, RespT> methodDescriptor = call.getMethodDescriptor();
+            String methodName = methodDescriptor.getFullMethodName();
+
             SecurityEnvironment env = security.environmentBuilder()
-                    .path(call.getMethodDescriptor().getFullMethodName())
+                    .path(methodName)
+                    .method(methodName)
                     .headers(headerMap)
-                    .addAttribute("userAddress", address)
-                    .addAttribute("metadata", headers)
+                    .addAttribute(ABAC_ATTRIBUTE_REMOTE_ADDRESS, address)
+                    .addAttribute(ABAC_ATTRIBUTE_REMOTE_PORT, port)
+                    .addAttribute(ABAC_ATTRIBUTE_HEADERS, headers)
+                    .addAttribute(ABAC_ATTRIBUTE_METHOD, methodDescriptor)
+                    .transport("grpc")
                     .build();
 
-            EndpointConfig ec = EndpointConfig.builder()
-                    .build();
+            EndpointConfig ec = EndpointConfig.builder().build();
 
             Span span = OpenTracingContextKey.getKey().get();
             SpanContext spanContext = span == null ? null : span.context();

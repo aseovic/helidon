@@ -273,21 +273,9 @@ public class GrpcServerImpl implements GrpcServer {
         Objects.requireNonNull(serviceDescriptor);
 
         String serverName = config.name();
-        BindableService service = serviceDescriptor.bindableService();
+        BindableService service = serviceDescriptor.bindableService(globalInterceptors);
         ServerServiceDefinition ssd = service.bindService();
         String serviceName = ssd.getServiceDescriptor().getName();
-
-        List<ServerInterceptor> interceptors = new ArrayList<>(globalInterceptors);
-        for (ServerInterceptor serviceInterceptor : serviceDescriptor.interceptors()) {
-            if (serviceInterceptor instanceof ServiceDescriptorAware) {
-                ((ServiceDescriptorAware) serviceInterceptor).setServiceDescriptor(serviceDescriptor);
-            }
-            interceptors.add(serviceInterceptor);
-        }
-
-        for (int i = interceptors.size() - 1; i >= 0; i--) {
-            ssd = ServerInterceptors.intercept(ssd, interceptors.get(i));
-        }
 
         handlerRegistry.addService(ssd);
         mapServices.put(service.getClass().getName(), ssd);

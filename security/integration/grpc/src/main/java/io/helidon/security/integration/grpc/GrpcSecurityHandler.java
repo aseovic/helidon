@@ -34,7 +34,8 @@ import java.util.logging.Logger;
 import io.helidon.common.CollectionsHelper;
 import io.helidon.common.OptionalHelper;
 import io.helidon.config.Config;
-import io.helidon.grpc.server.MethodDescriptor;
+import io.helidon.grpc.core.InterceptorPriority;
+import io.helidon.grpc.server.PriorityServerInterceptor;
 import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.security.AuditEvent;
 import io.helidon.security.AuthenticationResponse;
@@ -47,12 +48,13 @@ import io.helidon.security.SecurityRequest;
 import io.helidon.security.SecurityRequestBuilder;
 import io.helidon.security.internal.SecurityAuditEvent;
 
+import io.grpc.Context;
+import io.grpc.Contexts;
 import io.grpc.ForwardingServerCall;
 import io.grpc.ForwardingServerCallListener;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
-import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
@@ -63,12 +65,18 @@ import static io.helidon.security.AuditEvent.AuditParam.plain;
 /**
  * Handles security for the gRPC server. This handler is registered either by hand on the gRPC routing config,
  * or automatically from configuration when integration is done through {@link GrpcSecurity#create(Config)}
- * or {@link GrpcSecurity#create(Security, Config)}.
+ * or {@link GrpcSecurity#create(Security)}.
+ * <p>
+ * This class is an implementation of a {@link PriorityServerInterceptor} with a priority of
+ * {@link InterceptorPriority#Context} that will add itself to the call context with the key
+ * {@link GrpcSecurity#GRPC_SECURITY_HANDLER}. This will then cause the {@link GrpcSecurity}
+ * interceptor that runs later with a priority of {@link InterceptorPriority#Security} to use
+ * this instance of the handler.
  */
 // we need to have all fields optional and this is cleaner than checking for null
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
-public final class GrpcSecurityHandler
-        implements ServerInterceptor, Consumer<ServiceDescriptor.Config> {
+public class GrpcSecurityHandler
+        implements PriorityServerInterceptor, Consumer<ServiceDescriptor.Config> {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurityHandler.class.getName());
     private static final String KEY_ROLES_ALLOWED = "roles-allowed";
     private static final String KEY_AUTHENTICATOR = "authenticator";
@@ -287,22 +295,37 @@ public final class GrpcSecurityHandler
      */
     @Override
     public void accept(ServiceDescriptor.Config config) {
-        config.addContextValue(GrpcSecurity.GRPC_SECURITY_INTERCEPTOR, this);
+        config.addContextValue(GrpcSecurity.GRPC_SECURITY_HANDLER, this);
     }
 
-    /**
-     * Modifies a {@link MethodDescriptor.Config} to add this {@link GrpcSecurityHandler}.
-     *
-     * @param config  the {@link MethodDescriptor.Config} to modify
-     */
-    //@Override
-    public void accept(MethodDescriptor.Config config) {
+    @Override
+    public InterceptorPriority getInterceptorPriority() {
+        return InterceptorPriority.Context;
     }
 
     @Override
     public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(ServerCall<ReqT, RespT> call,
                                                                  Metadata headers,
                                                                  ServerCallHandler<ReqT, RespT> next) {
+
+        Context context = Context.current().withValue(GrpcSecurity.GRPC_SECURITY_HANDLER, this);
+        return Contexts.interceptCall(context, call, headers, next);
+    }
+
+    /**
+     * Perform security checks.
+     *
+     * @param call     the current gRPC call to check
+     * @param headers  the call headers
+     * @param next     the next handler in the chain
+     * @param <ReqT>   the request type
+     * @param <RespT>  the response type
+     *
+     * @return listener for processing incoming messages for {@code call}, never {@code null}
+     */
+    <ReqT, RespT> ServerCall.Listener<ReqT> handleSecurity(ServerCall<ReqT, RespT> call,
+                                                           Metadata headers,
+                                                           ServerCallHandler<ReqT, RespT> next) {
         SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get();
 
         if (securityContext == null) {
@@ -320,7 +343,7 @@ public final class GrpcSecurityHandler
             // as the result is exactly the same in all cases and doesn't have side effects
             if (null == combinedHandler.get()) {
                 // we may have a default handler configured
-                GrpcSecurityHandler defaultHandler = GrpcSecurity.GRPC_SECURITY_INTERCEPTOR.get();
+                GrpcSecurityHandler defaultHandler = GrpcSecurity.GRPC_SECURITY_HANDLER.get();
 
                 if (defaultHandler == null) {
                     defaultHandler = DEFAULT_INSTANCE;

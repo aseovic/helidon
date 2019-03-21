@@ -16,9 +16,28 @@
 
 package io.helidon.security.integration.grpc;
 
-import io.helidon.config.Config;
-import io.helidon.security.Security;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
+import io.helidon.grpc.core.InterceptorPriority;
+import io.helidon.grpc.server.test.EchoServiceGrpc;
+import io.helidon.security.Security;
+import io.helidon.security.SecurityContext;
+import io.helidon.security.SecurityEnvironment;
+
+import io.grpc.Attributes;
+import io.grpc.Context;
+import io.grpc.Grpc;
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServiceDescriptor;
 import org.junit.jupiter.api.Test;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -27,12 +46,240 @@ import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 /**
  * @author Jonathan Knight
  */
+@SuppressWarnings("unchecked")
 public class GrpcSecurityTest {
+    @Test
+    public void shouldHaveCorrectPriority() {
+        GrpcSecurity security = GrpcSecurity.create(Security.builder().build());
+
+        assertThat(security.getInterceptorPriority(), is(InterceptorPriority.Security));
+    }
+
+    @Test
+    public void shouldRegisterSecurityContext() {
+        MethodDescriptor<String, String> descriptor = getEchoMethod();
+        ServerCall<String, String> call = mock(ServerCall.class);
+        Metadata headers = new Metadata();
+        SocketAddress address = new InetSocketAddress("helidon.io", 8080);
+        Attributes attributes = Attributes.newBuilder()
+                                          .set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, address)
+                                          .build();
+
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+
+        GrpcSecurity security = GrpcSecurity.create(Security.builder().build());
+        Context context = security.registerContext(call, headers);
+        assertThat(context, is(notNullValue()));
+
+
+        SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get(context);
+        assertThat(securityContext, is(notNullValue()));
+
+        SecurityEnvironment environment = securityContext.env();
+        assertThat(environment, is(notNullValue()));
+    }
+
+    @Test
+    public void shouldAddAttributesToSecurityContext() {
+        MethodDescriptor<String, String> descriptor = getEchoMethod();
+        ServerCall<String, String> call = mock(ServerCall.class);
+        Metadata headers = new Metadata();
+        SocketAddress address = new InetSocketAddress("helidon.io", 8080);
+        Attributes attributes = Attributes.newBuilder()
+                                          .set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, address)
+                                          .build();
+
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+
+        GrpcSecurity security = GrpcSecurity.create(Security.builder().build());
+        Context context = security.registerContext(call, headers);
+        assertThat(context, is(notNullValue()));
+
+        SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get(context);
+        assertThat(securityContext, is(notNullValue()));
+
+        SecurityEnvironment environment = securityContext.env();
+        assertThat(environment, is(notNullValue()));
+        assertThat(environment.method(), is(descriptor.getFullMethodName()));
+        assertThat(environment.path().get(), is(descriptor.getFullMethodName()));
+        assertThat(environment.transport(), is("grpc"));
+        assertThat(environment.abacAttribute(GrpcSecurity.ABAC_ATTRIBUTE_REMOTE_ADDRESS).get(), is("helidon.io"));
+        assertThat(environment.abacAttribute(GrpcSecurity.ABAC_ATTRIBUTE_REMOTE_PORT).get(), is(8080));
+        assertThat(environment.abacAttribute(GrpcSecurity.ABAC_ATTRIBUTE_HEADERS).get(), is(sameInstance(headers)));
+        assertThat(environment.abacAttribute(GrpcSecurity.ABAC_ATTRIBUTE_METHOD).get(), is(sameInstance(descriptor)));
+
+    }
+
+    @Test
+    public void shouldAddHeadersToSecurityContext() {
+        MethodDescriptor<String, String> descriptor = getEchoMethod();
+        ServerCall<String, String> call = mock(ServerCall.class);
+        Metadata headers = new Metadata();
+        SocketAddress address = new InetSocketAddress("helidon.io", 8080);
+        Attributes attributes = Attributes.newBuilder()
+                                          .set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, address)
+                                          .build();
+
+        headers.put(Metadata.Key.of("key-1", Metadata.ASCII_STRING_MARSHALLER), "value-1.1");
+        headers.put(Metadata.Key.of("key-1", Metadata.ASCII_STRING_MARSHALLER), "value-1.2");
+        headers.put(Metadata.Key.of("key-2", Metadata.ASCII_STRING_MARSHALLER), "value-2");
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+
+        GrpcSecurity security = GrpcSecurity.create(Security.builder().build());
+        Context context = security.registerContext(call, headers);
+        assertThat(context, is(notNullValue()));
+
+        SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get(context);
+        assertThat(securityContext, is(notNullValue()));
+
+        SecurityEnvironment environment = securityContext.env();
+        assertThat(environment, is(notNullValue()));
+
+        Map<String, List<String>> expectedHeaders = new HashMap<>();
+        Map<String, List<String>> securityHeaders = environment.headers();
+
+        expectedHeaders.put("key-1", Arrays.asList("value-1.1", "value-1.2"));
+        expectedHeaders.put("key-2", Collections.singletonList("value-2"));
+        
+        assertThat(securityHeaders, is(notNullValue()));
+        assertThat(securityHeaders, is(expectedHeaders));
+    }
+
+    @Test
+    public void shouldAddExtraHeadersToSecurityContext() throws Exception {
+        MethodDescriptor<String, String> descriptor = getEchoMethod();
+        ServerCall<String, String> call = mock(ServerCall.class);
+        Metadata headers = new Metadata();
+        SocketAddress address = new InetSocketAddress("helidon.io", 8080);
+        Attributes attributes = Attributes.newBuilder()
+                                          .set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, address)
+                                          .build();
+
+        Map extraHeaders = new HashMap();
+        extraHeaders.put("key-1", Collections.singletonList("value-1"));
+        extraHeaders.put("key-2", Collections.singletonList("value-2"));
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+
+        GrpcSecurity security = GrpcSecurity.create(Security.builder().build());
+        Context contextCurrent = Context.current().withValue(GrpcSecurity.CONTEXT_ADD_HEADERS, extraHeaders);
+        Context context = contextCurrent.call(() -> security.registerContext(call, headers));
+        assertThat(context, is(notNullValue()));
+
+        SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get(context);
+        assertThat(securityContext, is(notNullValue()));
+
+        SecurityEnvironment environment = securityContext.env();
+        assertThat(environment, is(notNullValue()));
+
+        Map<String, List<String>> expectedHeaders = new HashMap<>();
+        Map<String, List<String>> securityHeaders = environment.headers();
+
+        expectedHeaders.put("key-1", Collections.singletonList("value-1"));
+        expectedHeaders.put("key-2", Collections.singletonList("value-2"));
+
+        assertThat(securityHeaders, is(notNullValue()));
+        assertThat(securityHeaders, is(expectedHeaders));
+    }
+
+    @Test
+    public void shouldUseExistingSecurityContext() throws Exception {
+        MethodDescriptor<String, String> descriptor = getEchoMethod();
+        ServerCall<String, String> call = mock(ServerCall.class);
+        Metadata headers = new Metadata();
+        SocketAddress address = new InetSocketAddress("helidon.io", 8080);
+        Attributes attributes = Attributes.newBuilder()
+                                          .set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, address)
+                                          .build();
+
+        Map extraHeaders = new HashMap();
+        extraHeaders.put("key-1", Collections.singletonList("value-1"));
+        extraHeaders.put("key-2", Collections.singletonList("value-2"));
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+
+        Security security = Security.builder().build();
+        SecurityContext securityContextCurrent = security.createContext("foo");
+        GrpcSecurity grpcSecurity = GrpcSecurity.create(security);
+        Context contextCurrent = Context.current().withValue(GrpcSecurity.SECURITY_CONTEXT, securityContextCurrent);
+        Context context = contextCurrent.call(() -> grpcSecurity.registerContext(call, headers));
+
+        assertThat(context, is(notNullValue()));
+
+        SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get(context);
+        assertThat(securityContext, is(sameInstance(securityContextCurrent)));
+
+    }
+
+    @Test
+    public void shouldCallDefaultHandler() {
+        MethodDescriptor<String, String> descriptor= getEchoMethod();
+        ServerCallHandler<String, String> next = mock(ServerCallHandler.class);
+        ServerCall<String, String> call = mock(ServerCall.class);
+        ListenerStub listener = new ListenerStub();
+        Attributes attributes = Attributes.EMPTY;
+        Metadata headers = new Metadata();
+
+        GrpcSecurityHandler defaultHandler = mock(GrpcSecurityHandler.class);
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+        when(defaultHandler.handleSecurity(any(ServerCall.class), any(Metadata.class), any(ServerCallHandler.class))).thenReturn(listener);
+
+        GrpcSecurity security = GrpcSecurity.create(Security.builder().build()).securityDefaults(defaultHandler);
+
+        ServerCall.Listener<String> result = security.interceptCall(call, headers, next);
+
+        verify(defaultHandler).handleSecurity(call, headers, next);
+        assertThat(result, is(notNullValue()));
+    }
+
+    @Test
+    public void shouldCallSpecificHandler() throws Exception {
+        Metadata headers = new Metadata();
+        ServerCall<String, String> call = mock(ServerCall.class);
+        ServerCallHandler<String, String> next = mock(ServerCallHandler.class);
+        ListenerStub listener = new ListenerStub();
+        Attributes attributes = Attributes.EMPTY;
+        ServiceDescriptor serviceDescriptor = EchoServiceGrpc.getServiceDescriptor();
+        MethodDescriptor<String, String> descriptor
+                = (MethodDescriptor<String, String>) serviceDescriptor.getMethods().stream().findAny().get();
+
+        GrpcSecurityHandler defaultHandler = mock(GrpcSecurityHandler.class);
+        GrpcSecurityHandler handler = mock(GrpcSecurityHandler.class);
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+        when(handler.handleSecurity(any(ServerCall.class), any(Metadata.class), any(ServerCallHandler.class))).thenReturn(listener);
+
+        GrpcSecurity security = GrpcSecurity.create(Security.builder().build()).securityDefaults(defaultHandler);
+
+        Context context = Context.current().withValue(GrpcSecurity.GRPC_SECURITY_HANDLER, handler);
+
+        ServerCall.Listener<String> result = context.call(() -> security.interceptCall(call, headers, next));
+
+        verify(handler).handleSecurity(call, headers, next);
+        verifyNoMoreInteractions(defaultHandler);
+        assertThat(result, is(notNullValue()));
+    }
+
     @Test
     public void shouldBuildDefaultHandler()  {
         GrpcSecurityHandler handler = GrpcSecurity.enforce();
@@ -198,4 +445,24 @@ public class GrpcSecurityTest {
         assertThat(grpcSecurity.getDefaultHandler(), is(sameInstance(defaultHandler)));
     }
 
+
+    private MethodDescriptor<String, String> getEchoMethod() {
+        ServiceDescriptor serviceDescriptor = EchoServiceGrpc.getServiceDescriptor();
+        return (MethodDescriptor<String, String>) serviceDescriptor.getMethods().stream().findAny().get();
+    }
+
+    private class ListenerStub
+            extends ServerCall.Listener<String> {
+
+        private Context context;
+
+        @Override
+        public void onMessage(String message) {
+            context = Context.current();
+        }
+
+        public Context getContext() {
+            return context;
+        }
+    }
 }

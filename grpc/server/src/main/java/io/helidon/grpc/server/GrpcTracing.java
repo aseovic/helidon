@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 
 import io.helidon.grpc.core.ContextKeys;
+import io.helidon.grpc.core.InterceptorPriority;
 
 import io.grpc.Context;
 import io.grpc.Contexts;
@@ -42,7 +43,7 @@ import io.opentracing.propagation.TextMapExtractAdapter;
  * A {@link ServerInterceptor} that adds tracing to gRPC service calls.
  */
 public class GrpcTracing
-        implements ServerInterceptor {
+        implements PriorityServerInterceptor {
     /**
      * public constructor.
      *
@@ -55,6 +56,11 @@ public class GrpcTracing
         streaming = tracingConfig.isStreaming();
         verbose = tracingConfig.isVerbose();
         tracedAttributes = tracingConfig.tracedAttributes();
+    }
+
+    @Override
+    public InterceptorPriority getInterceptorPriority() {
+        return InterceptorPriority.Context;
     }
 
     @Override
@@ -73,29 +79,29 @@ public class GrpcTracing
         String operationName = operationNameConstructor.constructOperationName(call.getMethodDescriptor());
         Span span = getSpanFromHeaders(headerMap, operationName);
 
-        for (ServerRequestAttribute attr : tracedAttributes) {
-            switch (attr) {
-                case METHOD_TYPE:
-                    span.setTag("grpc.method_type", call.getMethodDescriptor().getType().toString());
-                    break;
-                case METHOD_NAME:
-                    span.setTag("grpc.method_name", call.getMethodDescriptor().getFullMethodName());
-                    break;
-                case CALL_ATTRIBUTES:
-                    span.setTag("grpc.call_attributes", call.getAttributes().toString());
-                    break;
-                case HEADERS:
-                    // copy the headers and make sure that the AUTHORIZATION header
-                    // is removed as we do not want auth details to appear in tracing logs
-                    Metadata metadata = new Metadata();
-
-                    metadata.merge(headers);
-                    metadata.removeAll(ContextKeys.AUTHORIZATION);
-
-                    span.setTag("grpc.headers", metadata.toString());
-                    break;
-                default:
-                    // ignored - should never happen
+        if (tracedAttributes.contains(ServerRequestAttribute.ALL)) {
+            span.setTag("grpc.method_type", call.getMethodDescriptor().getType().toString());
+            span.setTag("grpc.method_name", call.getMethodDescriptor().getFullMethodName());
+            span.setTag("grpc.call_attributes", call.getAttributes().toString());
+            addMetadata(headers, span);
+        } else {
+            for (ServerRequestAttribute attr : tracedAttributes) {
+                switch (attr) {
+                    case METHOD_TYPE:
+                        span.setTag("grpc.method_type", call.getMethodDescriptor().getType().toString());
+                        break;
+                    case METHOD_NAME:
+                        span.setTag("grpc.method_name", call.getMethodDescriptor().getFullMethodName());
+                        break;
+                    case CALL_ATTRIBUTES:
+                        span.setTag("grpc.call_attributes", call.getAttributes().toString());
+                        break;
+                    case HEADERS:
+                        addMetadata(headers, span);
+                        break;
+                    default:
+                        // ignored - should never happen
+                }
             }
         }
 
@@ -103,6 +109,17 @@ public class GrpcTracing
         ServerCall.Listener<ReqT> listenerWithContext = Contexts.interceptCall(ctxWithSpan, call, headers, next);
 
         return new TracingListener<>(listenerWithContext, span);
+    }
+
+    private void addMetadata(Metadata headers, Span span) {
+        // copy the headers and make sure that the AUTHORIZATION header
+        // is removed as we do not want auth details to appear in tracing logs
+        Metadata metadata = new Metadata();
+
+        metadata.merge(headers);
+        metadata.removeAll(ContextKeys.AUTHORIZATION);
+
+        span.setTag("grpc.headers", metadata.toString());
     }
 
     private Span getSpanFromHeaders(Map<String, String> headers, String operationName) {

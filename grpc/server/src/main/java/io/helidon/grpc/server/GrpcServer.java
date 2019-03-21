@@ -267,28 +267,26 @@ public interface GrpcServer {
          */
         @Override
         public GrpcServer build() {
+            List<ServerInterceptor> interceptors = new ArrayList<>();
             GrpcServerImpl server = new GrpcServerImpl(configuration);
             Tracer tracer = configuration.tracer();
-            GrpcTracing tracingInterceptor = null;
+
+            interceptors.add(new ContextSettingServerInterceptor());
+
             if (tracer != null) {
                 TracingConfiguration tracingConfig = configuration.tracingConfig();
                 if (tracingConfig == null) {
                     // default trace configuration
                     tracingConfig = new TracingConfiguration.Builder().build();
                 }
-                tracingInterceptor = new GrpcTracing(tracer, tracingConfig);
+                interceptors.add(new GrpcTracing(tracer, tracingConfig));
             }
 
+            // add the global interceptors from the routing AFTER the tracing interceptor
+            // so that all of those interceptors are included in the trace timings
+            interceptors.addAll(routing.interceptors());
+
             for (ServiceDescriptor service : routing.services()) {
-                List<ServerInterceptor> interceptors = new ArrayList<>();
-
-                if (tracingInterceptor != null) {
-                    interceptors.add(tracingInterceptor);
-                }
-
-                interceptors.add(new ContextSettingServerInterceptor(service));
-                interceptors.addAll(routing.interceptors());
-
                 server.deploy(service, interceptors);
             }
 

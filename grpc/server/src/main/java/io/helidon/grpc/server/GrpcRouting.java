@@ -135,6 +135,17 @@ public interface GrpcRouting {
         }
 
         /**
+         * Add a {@link ServiceDescriptor} with the {@link GrpcRouting} to be built by this builder.
+         *
+         * @param service    the {@link ServiceDescriptor} to register
+         * @return this builder to allow fluent method chaining
+         */
+        public Builder register(ServiceDescriptor service) {
+            services.add(service);
+            return this;
+        }
+
+        /**
          * Builds a new {@link GrpcRouting}.
          *
          * @return a new {@link GrpcRouting} instance

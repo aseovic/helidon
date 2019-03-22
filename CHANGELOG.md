@@ -11,6 +11,49 @@ This project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.htm
 
 ### Fixes
 
+## [1.0.2] - 2019-03-21
+
+### Fixes
+
+- Config: SE config should map env vars the same way that MP does [446](https://github.com/oracle/helidon/issues/446)
+- Config: Refactor usage of exceptions in optional sources [477](https://github.com/oracle/helidon/issues/477)
+- WebServer: 404 Response without body [390](https://github.com/oracle/helidon/issues/390)
+
+## [1.0.1] - 2019-03-13
+
+### Notes
+
+This release brings you GraalVM support in Helidon SE and a variety of
+bug fixes and documentation improvements.
+
+### Improvements
+
+- Add support for GraalVM in Helidon SE
+  [499](https://github.com/oracle/helidon/pull/499)
+- Security: add JWT-Auth configuration to control secure by default
+  [465](https://github.com/oracle/helidon/pull/465)
+- Assorted documentation updates
+  [418](https://github.com/oracle/helidon/pull/418) 
+  [424](https://github.com/oracle/helidon/pull/424) 
+  [435](https://github.com/oracle/helidon/pull/435) 
+  [440](https://github.com/oracle/helidon/pull/440) 
+  [448](https://github.com/oracle/helidon/pull/448) 
+
+### Fixes
+
+- WebServer: MetricSupport and RegistryFactory can be accessed in any order now
+  [457](https://github.com/oracle/helidon/issues/457)
+- WebServer: cleanup and optimizations when writing data from Jersey
+  [463](https://github.com/oracle/helidon/pull/463)
+- WebServer: NPE in ForwardingHandler
+  [430](https://github.com/oracle/helidon/issues/430)
+- Performance improvements
+  [423](https://github.com/oracle/helidon/pull/423) 
+- Security: NPE when IDCS returns no groups
+  [454](https://github.com/oracle/helidon/pull/454)
+- Json processing support now uses default encoding of JSON-P
+  [421](https://github.com/oracle/helidon/pull/421)
+
 ## [1.0.0] - 2019-02-12
 
 ### Notes
@@ -189,7 +232,9 @@ for details.
 ### Notes
 - Initial source drop on Github
 
-[Unreleased]: https://github.com/oracle/helidon/compare/1.0.0...HEAD
+[Unreleased]: https://github.com/oracle/helidon/compare/1.0.1...HEAD
+[1.0.2]: https://github.com/oracle/helidon/compare/1.0.1...1.0.2
+[1.0.1]: https://github.com/oracle/helidon/compare/1.0.0...1.0.1
 [1.0.0]: https://github.com/oracle/helidon/compare/0.11.0...1.0.0
 [0.11.1]: https://github.com/oracle/helidon/compare/0.11.0...0.11.1
 [0.11.0]: https://github.com/oracle/helidon/compare/0.10.5...0.11.0

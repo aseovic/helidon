@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018 Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2019 Oracle and/or its affiliates. All rights reserved.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -79,6 +79,7 @@ public class JwtProvider extends SynchronousProvider implements AuthenticationPr
     private final OutboundConfig outboundConfig;
     private final String issuer;
     private final Map<OutboundTarget, JwtOutboundTarget> targetToJwtConfig = new IdentityHashMap<>();
+    private final Jwk defaultJwk;
 
     private JwtProvider(Builder builder) {
         this.optional = builder.optional;
@@ -101,6 +102,13 @@ public class JwtProvider extends SynchronousProvider implements AuthenticationPr
         } else {
             defaultTokenHandler = atnTokenHandler;
         }
+
+        if (builder.allowUnsigned) {
+            defaultJwk = Jwk.NONE_JWK;
+        } else {
+            defaultJwk = null;
+        }
+
     }
 
     /**
@@ -130,8 +138,14 @@ public class JwtProvider extends SynchronousProvider implements AuthenticationPr
 
         return atnTokenHandler.extractToken(providerRequest.env().headers())
                 .map(token -> {
-                    SignedJwt signedJwt = SignedJwt.parseToken(token);
-                    Errors errors = signedJwt.verifySignature(verifyKeys);
+                    SignedJwt signedJwt;
+                    try {
+                        signedJwt = SignedJwt.parseToken(token);
+                    } catch (Exception e) {
+                        //invalid token
+                        return AuthenticationResponse.failed("Invalid token", e);
+                    }
+                    Errors errors = signedJwt.verifySignature(verifyKeys, defaultJwk);
                     if (errors.isValid()) {
                         Jwt jwt = signedJwt.getJwt();
                         // verify the audience is correct
@@ -543,6 +557,7 @@ public class JwtProvider extends SynchronousProvider implements AuthenticationPr
         private boolean authenticate = true;
         private boolean propagate = true;
         private boolean allowImpersonation = false;
+        private boolean allowUnsigned = false;
         private SubjectType subjectType = SubjectType.USER;
         private TokenHandler atnTokenHandler = TokenHandler.builder()
                 .tokenHeader("Authorization")
@@ -594,6 +609,22 @@ public class JwtProvider extends SynchronousProvider implements AuthenticationPr
          */
         public Builder allowImpersonation(boolean allowImpersonation) {
             this.allowImpersonation = allowImpersonation;
+            return this;
+        }
+
+        /**
+         * Configure support for unsigned JWT.
+         * If this is set to {@code true} any JWT that has algorithm
+         * set to {@code none} and no {@code kid} defined will be accepted.
+         * Note that this has serious security impact - if JWT can be sent
+         *  from a third party, this allows the third party to send ANY JWT
+         *  and it would be accpted as valid.
+         *
+         * @param allowUnsigned to allow unsigned (insecure) JWT
+         * @return updated builder insdtance
+         */
+        public Builder allowUnsigned(boolean allowUnsigned) {
+            this.allowUnsigned = allowUnsigned;
             return this;
         }
 
@@ -705,6 +736,7 @@ public class JwtProvider extends SynchronousProvider implements AuthenticationPr
             config.get("atn-token.jwt-audience").asString().ifPresent(this::expectedAudience);
             config.get("sign-token").ifExists(outbound -> outboundConfig(OutboundConfig.create(outbound)));
             config.get("sign-token").ifExists(this::outbound);
+            config.get("allow-unsigned").asBoolean().ifPresent(this::allowUnsigned);
 
             return this;
         }

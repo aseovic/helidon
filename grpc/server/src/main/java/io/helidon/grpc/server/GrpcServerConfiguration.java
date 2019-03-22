@@ -39,6 +39,11 @@ public interface GrpcServerConfiguration {
     int DEFAULT_PORT = 1408;
 
     /**
+     * The default number of worker threads that will be used if not explicitly set.
+     */
+    int DEFAULT_WORKER_COUNT = Runtime.getRuntime().availableProcessors();
+
+    /**
      * Get the server name.
      *
      * @return the server name
@@ -64,34 +69,6 @@ public interface GrpcServerConfiguration {
     boolean useNativeTransport();
 
     /**
-     * Determine whether TLS is enabled.
-     *
-     * @return {@code true} if TLS is enabled
-     */
-    boolean isTLS();
-
-    /**
-     * Obtain the location of the TLS certs file to use.
-     *
-     * @return the location of the TLS certs file to use
-     */
-    String tlsCert();
-
-    /**
-     * Obtain the location of the TLS key file to use.
-     *
-     * @return the location of the TLS key file to use
-     */
-    String tlsKey();
-
-    /**
-     * Obtain the location of the TLS CA certs file to use.
-     *
-     * @return the location of the TLS CA certs file to use
-     */
-    String tlsCaCert();
-
-    /**
      * Returns an <a href="http://opentracing.io">opentracing.io</a> tracer. Default is {@link GlobalTracer}.
      *
      * @return a tracer to use - never {@code null} (defaulting to {@link GlobalTracer}
@@ -104,6 +81,15 @@ public interface GrpcServerConfiguration {
      * @return a tracing configuration.
      */
     TracingConfiguration tracingConfig();
+
+    /**
+     * Returns a count of threads in s pool used to tryProcess gRPC requests.
+     * <p>
+     * Default value is {@code CPU_COUNT * 2}.
+     *
+     * @return a workers count
+     */
+    int workers();
 
     /**
      * Creates new instance with defaults from external configuration source.
@@ -144,17 +130,11 @@ public interface GrpcServerConfiguration {
 
         private boolean useNativeTransport;
 
-        private boolean useTLS;
-
-        private String tlsCert;
-
-        private String tlsKey;
-
-        private String tlsCACert;
-
         private Tracer tracer;
 
         private TracingConfiguration tracingConfig;
+
+        private int workers;
 
         private Builder() {
         }
@@ -167,15 +147,7 @@ public interface GrpcServerConfiguration {
             name = config.get("name").asString().orElse(DEFAULT_NAME);
             port = config.get("port").asInt().orElse(DEFAULT_PORT);
             useNativeTransport = config.get("native").asBoolean().orElse(false);
-
-            Config cfgTLS = config.get("tls");
-
-            if (cfgTLS != null) {
-                useTLS = cfgTLS.get("enabled").asBoolean().orElse(false);
-                tlsCert = cfgTLS.get("cert").asString().orElse(null);
-                tlsKey = cfgTLS.get("key").asString().orElse(null);
-                tlsCACert = cfgTLS.get("cacert").asString().orElse(null);
-            }
+            config.get("workers").asInt().ifPresent(this::workersCount);
 
             return this;
         }
@@ -240,15 +212,26 @@ public interface GrpcServerConfiguration {
             return this;
         }
 
+        /**
+         * Sets a count of threads in pool used to tryProcess HTTP requests.
+         * Default value is {@code CPU_COUNT * 2}.
+         * <p>
+         * Configuration key: {@code workers}
+         *
+         * @param workers a workers count
+         * @return an updated builder
+         */
+        public Builder workersCount(int workers) {
+            this.workers = workers;
+            return this;
+        }
+
         @Override
         public GrpcServerConfiguration build() {
             return new GrpcServerBasicConfig(name,
                                              port,
+                                             workers,
                                              useNativeTransport,
-                                             useTLS,
-                                             tlsCert,
-                                             tlsKey,
-                                             tlsCACert,
                                              tracer,
                                              tracingConfig);
         }

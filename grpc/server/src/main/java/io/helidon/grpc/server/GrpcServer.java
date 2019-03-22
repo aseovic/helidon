@@ -272,15 +272,7 @@ public interface GrpcServer {
             Tracer tracer = configuration.tracer();
 
             interceptors.add(new ContextSettingServerInterceptor());
-
-            if (tracer != null) {
-                TracingConfiguration tracingConfig = configuration.tracingConfig();
-                if (tracingConfig == null) {
-                    // default trace configuration
-                    tracingConfig = new TracingConfiguration.Builder().build();
-                }
-                interceptors.add(new GrpcTracing(tracer, tracingConfig));
-            }
+            interceptors.add(new GrpcTracing(tracer, configuration.tracingConfig()));
 
             // add the global interceptors from the routing AFTER the tracing interceptor
             // so that all of those interceptors are included in the trace timings

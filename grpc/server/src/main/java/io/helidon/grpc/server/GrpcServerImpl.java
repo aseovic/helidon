@@ -16,14 +16,6 @@
 
 package io.helidon.grpc.server;
 
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.security.cert.CertificateException;
-import java.security.cert.CertificateFactory;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -41,21 +33,16 @@ import io.grpc.ManagedChannel;
 import io.grpc.MethodDescriptor;
 import io.grpc.Server;
 import io.grpc.ServerInterceptor;
-import io.grpc.ServerInterceptors;
 import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
-import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.util.MutableHandlerRegistry;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
-import io.netty.handler.ssl.ClientAuth;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslProvider;
 import org.eclipse.microprofile.health.HealthCheck;
 
 import static java.lang.String.format;
@@ -66,17 +53,47 @@ import static java.lang.String.format;
  * @author Aleksandar Seovic
  */
 public class GrpcServerImpl implements GrpcServer {
+
     private CompletableFuture<GrpcServer> startFuture = new CompletableFuture<>();
+
     private CompletableFuture<GrpcServer> shutdownFuture = new CompletableFuture<>();
 
-    // ---- constructors ----------------------------------------------------
+    /**
+     * The {@link Logger} to use.
+     */
+    private static final Logger LOGGER = Logger.getLogger(GrpcServerImpl.class.getName());
 
     /**
-     * Create a {@link GrpcServerImpl}.
+     * Configuration values.
      */
-    GrpcServerImpl() {
-        this(GrpcServerConfiguration.builder().build());
-    }
+    private GrpcServerConfiguration config;
+
+    /**
+     * The TCP-based gRPC server.
+     */
+    private Server server;
+
+    /**
+     * The in-process gRPC server.
+     */
+    private Server inProcessServer;
+
+    /**
+     * The health status manager.
+     */
+    private HealthServiceImpl healthService = new HealthServiceImpl();
+
+    /**
+     * The {@link HandlerRegistry} to register services.
+     */
+    private final MutableHandlerRegistry handlerRegistry = new MutableHandlerRegistry();
+
+    /**
+     * The map of service class name to {@link ServerServiceDefinition}.
+     */
+    private Map<String, ServerServiceDefinition> mapServices = new ConcurrentHashMap<>();
+
+    // ---- constructors ----------------------------------------------------
 
     /**
      * Create a {@link GrpcServerImpl}.
@@ -93,71 +110,10 @@ public class GrpcServerImpl implements GrpcServer {
     public CompletionStage<GrpcServer> start() {
         String sName = config.name();
         int port = config.port();
-        boolean fTLS = config.isTLS();
+        boolean tls = false;
 
         try {
-            NettyServerBuilder builder;
-
-            if (fTLS) {
-                // configure TLS
-                // see: https://github.com/grpc/grpc-java/blob/master/SECURITY.md
-
-                String sCertFile = config.tlsCert();
-                String sKeyFile = config.tlsKey();
-                String sClientCertFile = config.tlsCaCert();
-
-                if (sCertFile == null || sCertFile.isEmpty()) {
-                    throw new IllegalStateException("gRPC server is configured to use TLS but cert file property "
-                                                            + PROP_TLS_CERT + " is not set");
-                }
-
-                if (sKeyFile == null || sKeyFile.isEmpty()) {
-                    throw new IllegalStateException("gRPC server is configured to use TLS but key file property "
-                                                            + PROP_TLS_KEY + " is not set");
-                }
-
-                File fileCerts = new File(sCertFile);
-                File fileKey = new File(sKeyFile);
-                X509Certificate[] aX509Certificates;
-
-                if (!fileCerts.exists() || !fileCerts.isFile()) {
-                    throw new IllegalStateException("gRPC server is configured to use TLS but certs file "
-                                                            + sCertFile + " either does not exist or is not a file");
-                }
-
-                if (!fileKey.exists() || !fileKey.isFile()) {
-                    throw new IllegalStateException("gRPC server is configured to use TLS but key file "
-                                                            + sKeyFile + " either does not exist or is not a file");
-                }
-
-                if (sClientCertFile != null) {
-                    File fileClientCerts = new File(sClientCertFile);
-
-                    if (!fileClientCerts.exists() || !fileClientCerts.isFile()) {
-                        throw new IllegalStateException("gRPC server is configured to use TLS but client cert file "
-                                                                + sClientCertFile + " either does not exist or is not a file");
-                    }
-
-                    aX509Certificates = loadX509Cert(fileClientCerts);
-                } else {
-                    aX509Certificates = new X509Certificate[0];
-                }
-
-                SslContextBuilder sslContextBuilder = SslContextBuilder.forServer(fileCerts, fileKey);
-
-                GrpcSslContexts.configure(sslContextBuilder, SslProvider.OPENSSL);
-
-                if (aX509Certificates.length > 0) {
-                    sslContextBuilder.trustManager(aX509Certificates)
-                            .clientAuth(ClientAuth.REQUIRE);
-                } else {
-                    sslContextBuilder.clientAuth(ClientAuth.OPTIONAL);
-                }
-
-                builder = NettyServerBuilder.forPort(port).sslContext(sslContextBuilder.build());
-            } else {
-                builder = NettyServerBuilder.forPort(port);
-            }
+            NettyServerBuilder builder = NettyServerBuilder.forPort(port);
 
             HandlerRegistry handlerRegistry = this.handlerRegistry;
 
@@ -176,12 +132,12 @@ public class GrpcServerImpl implements GrpcServer {
                     .start();
 
             LOGGER.log(Level.INFO,
-                       () -> format("gRPC server [%s]: listening on port %d (TLS=%s)", sName, server.getPort(), fTLS));
+                       () -> format("gRPC server [%s]: listening on port %d (TLS=%s)", sName, server.getPort(), tls));
 
             Runtime.getRuntime().addShutdownHook(new Thread(this::shutdown));
             startFuture.complete(this);
         } catch (Throwable e) {
-            LOGGER.log(Level.SEVERE, format("gRPC server [%s]: failed to start on port %d (TLS=%s)", sName, port, fTLS), e);
+            LOGGER.log(Level.SEVERE, format("gRPC server [%s]: failed to start on port %d (TLS=%s)", sName, port, tls), e);
             startFuture.completeExceptionally(e);
         }
         return startFuture;
@@ -240,19 +196,20 @@ public class GrpcServerImpl implements GrpcServer {
     // ---- helper methods --------------------------------------------------
 
     private NettyServerBuilder configureNetty(NettyServerBuilder builder) {
-        //boolean fUseNative = config.useNativeTransport();
+        int workersCount = config.workers();
 
         Class<? extends ServerChannel> channelType = null;
         EventLoopGroup boss = null;
         EventLoopGroup workers = null;
 
         // ToDo: add back native transport support, so the check bellow makes sense
+        // boolean useNative = config.useNativeTransport();
 
         if (channelType == null) {
             LOGGER.log(Level.FINE, () -> "Using NIO transport");
             channelType = NioServerSocketChannel.class;
             boss = new NioEventLoopGroup(1);
-            workers = new NioEventLoopGroup();
+            workers = workersCount <= 0 ? new NioEventLoopGroup() : new NioEventLoopGroup(workersCount);
         }
 
         return builder
@@ -343,67 +300,4 @@ public class GrpcServerImpl implements GrpcServer {
     public ManagedChannel createInProcessChannel() {
         return InProcessChannelBuilder.forName(config.name()).build();
     }
-
-    private static X509Certificate[] loadX509Cert(File... aFile)
-            throws CertificateException, IOException {
-        CertificateFactory cf = CertificateFactory.getInstance("X.509");
-        X509Certificate[] aCerts = new X509Certificate[aFile.length];
-
-        for (int i = 0; i < aFile.length; i++) {
-            try (InputStream in = new FileInputStream(aFile[i])) {
-                aCerts[i] = (X509Certificate) cf.generateCertificate(in);
-            }
-        }
-
-        return aCerts;
-    }
-
-    // ---- static members --------------------------------------------------
-
-    /**
-     * The system property to use to determine the gRPC server TLS certificate file.
-     */
-    private static final String PROP_TLS_CERT = "grpc.server.tlsCert";
-
-    /**
-     * The system property to use to determine the gRPC server TLS key file.
-     */
-    private static final String PROP_TLS_KEY = "grpc.server.tlsKey";
-
-    /**
-     * The {@link Logger} to use.
-     */
-    private static final Logger LOGGER = Logger.getLogger(GrpcServerImpl.class.getName());
-
-    // ---- data members ----------------------------------------------------
-
-    /**
-     * Configuration values.
-     */
-    private GrpcServerConfiguration config;
-
-    /**
-     * The TCP-based gRPC server.
-     */
-    private Server server;
-
-    /**
-     * The in-process gRPC server.
-     */
-    private Server inProcessServer;
-
-    /**
-     * The health status manager.
-     */
-    private HealthServiceImpl healthService = new HealthServiceImpl();
-
-    /**
-     * The {@link HandlerRegistry} to register services.
-     */
-    private final MutableHandlerRegistry handlerRegistry = new MutableHandlerRegistry();
-
-    /**
-     * The map of service class name to {@link ServerServiceDefinition}.
-     */
-    private Map<String, ServerServiceDefinition> mapServices = new ConcurrentHashMap<>();
 }

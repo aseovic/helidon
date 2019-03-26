@@ -16,6 +16,12 @@
 
 package io.helidon.grpc.core;
 
+import io.helidon.common.http.Http;
+
+import io.grpc.Status;
+import io.grpc.StatusException;
+import io.grpc.StatusRuntimeException;
+
 /**
  * Helper methods for common gRPC tasks.
  *
@@ -66,5 +72,84 @@ public final class GrpcHelper {
     public static String extractMethodName(String fullMethodName) {
         int index = fullMethodName.lastIndexOf('/');
         return index == -1 ? fullMethodName : fullMethodName.substring(index + 1);
+    }
+
+    /**
+     * Convert a gRPC {@link StatusException} to a {@link Http.ResponseStatus}.
+     *
+     * @param ex  the gRPC {@link StatusException} to convert
+     *
+     * @return  the gRPC {@link StatusException} converted to a {@link Http.ResponseStatus}
+     */
+    public static Http.ResponseStatus toHttpResponseStatus(StatusException ex) {
+        return toHttpResponseStatus(ex.getStatus());
+    }
+
+    /**
+     * Convert a gRPC {@link StatusRuntimeException} to a {@link Http.ResponseStatus}.
+     *
+     * @param ex  the gRPC {@link StatusRuntimeException} to convert
+     *
+     * @return  the gRPC {@link StatusRuntimeException} converted to a {@link Http.ResponseStatus}
+     */
+    public static Http.ResponseStatus toHttpResponseStatus(StatusRuntimeException ex) {
+        return toHttpResponseStatus(ex.getStatus());
+    }
+
+    /**
+     * Convert a gRPC {@link Status} to a {@link Http.ResponseStatus}.
+     *
+     * @param status  the gRPC {@link Status} to convert
+     *
+     * @return  the gRPC {@link Status} converted to a {@link Http.ResponseStatus}
+     */
+    public static Http.ResponseStatus toHttpResponseStatus(Status status) {
+        Http.ResponseStatus httpStatus;
+
+        switch (status.getCode()) {
+        case OK:
+            httpStatus = Http.ResponseStatus.create(200, status.getDescription());
+            break;
+        case INVALID_ARGUMENT:
+            httpStatus = Http.ResponseStatus.create(400, status.getDescription());
+            break;
+        case DEADLINE_EXCEEDED:
+            httpStatus = Http.ResponseStatus.create(408, status.getDescription());
+            break;
+        case NOT_FOUND:
+            httpStatus = Http.ResponseStatus.create(404, status.getDescription());
+            break;
+        case ALREADY_EXISTS:
+            httpStatus = Http.ResponseStatus.create(412, status.getDescription());
+            break;
+        case PERMISSION_DENIED:
+            httpStatus = Http.ResponseStatus.create(403, status.getDescription());
+            break;
+        case FAILED_PRECONDITION:
+            httpStatus = Http.ResponseStatus.create(412, status.getDescription());
+            break;
+        case OUT_OF_RANGE:
+            httpStatus = Http.ResponseStatus.create(400, status.getDescription());
+            break;
+        case UNIMPLEMENTED:
+            httpStatus = Http.ResponseStatus.create(501, status.getDescription());
+            break;
+        case UNAVAILABLE:
+            httpStatus = Http.ResponseStatus.create(503, status.getDescription());
+            break;
+        case UNAUTHENTICATED:
+            httpStatus = Http.ResponseStatus.create(401, status.getDescription());
+            break;
+        case ABORTED:
+        case CANCELLED:
+        case DATA_LOSS:
+        case INTERNAL:
+        case RESOURCE_EXHAUSTED:
+        case UNKNOWN:
+        default:
+            httpStatus = Http.ResponseStatus.create(500, status.getDescription());
+        }
+
+        return httpStatus;
     }
 }

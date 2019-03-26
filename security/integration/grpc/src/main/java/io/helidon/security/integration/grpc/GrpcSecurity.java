@@ -38,6 +38,8 @@ import io.helidon.security.SecurityContext;
 import io.helidon.security.SecurityEnvironment;
 
 import io.grpc.Context;
+import io.grpc.Contexts;
+import io.grpc.ForwardingServerCallListener;
 import io.grpc.Grpc;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -359,7 +361,9 @@ public final class GrpcSecurity
             GrpcSecurityHandler configuredHandler = GrpcSecurity.GRPC_SECURITY_HANDLER.get(context);
             GrpcSecurityHandler handler = configuredHandler == null ? defaultHandler : configuredHandler;
 
-            return context.call(() -> handler.handleSecurity(call, headers, next));
+            ServerCall.Listener<ReqT> listener = context.call(() -> handler.handleSecurity(call, headers, next));
+
+            return new ContextualizedServerCallListener<>(listener, context);
         } catch (Throwable throwable) {
             LOGGER.log(Level.SEVERE, "Unexpected exception during security processing", throwable);
             call.close(Status.INTERNAL, new Metadata());
@@ -452,5 +456,70 @@ public final class GrpcSecurity
      */
     GrpcSecurityHandler getDefaultHandler() {
         return defaultHandler;
+    }
+
+
+    /**
+     * Implementation of {@link io.grpc.ForwardingServerCallListener} that attaches a context before
+     * dispatching calls to the delegate and detaches them after the call completes.
+     */
+    private static class ContextualizedServerCallListener<ReqT> extends
+        ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT> {
+      private final Context context;
+
+      private ContextualizedServerCallListener(ServerCall.Listener<ReqT> delegate, Context context) {
+        super(delegate);
+        this.context = context;
+      }
+
+      @Override
+      public void onMessage(ReqT message) {
+        Context previous = context.attach();
+        try {
+          super.onMessage(message);
+        } finally {
+          context.detach(previous);
+        }
+      }
+
+      @Override
+      public void onHalfClose() {
+        Context previous = context.attach();
+        try {
+          super.onHalfClose();
+        } finally {
+          context.detach(previous);
+        }
+      }
+
+      @Override
+      public void onCancel() {
+        Context previous = context.attach();
+        try {
+          super.onCancel();
+        } finally {
+          context.detach(previous);
+        }
+      }
+
+      @Override
+      public void onComplete() {
+        Context previous = context.attach();
+        try {
+          super.onComplete();
+        } finally {
+          context.detach(previous);
+        }
+      }
+
+      @Override
+      public void onReady() {
+        Context previous = context.attach();
+        try {
+          super.onReady();
+        } finally {
+          context.detach(previous);
+        }
+      }
     }
 }

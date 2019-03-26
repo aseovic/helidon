@@ -62,6 +62,27 @@ public interface GrpcRouting {
     }
 
     /**
+     * Creates new {@link GrpcServer} instance with provided configuration and this routing.
+     *
+     * @param configuration a gRPC server configuration
+     * @return new {@link GrpcServer} instance
+     * @throws IllegalStateException if none SPI implementation found
+     */
+    default GrpcServer createServer(GrpcServerConfiguration configuration) {
+        return GrpcServer.create(configuration, this);
+    }
+
+    /**
+     * Creates new {@link GrpcServer} instance with this routing and default configuration.
+     *
+     * @return new {@link GrpcServer} instance
+     * @throws IllegalStateException if none SPI implementation found
+     */
+    default GrpcServer createServer() {
+        return GrpcServer.create(this);
+    }
+
+    /**
      * A {@link io.helidon.common.Builder} that can build {@link GrpcRouting} instances.
      */
     final class Builder implements io.helidon.common.Builder<GrpcRouting> {

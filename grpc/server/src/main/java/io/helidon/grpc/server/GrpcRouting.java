@@ -16,6 +16,7 @@
 
 package io.helidon.grpc.server;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -177,13 +178,33 @@ public interface GrpcRouting {
 
         // ---- helpers -----------------------------------------------------
 
+        @SuppressWarnings("unchecked")
         private Builder register(ServiceDescriptor.Builder builder,
                                  Consumer<ServiceDescriptor.Config> configurer) {
             if (configurer != null) {
                 configurer.accept(builder);
             }
+
+            interceptors.stream()
+                    .filter(this::isServiceDescriptorConfigConsumer)
+                    .map(Consumer.class::cast)
+                    .forEach(consumer -> consumer.accept(builder));
+
             services.add(builder.build());
             return this;
+        }
+
+        private boolean isServiceDescriptorConfigConsumer(ServerInterceptor interceptor) {
+            if (interceptor instanceof Consumer) {
+                try {
+                    interceptor.getClass().getMethod("accept", ServiceDescriptor.Config.class);
+                    return true;
+                } catch (NoSuchMethodException e) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
         }
     }
 }

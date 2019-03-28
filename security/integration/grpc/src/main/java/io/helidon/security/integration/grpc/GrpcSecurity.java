@@ -23,22 +23,24 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import io.helidon.config.Config;
+import io.helidon.grpc.core.InterceptorPriority;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcService;
-import io.helidon.grpc.core.InterceptorPriority;
 import io.helidon.grpc.server.PriorityServerInterceptor;
+import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.security.EndpointConfig;
 import io.helidon.security.Security;
 import io.helidon.security.SecurityContext;
 import io.helidon.security.SecurityEnvironment;
 
 import io.grpc.Context;
-import io.grpc.Contexts;
 import io.grpc.ForwardingServerCallListener;
 import io.grpc.Grpc;
 import io.grpc.Metadata;
@@ -51,13 +53,14 @@ import io.opentracing.SpanContext;
 import io.opentracing.contrib.grpc.OpenTracingContextKey;
 
 /**
- * Integration of security into Web Server.
+ * Integration of security into the gRPC Server.
  * <p>
  * Methods that start with "from" are to register GrpcSecurity with {@link io.helidon.grpc.server.GrpcServer}
  * - to create {@link SecurityContext} for requests:
  * <ul>
  * <li>{@link #create(Security)}</li>
  * <li>{@link #create(Config)}</li>
+ * <li>{@link #create(Security, Config)}</li>
  * </ul>
  * <p>
  * Example:
@@ -65,8 +68,8 @@ import io.opentracing.contrib.grpc.OpenTracingContextKey;
  * // gRPC server routing builder - this is our integration point
  * {@link GrpcRouting} routing = GrpcRouting.builder()
  * // register GrpcSecurity to add the security ServerInterceptor
- * .register({@link GrpcSecurity}.{@link
- * GrpcSecurity#create(Security) from(security)})
+ * .intercept({@link GrpcSecurity}.{@link
+ * GrpcSecurity#create(Security) create(security)})
  * </pre>
  * <p>
  * Other methods are to create security enforcement points (gates) for specific services.
@@ -96,8 +99,10 @@ import io.opentracing.contrib.grpc.OpenTracingContextKey;
  * rolesAllowed("user")})
  * </pre>
  */
+// we need to have all fields optional and this is cleaner than checking for null
+@SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public final class GrpcSecurity
-        implements PriorityServerInterceptor {
+        implements PriorityServerInterceptor, Consumer<ServiceDescriptor.Config> {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurity.class.getName());
 
     /**
@@ -139,23 +144,30 @@ public final class GrpcSecurity
      */
     public static final String ABAC_ATTRIBUTE_METHOD = "methodDescriptor";
 
+    // Security configuration keys
+    private static final String KEY_GRPC_CONFIG = "grpc-server";
+
     private static final AtomicInteger SECURITY_COUNTER = new AtomicInteger();
 
     private final Security security;
+    private final Optional<Config> config;
     private final GrpcSecurityHandler defaultHandler;
 
-    private GrpcSecurity(Security security) {
-        this(security, GrpcSecurityHandler.create());
+    private GrpcSecurity(Security security, Config config) {
+        this(security, Optional.ofNullable(config), GrpcSecurityHandler.create());
     }
 
-    private GrpcSecurity(Security security, GrpcSecurityHandler defaultHandler) {
+    private GrpcSecurity(Security security, Optional<Config> config, GrpcSecurityHandler defaultHandler) {
         this.security = security;
-        this.defaultHandler = defaultHandler;
+        this.config = config.map(cfg -> cfg.get(KEY_GRPC_CONFIG));
+        this.defaultHandler = this.config
+                .map(cfg -> GrpcSecurityHandler.create(cfg.get("defaults"), defaultHandler))
+                .orElse(defaultHandler);
     }
 
     /**
      * Create a consumer of gRPC routing config to be {@link GrpcRouting.Builder#register(GrpcService)}) registered} with
-     * web server routing to process security requests.
+     * gRPC server routing to process security requests.
      * This method is to be used together with other routing methods to protect gRPC service or methods programmatically.
      * Example:
      * <pre>
@@ -166,20 +178,33 @@ public final class GrpcSecurity
      * @return routing config consumer
      */
     public static GrpcSecurity create(Security security) {
-        return new GrpcSecurity(security);
+        return create(security, null);
     }
 
     /**
      * Create a consumer of gRPC routing config to be {@link GrpcRouting.Builder#register(GrpcService) registered} with
-     * web server routing to process security requests.
-     * This method configures security and web server integration from a config instance
+     * gRPC server routing to process security requests.
+     * This method configures security and gRPC server integration from a config instance
      *
-     * @param config Config instance to load security and web server integration from configuration
+     * @param config Config instance to load security and gRPC server integration from configuration
      * @return routing config consumer
      */
     public static GrpcSecurity create(Config config) {
         Security security = Security.create(config);
-        return create(security);
+        return create(security, config);
+    }
+
+    /**
+     * Create a consumer of gRPC routing config to be {@link GrpcRouting.Builder#register(GrpcService) registered} with
+     * gRPC server routing to process security requests.
+     * This method expects initialized security and creates gRPC server integration from a config instance
+     *
+     * @param security Security instance to use
+     * @param config   Config instance to load security and gRPC server integration from configuration
+     * @return routing config consumer
+     */
+    public static GrpcSecurity create(Security security, Config config) {
+        return new GrpcSecurity(security, config);
     }
 
     /**
@@ -335,15 +360,71 @@ public final class GrpcSecurity
     }
 
     /**
-     * Create a new web security instance using the default handler as base defaults for all handlers used.
+     * Create a new gRPC security instance using the default handler as base defaults for all handlers used.
      * If handlers are loaded from config, than this is the least significant value.
      *
      * @param defaultHandler if a security handler is configured for a route, it will take its defaults from this handler
-     * @return new instance of web security with the handler default
+     * @return new instance of gRPC security with the handler default
      */
     public GrpcSecurity securityDefaults(GrpcSecurityHandler defaultHandler) {
         Objects.requireNonNull(defaultHandler, "Default security handler must not be null");
-        return new GrpcSecurity(security, defaultHandler);
+        return new GrpcSecurity(security, config, defaultHandler);
+    }
+
+    /**
+     * If the {@link #config} field is set then modify the {@link ServiceDescriptor.Config}
+     * with any applicable security configuration.
+     *
+     * @param serviceConfig  the {@link ServiceDescriptor.Config} to modify
+     */
+    @Override
+    public void accept(ServiceDescriptor.Config serviceConfig) {
+        config.ifPresent(grpcConfig -> modifyServiceDescriptorConfig(serviceConfig, grpcConfig));
+    }
+
+    private void modifyServiceDescriptorConfig(ServiceDescriptor.Config serviceConfig, Config grpcConfig) {
+        String serviceName = serviceConfig.name();
+
+        grpcConfig.get("services")
+                .asNodeList()
+                .map(list -> findServiceConfig(serviceName, list))
+                .ifPresent(cfg -> configureServiceSecurity(serviceConfig, cfg));
+    }
+
+    private Config findServiceConfig(String serviceName, List<Config> list) {
+        return list.stream()
+                .filter(cfg -> cfg.get("name").asString().map(serviceName::equals).orElse(false))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void configureServiceSecurity(ServiceDescriptor.Config serviceConfig, Config grpcServiceConfig) {
+        if (grpcServiceConfig.exists()) {
+            GrpcSecurityHandler defaults;
+
+            if (grpcServiceConfig.get("defaults").exists()) {
+                defaults = GrpcSecurityHandler.create(grpcServiceConfig.get("defaults"), defaultHandler);
+            } else {
+                defaults = defaultHandler;
+            }
+
+            Config methodsConfig = grpcServiceConfig.get("methods");
+            if (methodsConfig.exists()) {
+                methodsConfig.asNodeList().ifPresent(configs -> {
+                    for (Config methodConfig : configs) {
+                        String name = methodConfig.get("name")
+                                .asString()
+                                .orElseThrow(() -> new SecurityException(methodConfig
+                                                         .key() + " must contain name key with a method name to "
+                                                         + "register to gRPC server security"));
+
+                        serviceConfig.intercept(name, GrpcSecurityHandler.create(methodConfig, defaults));
+                    }
+                });
+            } else {
+                serviceConfig.intercept(defaults);
+            }
+        }
     }
 
     @Override

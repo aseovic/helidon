@@ -136,6 +136,11 @@ public class ServiceDescriptor {
         return new BindableServiceImpl(this, interceptors);
     }
 
+    @Override
+    public String toString() {
+        return "ServiceDescriptor(name='" + name + '\'' + ')';
+    }
+
     /**
      * Create a {@link Builder}.
      * @param service  the {@link GrpcService} to use to initialise the builder
@@ -169,6 +174,12 @@ public class ServiceDescriptor {
          * @throws java.lang.IllegalArgumentException if the name is a blank String
          */
         Config name(String name);
+
+        /**
+         * Obtain the name fo the service this configuration configures.
+         * @return  the name fo the service this configuration configures
+         */
+        String name();
 
         /**
          * Register the proto for the service.
@@ -419,6 +430,11 @@ public class ServiceDescriptor {
         }
 
         @Override
+        public String name() {
+            return name;
+        }
+
+        @Override
         public Builder name(String name) {
             if (name == null) {
                 throw new NullPointerException("name cannot be null");
@@ -581,6 +597,11 @@ public class ServiceDescriptor {
             }
 
             return new ServiceDescriptor(name, methods, interceptors, context, metricType, healthCheck);
+        }
+
+        @Override
+        public String toString() {
+            return "ServiceDescriptor.Builder(name='" + name + '\'' + ')';
         }
 
         // ---- helpers -----------------------------------------------------

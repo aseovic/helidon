@@ -24,8 +24,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import io.helidon.config.Config;
+import io.helidon.config.ConfigSources;
 import io.helidon.grpc.core.InterceptorPriority;
 import io.helidon.grpc.server.test.EchoServiceGrpc;
+import io.helidon.security.EndpointConfig;
 import io.helidon.security.Security;
 import io.helidon.security.SecurityContext;
 import io.helidon.security.SecurityEnvironment;
@@ -199,6 +202,38 @@ public class GrpcSecurityTest {
     }
 
     @Test
+    public void shouldAddConfigToSecurityContext() {
+        MethodDescriptor<String, String> descriptor = getEchoMethod();
+        ServerCall<String, String> call = mock(ServerCall.class);
+        Metadata headers = new Metadata();
+        SocketAddress address = new InetSocketAddress("helidon.io", 8080);
+        Attributes attributes = Attributes.newBuilder()
+                                          .set(Grpc.TRANSPORT_ATTR_REMOTE_ADDR, address)
+                                          .build();
+
+        headers.put(Metadata.Key.of("key-1", Metadata.ASCII_STRING_MARSHALLER), "value-1.1");
+        headers.put(Metadata.Key.of("key-1", Metadata.ASCII_STRING_MARSHALLER), "value-1.2");
+        headers.put(Metadata.Key.of("key-2", Metadata.ASCII_STRING_MARSHALLER), "value-2");
+
+        when(call.getAttributes()).thenReturn(attributes);
+        when(call.getMethodDescriptor()).thenReturn(descriptor);
+
+        Config config = Config.builder().sources(ConfigSources.classpath("secure-services.conf")).build();
+
+        GrpcSecurity security = GrpcSecurity.create(Security.builder(config).build(), config);
+        Context context = security.registerContext(call, headers);
+        assertThat(context, is(notNullValue()));
+
+        SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get(context);
+        assertThat(securityContext, is(notNullValue()));
+
+        EndpointConfig endpointConfig = securityContext.endpointConfig();
+        assertThat(endpointConfig, is(notNullValue()));
+
+        endpointConfig.config("foo");
+    }
+
+    @Test
     public void shouldUseExistingSecurityContext() throws Exception {
         MethodDescriptor<String, String> descriptor = getEchoMethod();
         ServerCall<String, String> call = mock(ServerCall.class);
@@ -225,7 +260,6 @@ public class GrpcSecurityTest {
 
         SecurityContext securityContext = GrpcSecurity.SECURITY_CONTEXT.get(context);
         assertThat(securityContext, is(sameInstance(securityContextCurrent)));
-
     }
 
     @Test

@@ -16,6 +16,13 @@
 
 package io.helidon.grpc.server;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.security.cert.CertificateException;
+import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -27,6 +34,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.net.ssl.SSLContext;
+
+import io.helidon.common.configurable.Resource;
+import io.helidon.common.pki.KeyConfig;
+
 import io.grpc.BindableService;
 import io.grpc.HandlerRegistry;
 import io.grpc.ManagedChannel;
@@ -37,12 +49,18 @@ import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
+import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NettyServerBuilder;
 import io.grpc.util.MutableHandlerRegistry;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.ServerChannel;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.JdkSslContext;
+import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslContextBuilder;
+import io.netty.handler.ssl.SslProvider;
 import org.eclipse.microprofile.health.HealthCheck;
 
 import static java.lang.String.format;
@@ -111,9 +129,25 @@ public class GrpcServerImpl implements GrpcServer {
         String sName = config.name();
         int port = config.port();
         boolean tls = false;
+        SslConfiguration sslConfig = config.sslConfig();
+        SslContext sslContext = null;
 
         try {
-            NettyServerBuilder builder = NettyServerBuilder.forPort(port);
+            if (sslConfig != null){
+                if (sslConfig.isJdkSSL()){
+                    SSLContext sslCtx = SSLContextBuilder.create(KeyConfig.pemBuilder()
+                                                                         .key(Resource.create(sslConfig.getTLSKey()))
+                                                                         .certChain(Resource.create(sslConfig.getTLSCerts()))
+                                                                         .build()).build();
+                    sslContext = new JdkSslContext(sslCtx, false, ClientAuth.NONE);
+
+                }else{
+                    sslContext = getSslContextBuilder(sslConfig).build();
+                }
+            }
+
+            NettyServerBuilder builder = sslContext == null ? NettyServerBuilder.forPort(port)
+                    : NettyServerBuilder.forPort(port).sslContext(sslContext);
 
             HandlerRegistry handlerRegistry = this.handlerRegistry;
 
@@ -299,5 +333,85 @@ public class GrpcServerImpl implements GrpcServer {
      */
     public ManagedChannel createInProcessChannel() {
         return InProcessChannelBuilder.forName(config.name()).build();
+    }
+
+    /**
+     * Return an instance of SslContextBuilder from the specified SslConfig.
+     *
+     * @param  sslConfig the specified ssl configuration
+     *
+     * @Return an instance of SslContextBuilder
+     */
+    private SslContextBuilder getSslContextBuilder(SslConfiguration sslConfig) {
+        String sCertFile = sslConfig.getTLSCerts();
+        String sKeyFile = sslConfig.getTLSKey();
+        String sClientCertFile = sslConfig.getTLSClientCerts();
+
+        if (sCertFile == null || sCertFile.isEmpty()) {
+            throw new IllegalStateException("gRPC server is configured to use TLS but cert file is not set");
+        }
+
+        if (sKeyFile == null || sKeyFile.isEmpty()) {
+            throw new IllegalStateException("gRPC server is configured to use TLS but key file is not set");
+        }
+
+        File fileCerts = new File(sCertFile);
+        File fileKey = new File(sKeyFile);
+        X509Certificate[] aX509Certificates;
+
+        if (!fileCerts.exists() || !fileCerts.isFile()) {
+            throw new IllegalStateException("gRPC server is configured to use TLS but certs file "
+                                                    + sCertFile + " either does not exist or is not a file");
+        }
+
+        if (!fileKey.exists() || !fileKey.isFile()) {
+            throw new IllegalStateException("gRPC server is configured to use TLS but key file "
+                                                    + sKeyFile + " either does not exist or is not a file");
+        }
+
+        if (sClientCertFile != null) {
+            File fileClientCerts = new File(sClientCertFile);
+
+            if (!fileClientCerts.exists() || !fileClientCerts.isFile()) {
+                throw new IllegalStateException("gRPC server is configured to use TLS but client cert file "
+                                                        + sClientCertFile + " either does not exist or is not a file");
+            }
+
+            try {
+                aX509Certificates = loadX509Cert(fileClientCerts);
+            }
+            catch (Exception e){
+                throw new IllegalStateException("gRPC server is configured to use TLS but failed to load trusted CA files");
+            }
+
+        } else {
+            aX509Certificates = new X509Certificate[0];
+        }
+
+        SslContextBuilder sslContextBuilder = SslContextBuilder.forServer(fileCerts, fileKey);
+
+        if (aX509Certificates.length > 0){
+            sslContextBuilder.trustManager(aX509Certificates)
+                    .clientAuth(ClientAuth.REQUIRE);
+        }else {
+            sslContextBuilder.clientAuth(ClientAuth.OPTIONAL);
+        }
+
+        return GrpcSslContexts.configure(sslContextBuilder, SslProvider.OPENSSL);
+    }
+
+
+    private static X509Certificate[] loadX509Cert(File... aFile)
+            throws CertificateException, IOException {
+        CertificateFactory cf = CertificateFactory.getInstance("X.509");
+        X509Certificate[] aCerts = new X509Certificate[aFile.length];
+
+        for (int i = 0; i < aFile.length; i++){
+            try (InputStream in = new FileInputStream(aFile[i])) {
+                aCerts[i] = (X509Certificate) cf.generateCertificate(in);
+            }
+        }
+
+        return aCerts;
     }
 }

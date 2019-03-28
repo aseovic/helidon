@@ -92,6 +92,14 @@ public interface GrpcServerConfiguration {
     int workers();
 
     /**
+     * Returns a SslConfiguration to use with the server socket. If not {@code null} then
+     * the server enforces an SSL communication.
+     *
+     * @return a SSL context to use
+     */
+    SslConfiguration sslConfig();
+
+    /**
      * Creates new instance with defaults from external configuration source.
      *
      * @param config the externalized configuration
@@ -135,6 +143,8 @@ public interface GrpcServerConfiguration {
         private TracingConfiguration tracingConfig;
 
         private int workers;
+
+        private SslConfiguration sslConfig = null;
 
         private Builder() {
         }
@@ -226,6 +236,18 @@ public interface GrpcServerConfiguration {
             return this;
         }
 
+        /**
+         * Configures SslConfiguration to use with the server socket. If not {@code null} then
+         * the server enforces an SSL communication.
+         *
+         * @param sslConfig a SSL context to use
+         * @return this builder
+         */
+        public Builder sslConfig(SslConfiguration sslConfig) {
+            this.sslConfig = sslConfig;
+            return this;
+        }
+
         @Override
         public GrpcServerConfiguration build() {
             return new GrpcServerBasicConfig(name,
@@ -233,7 +255,8 @@ public interface GrpcServerConfiguration {
                                              workers,
                                              useNativeTransport,
                                              tracer,
-                                             tracingConfig);
+                                             tracingConfig,
+                                             sslConfig);
         }
     }
 }

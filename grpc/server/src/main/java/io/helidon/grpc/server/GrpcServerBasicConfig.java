@@ -37,6 +37,8 @@ public class GrpcServerBasicConfig
 
     private final int workers;
 
+    private final SslConfiguration sslConfig;
+
     /**
      * Construct {@link GrpcServerBasicConfig} instance.
      *
@@ -53,7 +55,8 @@ public class GrpcServerBasicConfig
                                  int workers,
                                  boolean nativeTransport,
                                  Tracer tracer,
-                                 TracingConfiguration tracingConfig) {
+                                 TracingConfiguration tracingConfig,
+                                 SslConfiguration sslConfig) {
 
         this.name = name == null || name.trim().isEmpty() ? DEFAULT_NAME : name.trim();
         this.port = port <= 0 ? 0 : port;
@@ -61,6 +64,7 @@ public class GrpcServerBasicConfig
         this.tracer = tracer == null ? GlobalTracer.get() : tracer;
         this.tracingConfig = tracingConfig == null ? new TracingConfiguration.Builder().build() : tracingConfig;
         this.workers = workers > 0 ? workers : DEFAULT_WORKER_COUNT;
+        this.sslConfig = sslConfig;
     }
 
     // ---- accessors ---------------------------------------------------
@@ -113,5 +117,10 @@ public class GrpcServerBasicConfig
     @Override
     public int workers() {
         return workers;
+    }
+
+    @Override
+    public SslConfiguration sslConfig() {
+        return sslConfig;
     }
 }

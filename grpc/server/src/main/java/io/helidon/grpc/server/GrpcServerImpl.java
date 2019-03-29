@@ -338,7 +338,7 @@ public class GrpcServerImpl implements GrpcServer {
     /**
      * Return an instance of SslContextBuilder from the specified SslConfig.
      *
-     * @param  sslConfig the specified ssl configuration
+     * @param  sslConfig the ssl configuration
      *
      * @Return an instance of SslContextBuilder
      */

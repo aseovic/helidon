@@ -23,18 +23,26 @@ import java.util.logging.Logger;
 
 import javax.net.ssl.SSLException;
 
+import io.helidon.config.Config;
+import io.helidon.config.ConfigSources;
 import io.helidon.grpc.server.test.Echo;
 import io.helidon.grpc.server.test.EchoServiceGrpc;
 
+import com.oracle.bedrock.runtime.LocalPlatform;
+import com.oracle.bedrock.runtime.network.AvailablePortIterator;
 import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import org.junit.jupiter.api.AfterAll;
+import org.junit.AfterClass;
+import org.junit.Rule;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.junit.rules.ExpectedException;
 import services.EchoService;
 
 /**
@@ -54,70 +62,185 @@ public class SslIT {
     /**
      * The Helidon {@link GrpcServer} being tested.
      */
-    private static GrpcServer grpcServer;
+    private static GrpcServer grpcServer_1WaySSL;
 
     /**
-     * A gRPC {@link io.grpc.Channel} to connect to the test gRPC server
+     * The Helidon {@link GrpcServer} being tested.
      */
-    private static Channel channel;
+    private static GrpcServer grpcServer_2WaySSL;
 
+    /**
+     * The Helidon {@link GrpcServer} being tested.
+     */
+    private static GrpcServer grpcServer_2WaySSLConfig;
+
+    /**
+     * Port used for 1waySSL
+     */
+    private static int m_nPort1WaySSL;
+
+    /**
+     * Port used for 2waySSL
+     */
+    private static int m_nPort2WaySSL;
+
+    /**
+     * Port used for 2waySSL using config-ssl.conf
+     */
+    private static int m_nPort2WaySSLConfig;
+
+    @Rule
+    public ExpectedException m_exception = ExpectedException.none();
+
+    private static final String CLIENT_CERT = "clientCert.pem";
+    private static final String CLIENT_KEY  = "clientKey.pem";
+    private static final String CA_CERT     = "ca.pem";
+    private static final String SERVER_CERT = "serverCert.pem";
+    private static final String SERVER_KEY  = "serverKey.pem";
+
+    private static String tlsCert;
+    private static String tlsKey;
+    private static String tlsCaCert;
+    private static String tlsClientKey;
+    private static String tlsClientCert;
+
+    private static String filePath;
 
     // ----- test lifecycle -------------------------------------------------
 
     @BeforeAll
     public static void setup() throws Exception {
         LogManager.getLogManager().readConfiguration(SslIT.class.getResourceAsStream("/logging.properties"));
+        File resourcesDirectory = new File("src/test/resources/ssl");
+        filePath = resourcesDirectory.getAbsolutePath();
+        tlsCert = getFile(SERVER_CERT);
+        tlsKey = getFile(SERVER_KEY);
+        tlsCaCert = getFile(CA_CERT);
+        tlsClientCert = getFile(CLIENT_CERT);
+        tlsClientKey = getFile(CLIENT_KEY);
+
+        AvailablePortIterator ports = LocalPlatform.get().getAvailablePorts();
+
+        m_nPort1WaySSL  = ports.next();
+        m_nPort2WaySSL  = ports.next();
+        m_nPort2WaySSLConfig = ports.next();
+
+        grpcServer_1WaySSL = startGrpcServer(m_nPort1WaySSL, false /*mutual*/, false /*useConfig*/);
+        grpcServer_2WaySSL = startGrpcServer(m_nPort2WaySSL, true /*mutual*/, false /*useConfig*/);
+        grpcServer_2WaySSLConfig = startGrpcServer(m_nPort2WaySSLConfig, true/*mutual*/, true /*useConfig*/);
+    }
+
+    @AfterClass
+    public static void cleanup() throws Exception
+    {
+        if (grpcServer_1WaySSL != null){
+            grpcServer_1WaySSL.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
+        }
+
+        if (grpcServer_2WaySSL != null){
+            grpcServer_2WaySSL.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
+        }
+
+        if (grpcServer_2WaySSLConfig != null){
+            grpcServer_2WaySSLConfig.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
+        }
     }
 
     // ----- test methods ---------------------------------------------------
 
     @Test
-    public void testOneWaySSL() throws Exception {
-        SslConfiguration sslConfig = new SslConfiguration.Builder()
-                .jdkSSL(false)
-                .tlsCert("/tmp/sslcert/certificate.pem")
-                .tlsKey("/tmp/sslcert/server.pem")
-                //  .tlsCaCert("")
-                .build();
-        startGrpcServer(sslConfig);
+    public void shouldConnectWithoutClientCertsFor1Way() throws Exception {
+        // client do not have to provide certs for 1way ssl
+        SslContext sslContext = getClientSslContext(tlsCaCert, null, null);
 
-        SslContext sslContext = getClientSslContext("/tmp/sslcert/ca.pem",
-                                                null, null);
-
-        channel = NettyChannelBuilder.forAddress("localhost", grpcServer.port())
+        Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_1WaySSL.port())
                 .negotiationType(NegotiationType.TLS)
                 .sslContext(sslContext)
                 .build();
-
         // call the gRPC Echo service
         EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
-
-        grpcServer.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
     }
 
     @Test
-    public void testTwoWaySSL() throws Exception {
-        SslConfiguration sslConfig = new SslConfiguration.Builder()
-                                        .jdkSSL(false)
-                                        .tlsCert("/tmp/sslcert/certificate.pem")
-                                        .tlsKey("/tmp/sslcert/server.pem")
-                                        .tlsCaCert("/tmp/sslcert/clientCert.pem")
-                                        .build();
-        startGrpcServer(sslConfig);
+    public void shouldNotConnectWithoutCAFor1Way() throws Exception {
+        // client do not have to provide certs for 1way ssl
+        SslContext sslContext = getClientSslContext(null, null, null);
 
-        SslContext sslContext = getClientSslContext("/tmp/sslcert/ca.pem",
-                                                "/tmp/sslcert/clientCert.pem",
-                                                "/tmp/sslcert/client.pem");
+        Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_1WaySSL.port())
+                .negotiationType(NegotiationType.TLS)
+                .sslContext(sslContext)
+                .build();
 
-        channel = NettyChannelBuilder.forAddress("localhost", grpcServer.port())
+        // call the gRPC Echo service
+        Assertions.assertThrows(StatusRuntimeException.class,
+                                ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
+    }
+
+    @Test
+    public void shouldConnectWithClientCertsFor2Way() throws Exception {
+        SslContext sslContext = getClientSslContext(tlsCaCert, tlsClientCert, tlsClientKey);
+
+        Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSL.port())
+                    .negotiationType(NegotiationType.TLS)
+                    .sslContext(sslContext)
+                    .build();
+        // call the gRPC Echo service
+        EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+    }
+
+    @Test
+    public void shouldNotConnectWithoutCAFor2Way() throws Exception {
+        SslContext sslContext = getClientSslContext(null, tlsClientCert, tlsClientKey);
+
+        Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSL.port())
+                .negotiationType(NegotiationType.TLS)
+                .sslContext(sslContext)
+                .build();
+
+        // call the gRPC Echo service
+        Assertions.assertThrows(StatusRuntimeException.class,
+                                ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
+    }
+
+    @Test
+    public void shouldNotConnectWithoutClientCertFor2Way() throws Exception {
+        SslContext sslContext = getClientSslContext(tlsCaCert, null, tlsClientKey);
+
+        Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSL.port())
+                .negotiationType(NegotiationType.TLS)
+                .sslContext(sslContext)
+                .build();
+
+        // call the gRPC Echo service
+        Assertions.assertThrows(StatusRuntimeException.class,
+                                ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
+    }
+
+    @Test
+    public void shouldConnectWithClientCertsFor2WayUseConfig() throws Exception{
+        SslContext sslContext = getClientSslContext(tlsCaCert, tlsClientCert, tlsClientKey);
+
+        Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSLConfig.port())
                 .negotiationType(NegotiationType.TLS)
                 .sslContext(sslContext)
                 .build();
 
         // call the gRPC Echo service
         EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+    }
 
-        grpcServer.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
+    @Test
+    public void shouldNotConnectWithoutClientCertFor2WayUseConfig() throws Exception {
+        SslContext sslContext = getClientSslContext(tlsCaCert, null, tlsClientKey);
+
+        Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSLConfig.port())
+                .negotiationType(NegotiationType.TLS)
+                .sslContext(sslContext)
+                .build();
+
+        // call the gRPC Echo service
+        Assertions.assertThrows(StatusRuntimeException.class,
+                                ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
     }
 
     // ----- helper methods -------------------------------------------------
@@ -140,21 +263,49 @@ public class SslIT {
      *
      * @throws Exception in case of an error
      */
-    private static void startGrpcServer(SslConfiguration sslConfig) throws Exception {
+    private static GrpcServer startGrpcServer(int nPort, boolean mutual, boolean useConfig ) throws Exception {
+        SslConfiguration sslConfig;
+        String name = "grpc.server";
+        if (useConfig){
+            name = name + 1;
+            Config config = Config.builder().sources(ConfigSources.classpath("config-ssl.conf")).build();
+            sslConfig = config.get("grpcserver.ssl").as(SslConfiguration::create).get();
+        } else if (mutual){
+            name = name + 2;
+             sslConfig = new SslConfiguration.Builder()
+                        .jdkSSL(false)
+                        .tlsCert(tlsCert)
+                        .tlsKey(tlsKey)
+                        .tlsCaCert(tlsCaCert)
+                        .build();
+        }else{
+            name = name + 3;
+            sslConfig = new SslConfiguration.Builder()
+                        .jdkSSL(false)
+                        .tlsCert(tlsCert)
+                        .tlsKey(tlsKey)
+                        .build();
+        }
         // Add the EchoService
         GrpcRouting routing = GrpcRouting.builder()
                                          .register(new EchoService())
                                          .build();
 
         // Run the server on port 0 so that it picks a free ephemeral port
-        GrpcServerConfiguration serverConfig = GrpcServerConfiguration.builder().port(0).sslConfig(sslConfig).build();
+        GrpcServerConfiguration serverConfig = GrpcServerConfiguration.builder().name(name).port(nPort).sslConfig(sslConfig).build();
 
-        grpcServer = GrpcServer.create(serverConfig, routing)
+        GrpcServer grpcServer = GrpcServer.create(serverConfig, routing)
                         .start()
                         .toCompletableFuture()
                         .get(10, TimeUnit.SECONDS);
 
 
        LOGGER.info("Started gRPC server at: localhost:" + grpcServer.port());
+
+       return grpcServer;
+    }
+
+    private static String getFile(String fileName){
+        return filePath + "/" + fileName;
     }
 }

@@ -1,9 +1,14 @@
 package io.helidon.grpc.server;
 
+import java.io.File;
+import java.net.URL;
+
+import io.helidon.config.Config;
+
 public class SslConfiguration {
 
     /**
-     * The type of ssl implementation used
+     * True if use jdk ssl implementation
      */
     private boolean jdkSSL;
 
@@ -33,22 +38,30 @@ public class SslConfiguration {
     }
 
     /**
+     * Create a new instance from external configuration source.
+     */
+    static SslConfiguration create(Config config){
+        return new Builder().config(config);
+    }
+
+    /**
      * Return true if use jdk ssl implementation
      */
     public boolean isJdkSSL(){
         return jdkSSL;
     }
+
     /**
-     * Obtain the location of the TLS certs file to use.
+     * Return TLS certs file.
      *
-     * @return the location of the TLS certs file to use
+     * @return the TLS certs file
      */
     public String getTLSCerts() {
         return tlsCert;
     }
 
     /**
-     * Obtain the location of the TLS key file to use.
+     * Return the TLS key file.
      *
      * @return the location of the TLS key file to use
      */
@@ -57,14 +70,17 @@ public class SslConfiguration {
     }
 
     /**
-     * Obtain the location of the TLS certs file to use.
+     * Return the TLS CA certs file.
      *
-     * @return the location of the TLS certs file to use
+     * @return the TLS CA certs file
      */
     public String getTLSClientCerts() {
         return tlsCaCert;
     }
 
+    /**
+     * Builds the configuration for ssl.
+     */
     static class Builder implements io.helidon.common.Builder<SslConfiguration>{
 
         private boolean jdkSSL;
@@ -76,6 +92,7 @@ public class SslConfiguration {
         private String tlsCaCert = null;
 
         public Builder() {};
+
         /**
          * Sets the type of SSL implementation to be used.
          */
@@ -106,6 +123,41 @@ public class SslConfiguration {
         public Builder tlsCaCert(String tlsCaCert){
             this.tlsCaCert = tlsCaCert;
             return this;
+        }
+
+        /**
+         * Return an instance of sslconfig based on the specified external config
+         *
+         * @param config external config
+         * @return a sslconfig
+         */
+        public SslConfiguration config(Config config){
+            if (config == null){
+                return null;
+            }
+
+            String path = config.get("path").asString().orElse(null);
+            File resourcesDirectory = new File(path);
+            path = resourcesDirectory.getAbsolutePath();
+
+            String tlsCert = config.get("tlsCert").asString().orElse(null);
+            if (tlsCert != null) {
+                this.tlsCert = path == null ? tlsCert : path + "/" + tlsCert;
+            }
+
+            String tlsKey = config.get("tlsKey").asString().orElse(null);
+            if (tlsKey != null) {
+                this.tlsKey = path == null ? tlsKey : path + "/" + tlsKey;
+            }
+
+            String tlsCaCert = config.get("tlsCaCert").asString().orElse(null);
+            if (tlsCaCert != null) {
+                this.tlsCaCert = path == null ? tlsCaCert : path + "/" + tlsCaCert;
+            }
+
+            this.jdkSSL = config.get("jdkSSL").asBoolean().orElse(false);
+
+            return build();
         }
 
         @Override

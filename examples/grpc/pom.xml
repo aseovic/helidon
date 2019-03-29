@@ -35,6 +35,7 @@
         <module>basics</module>
         <module>opentracing</module>
         <module>security</module>
+        <module>security-abac</module>
     </modules>
 
 </project>

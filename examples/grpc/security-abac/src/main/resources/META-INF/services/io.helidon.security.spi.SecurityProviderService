@@ -14,11 +14,4 @@
 # limitations under the License.
 #
 
-
-grpcserver {
-  name: "foo"
-  port: 19,
-  bind-address: "127.0.0.1",
-  native: true
-  workers: 51
-}
+io.helidon.grpc.examples.security.abac.AtnProviderService

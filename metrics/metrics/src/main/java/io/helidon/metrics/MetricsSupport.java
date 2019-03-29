@@ -269,17 +269,17 @@ public final class MetricsSupport implements Service {
                                                      MetricType.METERED,
                                                      MetricUnits.NONE));
 
-        Counter totalGrpcCount = vendor.counter(new Metadata("grpc.requests.count",
-                                                         "Total number of gRPC requests",
-                                                         "Each gRPC request (regardless of the method) will increase this counter",
-                                                         MetricType.COUNTER,
-                                                         MetricUnits.NONE));
+        vendor.counter(new Metadata("grpc.requests.count",
+                                    "Total number of gRPC requests",
+                                    "Each gRPC request (regardless of the method) will increase this counter",
+                                    MetricType.COUNTER,
+                                    MetricUnits.NONE));
 
-        Meter totalGrpcMeter = vendor.meter(new Metadata("grpc.requests.meter",
-                                                     "Meter for overall gRPC requests",
-                                                     "Each gRPC request will mark the meter to see overall throughput",
-                                                     MetricType.METERED,
-                                                     MetricUnits.NONE));
+        vendor.meter(new Metadata("grpc.requests.meter",
+                                  "Meter for overall gRPC requests",
+                                  "Each gRPC request will mark the meter to see overall throughput",
+                                  MetricType.METERED,
+                                  MetricUnits.NONE));
 
         // register the metric registry and factory to be available to all
         rules.any((req, res) -> {

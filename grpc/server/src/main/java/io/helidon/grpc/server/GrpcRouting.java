@@ -16,7 +16,6 @@
 
 package io.helidon.grpc.server;
 
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;

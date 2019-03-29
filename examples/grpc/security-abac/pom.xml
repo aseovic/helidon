@@ -24,15 +24,15 @@
         <artifactId>helidon-examples-grpc-project</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
-    <artifactId>helidon-examples-grpc-security</artifactId>
-    <name>Helidon gRPC Server Examples Security</name>
+    <artifactId>helidon-examples-grpc-security-abac</artifactId>
+    <name>Helidon gRPC Server Examples ABAC Security</name>
 
     <description>
-        Examples of securing gRPC services
+        Examples of securing gRPC services using ABAC
     </description>
 
     <properties>
-        <mainClass>io.helidon.grpc.examples.security.SecureServer</mainClass>
+        <mainClass>io.helidon.grpc.examples.security.abac.AbacServer</mainClass>
     </properties>
 
     <dependencies>
@@ -58,10 +58,30 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.helidon.security.providers</groupId>
-            <artifactId>helidon-security-providers-http-auth</artifactId>
-            <version>${project.version}</version>
-        </dependency>
+            <groupId>io.helidon.bundles</groupId>
+            <artifactId>helidon-bundles-config</artifactId>
+           <version>${project.version}</version>
+       </dependency>
+       <dependency>
+           <groupId>io.helidon.bundles</groupId>
+           <artifactId>helidon-bundles-security</artifactId>
+           <version>${project.version}</version>
+           <exclusions>
+               <exclusion>
+                   <groupId>com.google.code.findbugs</groupId>
+                   <artifactId>jsr305</artifactId>
+               </exclusion>
+           </exclusions>
+       </dependency>
+        <dependency>
+            <groupId>io.helidon.security.abac</groupId>
+            <artifactId>helidon-security-abac-policy-el</artifactId>
+           <version>${project.version}</version>
+       </dependency>
+       <dependency>
+           <groupId>org.glassfish</groupId>
+           <artifactId>javax.el</artifactId>
+       </dependency>
 
         <dependency>
             <groupId>io.helidon.grpc</groupId>

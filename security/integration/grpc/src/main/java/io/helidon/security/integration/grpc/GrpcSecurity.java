@@ -217,7 +217,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: enabled and required</li>
      * <li>Authorization: enabled if provider configured</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @return {@link GrpcSecurityHandler} instance configured with authentication and authorization
@@ -233,7 +233,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: enabled and required</li>
      * <li>Authorization: not modified (default: disabled)</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @return {@link GrpcSecurityHandler} instance
@@ -266,7 +266,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: enabled and required</li>
      * <li>Authorization: not modified (default: disabled)</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @param explicitAuthenticator name of authenticator as configured in {@link Security}
@@ -284,7 +284,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: enabled and required</li>
      * <li>Authorization: enabled with explicit provider</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @param explicitAuthorizer name of authorizer as configured in {@link Security}
@@ -301,7 +301,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: enabled and required</li>
      * <li>Authorization: enabled</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @param roles if subject is any of these roles, allow access
@@ -318,7 +318,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: enabled and optional</li>
      * <li>Authorization: not modified (default: disabled)</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @return {@link GrpcSecurityHandler} instance
@@ -334,7 +334,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: enabled and required</li>
      * <li>Authorization: enabled if provider is present</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @return {@link GrpcSecurityHandler} instance
@@ -350,7 +350,7 @@ public final class GrpcSecurity
      * <ul>
      * <li>Authentication: not modified (default: disabled)</li>
      * <li>Authorization: not modified (default: disabled)</li>
-     * <li>Audit: not modified (default: enabled except for GET and HEAD methods)</li>
+     * <li>Audit: not modified</li>
      * </ul>
      *
      * @return {@link GrpcSecurityHandler} instance

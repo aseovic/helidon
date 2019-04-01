@@ -142,7 +142,7 @@ public class GrpcServerImpl implements GrpcServer {
                     sslContext = new JdkSslContext(sslCtx, false, ClientAuth.NONE);
 
                 }else{
-                    sslContext = getSslContextBuilder(sslConfig).build();
+                    sslContext = sslContextBuilder(sslConfig).build();
                 }
             }
 
@@ -342,7 +342,7 @@ public class GrpcServerImpl implements GrpcServer {
      *
      * @Return an instance of SslContextBuilder
      */
-    private SslContextBuilder getSslContextBuilder(SslConfiguration sslConfig) {
+    private SslContextBuilder sslContextBuilder(SslConfiguration sslConfig) {
         String sCertFile = sslConfig.getTLSCerts();
         String sKeyFile = sslConfig.getTLSKey();
         String sClientCertFile = sslConfig.getTLSClientCerts();

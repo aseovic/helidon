@@ -272,7 +272,7 @@ public class SslIT {
             sslConfig = config.get("grpcserver.ssl").as(SslConfiguration::create).get();
         } else if (mutual){
             name = name + 2;
-             sslConfig = new SslConfiguration.Builder()
+             sslConfig = SslConfiguration.builder()
                         .jdkSSL(false)
                         .tlsCert(tlsCert)
                         .tlsKey(tlsKey)
@@ -280,7 +280,7 @@ public class SslIT {
                         .build();
         }else{
             name = name + 3;
-            sslConfig = new SslConfiguration.Builder()
+            sslConfig = SslConfiguration.builder()
                         .jdkSSL(false)
                         .tlsCert(tlsCert)
                         .tlsKey(tlsKey)

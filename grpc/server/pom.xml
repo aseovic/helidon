@@ -31,12 +31,6 @@
     <artifactId>helidon-grpc-server</artifactId>
     <name>Helidon gRPC Server</name>
 
-    <properties>
-        <version.zipkin-junit>2.12.5</version.zipkin-junit>
-        <version.lib.bedrock>5.0.11</version.lib.bedrock>
-        <version.netty.tcnative>2.0.20.Final</version.netty.tcnative>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>io.helidon.grpc</groupId>
@@ -156,7 +150,6 @@
         <dependency>
             <groupId>io.netty</groupId>
             <artifactId>netty-tcnative-boringssl-static</artifactId>
-            <version>${version.netty.tcnative}</version>
             <scope>runtime</scope>
         </dependency>
     </dependencies>

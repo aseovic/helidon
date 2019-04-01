@@ -204,5 +204,4 @@ public final class SSLContextBuilder implements Builder<SSLContext> {
         tmf.init(ks);
         return tmf;
     }
-
 }

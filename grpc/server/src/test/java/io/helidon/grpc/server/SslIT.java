@@ -17,6 +17,7 @@
 package io.helidon.grpc.server;
 
 import java.io.File;
+
 import java.util.concurrent.TimeUnit;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
@@ -44,6 +45,9 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.rules.ExpectedException;
 import services.EchoService;
+
+import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
  * Tests for gRPC server with SSL connections
@@ -133,15 +137,15 @@ public class SslIT {
     @AfterClass
     public static void cleanup() throws Exception
     {
-        if (grpcServer_1WaySSL != null){
+        if (grpcServer_1WaySSL != null) {
             grpcServer_1WaySSL.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
         }
 
-        if (grpcServer_2WaySSL != null){
+        if (grpcServer_2WaySSL != null) {
             grpcServer_2WaySSL.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
         }
 
-        if (grpcServer_2WaySSLConfig != null){
+        if (grpcServer_2WaySSLConfig != null) {
             grpcServer_2WaySSLConfig.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
         }
     }
@@ -151,74 +155,78 @@ public class SslIT {
     @Test
     public void shouldConnectWithoutClientCertsFor1Way() throws Exception {
         // client do not have to provide certs for 1way ssl
-        SslContext sslContext = getClientSslContext(tlsCaCert, null, null);
+        SslContext sslContext = clientSslContext(tlsCaCert, null, null);
 
         Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_1WaySSL.port())
                 .negotiationType(NegotiationType.TLS)
                 .sslContext(sslContext)
                 .build();
-        // call the gRPC Echo service
-        EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+
+        // call the gRPC Echo service suggestion
+        Echo.EchoResponse response = EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+        assertThat(response.getMessage(), is("foo"));
     }
 
     @Test
     public void shouldNotConnectWithoutCAFor1Way() throws Exception {
         // client do not have to provide certs for 1way ssl
-        SslContext sslContext = getClientSslContext(null, null, null);
+        SslContext sslContext = clientSslContext(null, null, null);
 
         Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_1WaySSL.port())
                 .negotiationType(NegotiationType.TLS)
                 .sslContext(sslContext)
                 .build();
 
-        // call the gRPC Echo service
+        // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
     }
 
     @Test
     public void shouldConnectWithClientCertsFor2Way() throws Exception {
-        SslContext sslContext = getClientSslContext(tlsCaCert, tlsClientCert, tlsClientKey);
+        SslContext sslContext = clientSslContext(tlsCaCert, tlsClientCert, tlsClientKey);
 
         Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSL.port())
                     .negotiationType(NegotiationType.TLS)
                     .sslContext(sslContext)
                     .build();
+
         // call the gRPC Echo service
-        EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+        Echo.EchoResponse response = EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+        assertThat(response.getMessage(), is("foo"));
     }
 
     @Test
     public void shouldNotConnectWithoutCAFor2Way() throws Exception {
-        SslContext sslContext = getClientSslContext(null, tlsClientCert, tlsClientKey);
+        SslContext sslContext = clientSslContext(null, tlsClientCert, tlsClientKey);
 
         Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSL.port())
                 .negotiationType(NegotiationType.TLS)
                 .sslContext(sslContext)
                 .build();
 
-        // call the gRPC Echo service
+        // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
     }
 
     @Test
     public void shouldNotConnectWithoutClientCertFor2Way() throws Exception {
-        SslContext sslContext = getClientSslContext(tlsCaCert, null, tlsClientKey);
+        SslContext sslContext = clientSslContext(tlsCaCert, null, tlsClientKey);
 
         Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSL.port())
                 .negotiationType(NegotiationType.TLS)
                 .sslContext(sslContext)
                 .build();
 
-        // call the gRPC Echo service
+        // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
     }
 
     @Test
     public void shouldConnectWithClientCertsFor2WayUseConfig() throws Exception{
-        SslContext sslContext = getClientSslContext(tlsCaCert, tlsClientCert, tlsClientKey);
+        SslContext sslContext = clientSslContext(tlsCaCert, tlsClientCert, tlsClientKey);
 
         Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSLConfig.port())
                 .negotiationType(NegotiationType.TLS)
@@ -226,32 +234,34 @@ public class SslIT {
                 .build();
 
         // call the gRPC Echo service
-        EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+        Echo.EchoResponse response = EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
+        assertThat(response.getMessage(), is("foo"));
     }
 
     @Test
     public void shouldNotConnectWithoutClientCertFor2WayUseConfig() throws Exception {
-        SslContext sslContext = getClientSslContext(tlsCaCert, null, tlsClientKey);
+        SslContext sslContext = clientSslContext(tlsCaCert, null, tlsClientKey);
 
         Channel channel = NettyChannelBuilder.forAddress("localhost", grpcServer_2WaySSLConfig.port())
                 .negotiationType(NegotiationType.TLS)
                 .sslContext(sslContext)
                 .build();
 
-        // call the gRPC Echo service
+        // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
     }
 
     // ----- helper methods -------------------------------------------------
 
-    private static SslContext getClientSslContext(String trustCertCollectionFilePath,
-                                              String clientCertChainFilePath,
-                                              String clientPrivateKeyFilePath) throws SSLException {
+    private static SslContext clientSslContext(String trustCertCollectionFilePath,
+                                               String clientCertChainFilePath,
+                                               String clientPrivateKeyFilePath) throws SSLException {
         SslContextBuilder builder = GrpcSslContexts.forClient();
         if (trustCertCollectionFilePath != null) {
             builder.trustManager(new File(trustCertCollectionFilePath));
         }
+
         if (clientCertChainFilePath != null && clientPrivateKeyFilePath != null) {
             builder.keyManager(new File(clientCertChainFilePath), new File(clientPrivateKeyFilePath));
         }
@@ -259,18 +269,18 @@ public class SslIT {
     }
 
     /**
-     * Start the gRPC Server listening on an ephemeral port.
+     * Start the gRPC Server listening on the specified nPort.
      *
      * @throws Exception in case of an error
      */
     private static GrpcServer startGrpcServer(int nPort, boolean mutual, boolean useConfig ) throws Exception {
         SslConfiguration sslConfig;
         String name = "grpc.server";
-        if (useConfig){
+        if (useConfig) {
             name = name + 1;
             Config config = Config.builder().sources(ConfigSources.classpath("config-ssl.conf")).build();
             sslConfig = config.get("grpcserver.ssl").as(SslConfiguration::create).get();
-        } else if (mutual){
+        } else if (mutual) {
             name = name + 2;
              sslConfig = SslConfiguration.builder()
                         .jdkSSL(false)
@@ -278,7 +288,7 @@ public class SslIT {
                         .tlsKey(tlsKey)
                         .tlsCaCert(tlsCaCert)
                         .build();
-        }else{
+        } else {
             name = name + 3;
             sslConfig = SslConfiguration.builder()
                         .jdkSSL(false)
@@ -291,7 +301,6 @@ public class SslIT {
                                          .register(new EchoService())
                                          .build();
 
-        // Run the server on port 0 so that it picks a free ephemeral port
         GrpcServerConfiguration serverConfig = GrpcServerConfiguration.builder().name(name).port(nPort).sslConfig(sslConfig).build();
 
         GrpcServer grpcServer = GrpcServer.create(serverConfig, routing)

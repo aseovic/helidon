@@ -133,20 +133,21 @@ public class GrpcServerImpl implements GrpcServer {
         SslContext sslContext = null;
 
         try {
-            if (sslConfig != null){
-                if (sslConfig.isJdkSSL()){
+            if (sslConfig != null) {
+                if (sslConfig.isJdkSSL()) {
                     SSLContext sslCtx = SSLContextBuilder.create(KeyConfig.pemBuilder()
                                                                          .key(Resource.create(sslConfig.getTLSKey()))
                                                                          .certChain(Resource.create(sslConfig.getTLSCerts()))
                                                                          .build()).build();
                     sslContext = new JdkSslContext(sslCtx, false, ClientAuth.NONE);
 
-                }else{
+                } else {
                     sslContext = sslContextBuilder(sslConfig).build();
                 }
             }
 
-            NettyServerBuilder builder = sslContext == null ? NettyServerBuilder.forPort(port)
+            NettyServerBuilder builder = sslContext == null
+                    ? NettyServerBuilder.forPort(port)
                     : NettyServerBuilder.forPort(port).sslContext(sslContext);
 
             HandlerRegistry handlerRegistry = this.handlerRegistry;
@@ -339,10 +340,9 @@ public class GrpcServerImpl implements GrpcServer {
      * Return an instance of SslContextBuilder from the specified SslConfig.
      *
      * @param  sslConfig the ssl configuration
-     *
-     * @Return an instance of SslContextBuilder
+     * @return an instance of SslContextBuilder
      */
-    private SslContextBuilder sslContextBuilder(SslConfiguration sslConfig) {
+    protected SslContextBuilder sslContextBuilder(SslConfiguration sslConfig) {
         String sCertFile = sslConfig.getTLSCerts();
         String sKeyFile = sslConfig.getTLSKey();
         String sClientCertFile = sslConfig.getTLSClientCerts();
@@ -380,7 +380,7 @@ public class GrpcServerImpl implements GrpcServer {
             try {
                 aX509Certificates = loadX509Cert(fileClientCerts);
             }
-            catch (Exception e){
+            catch (Exception e) {
                 throw new IllegalStateException("gRPC server is configured to use TLS but failed to load trusted CA files");
             }
 
@@ -390,10 +390,10 @@ public class GrpcServerImpl implements GrpcServer {
 
         SslContextBuilder sslContextBuilder = SslContextBuilder.forServer(fileCerts, fileKey);
 
-        if (aX509Certificates.length > 0){
+        if (aX509Certificates.length > 0) {
             sslContextBuilder.trustManager(aX509Certificates)
                     .clientAuth(ClientAuth.REQUIRE);
-        }else {
+        } else {
             sslContextBuilder.clientAuth(ClientAuth.OPTIONAL);
         }
 
@@ -406,7 +406,7 @@ public class GrpcServerImpl implements GrpcServer {
         CertificateFactory cf = CertificateFactory.getInstance("X.509");
         X509Certificate[] aCerts = new X509Certificate[aFile.length];
 
-        for (int i = 0; i < aFile.length; i++){
+        for (int i = 0; i < aFile.length; i++) {
             try (InputStream in = new FileInputStream(aFile[i])) {
                 aCerts[i] = (X509Certificate) cf.generateCertificate(in);
             }

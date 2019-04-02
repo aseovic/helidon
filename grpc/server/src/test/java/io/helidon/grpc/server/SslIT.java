@@ -39,6 +39,7 @@ import com.oracle.bedrock.runtime.LocalPlatform;
 import com.oracle.bedrock.runtime.network.AvailablePortIterator;
 
 import io.grpc.Channel;
+import io.grpc.ManagedChannel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
@@ -167,6 +168,8 @@ public class SslIT {
         // call the gRPC Echo service suggestion
         Echo.EchoResponse response = EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
         assertThat(response.getMessage(), is("foo"));
+
+        ((ManagedChannel) channel).shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -182,6 +185,8 @@ public class SslIT {
         // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
+
+        ((ManagedChannel) channel).shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -196,6 +201,8 @@ public class SslIT {
         // call the gRPC Echo service
         Echo.EchoResponse response = EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
         assertThat(response.getMessage(), is("foo"));
+
+        ((ManagedChannel) channel).shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -210,6 +217,8 @@ public class SslIT {
         // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
+
+        ((ManagedChannel) channel).shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -224,6 +233,8 @@ public class SslIT {
         // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
+
+        ((ManagedChannel) channel).shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Test
@@ -252,6 +263,8 @@ public class SslIT {
         // call the gRPC Echo service should throw
         Assertions.assertThrows(StatusRuntimeException.class,
                                 ()->EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build()));
+
+        ((ManagedChannel) channel).shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     // ----- helper methods -------------------------------------------------

@@ -18,9 +18,15 @@ package io.helidon.grpc.server;
 
 import java.io.File;
 
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.LogManager;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import javax.net.ssl.SSLException;
 
@@ -31,19 +37,21 @@ import io.helidon.grpc.server.test.EchoServiceGrpc;
 
 import com.oracle.bedrock.runtime.LocalPlatform;
 import com.oracle.bedrock.runtime.network.AvailablePortIterator;
+
 import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.NegotiationType;
 import io.grpc.netty.NettyChannelBuilder;
+
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
+
 import org.junit.AfterClass;
-import org.junit.Rule;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
-import org.junit.rules.ExpectedException;
+
 import services.EchoService;
 
 import static org.hamcrest.CoreMatchers.is;
@@ -81,20 +89,17 @@ public class SslIT {
     /**
      * Port used for 1waySSL
      */
-    private static int m_nPort1WaySSL;
+    private static int port1WaySSL;
 
     /**
      * Port used for 2waySSL
      */
-    private static int m_nPort2WaySSL;
+    private static int port2WaySSL;
 
     /**
      * Port used for 2waySSL using config-ssl.conf
      */
-    private static int m_nPort2WaySSLConfig;
-
-    @Rule
-    public ExpectedException m_exception = ExpectedException.none();
+    private static int port2WaySSLConfig;
 
     private static final String CLIENT_CERT = "clientCert.pem";
     private static final String CLIENT_KEY  = "clientKey.pem";
@@ -125,29 +130,26 @@ public class SslIT {
 
         AvailablePortIterator ports = LocalPlatform.get().getAvailablePorts();
 
-        m_nPort1WaySSL  = ports.next();
-        m_nPort2WaySSL  = ports.next();
-        m_nPort2WaySSLConfig = ports.next();
+        port1WaySSL = ports.next();
+        port2WaySSL = ports.next();
+        port2WaySSLConfig = ports.next();
 
-        grpcServer_1WaySSL = startGrpcServer(m_nPort1WaySSL, false /*mutual*/, false /*useConfig*/);
-        grpcServer_2WaySSL = startGrpcServer(m_nPort2WaySSL, true /*mutual*/, false /*useConfig*/);
-        grpcServer_2WaySSLConfig = startGrpcServer(m_nPort2WaySSLConfig, true/*mutual*/, true /*useConfig*/);
+        grpcServer_1WaySSL = startGrpcServer(port1WaySSL, false /*mutual*/, false /*useConfig*/);
+        grpcServer_2WaySSL = startGrpcServer(port2WaySSL, true /*mutual*/, false /*useConfig*/);
+        grpcServer_2WaySSLConfig = startGrpcServer(port2WaySSLConfig, true/*mutual*/, true /*useConfig*/);
     }
 
     @AfterClass
     public static void cleanup() throws Exception
     {
-        if (grpcServer_1WaySSL != null) {
-            grpcServer_1WaySSL.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
-        }
+        Set<GrpcServer> setServers = Stream.of(grpcServer_1WaySSL, grpcServer_2WaySSL).collect(Collectors.toSet());
 
-        if (grpcServer_2WaySSL != null) {
-            grpcServer_2WaySSL.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
-        }
+        CompletableFuture<?>[] futures =
+                        setServers.stream()
+                        .map(server -> server.shutdown().toCompletableFuture())
+                        .toArray(CompletableFuture[]::new);
 
-        if (grpcServer_2WaySSLConfig != null) {
-            grpcServer_2WaySSLConfig.shutdown().toCompletableFuture().get(10, TimeUnit.SECONDS);
-        }
+        CompletableFuture.allOf(futures).get(10, TimeUnit.SECONDS);
     }
 
     // ----- test methods ---------------------------------------------------

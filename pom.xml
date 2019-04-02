@@ -744,7 +744,6 @@
                 <groupId>io.netty</groupId>
                 <artifactId>netty-tcnative-boringssl-static</artifactId>
                 <version>${version.netty.tcnative}</version>
-                <scope>runtime</scope>
             </dependency>
             <dependency>
               <groupId>io.opentracing.contrib</groupId>

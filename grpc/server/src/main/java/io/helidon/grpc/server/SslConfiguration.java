@@ -16,6 +16,7 @@
 
 package io.helidon.grpc.server;
 
+import java.nio.file.Path;
 import java.nio.file.Paths;
 
 import io.helidon.config.Config;
@@ -131,21 +132,21 @@ public class SslConfiguration {
                 return;
             }
 
-        String path = config.get("path").asString().orElse(".");
+        Path path = Paths.get(config.get("path").asString().orElse(""));
 
         String tlsCert = config.get("tlsCert").asString().orElse(null);
         if (tlsCert != null) {
-            this.tlsCert = Paths.get(path, tlsCert).toAbsolutePath().toString();
+            this.tlsCert = path.resolve(tlsCert).toAbsolutePath().toString();
         }
 
         String tlsKey = config.get("tlsKey").asString().orElse(null);
         if (tlsKey != null) {
-            this.tlsKey = Paths.get(path, tlsKey).toAbsolutePath().toString();
+            this.tlsKey = path.resolve(tlsKey).toAbsolutePath().toString();
         }
 
         String tlsCaCert = config.get("tlsCaCert").asString().orElse(null);
         if (tlsCaCert != null) {
-            this.tlsCaCert = Paths.get(path, tlsCaCert).toAbsolutePath().toString();
+            this.tlsCaCert = path.resolve(tlsCaCert).toAbsolutePath().toString();
         }
 
         this.jdkSSL = config.get("jdkSSL").asBoolean().orElse(false);

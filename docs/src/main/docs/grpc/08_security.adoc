@@ -16,11 +16,10 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-= gRPC Server Security
 :description: Helidon Security gRPC integration
 :keywords: helidon, grpc, security
 
-== gRPC Server Security
+= gRPC Server Security
 Security integration of the  <<grpc/01_introduction.adoc,gRPC server>>
 
 [source,xml]

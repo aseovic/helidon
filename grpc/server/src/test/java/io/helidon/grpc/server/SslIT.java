@@ -144,7 +144,7 @@ public class SslIT {
     public static void cleanup() throws Exception
     {
         CompletableFuture<?>[] futures =
-                         Stream.of(grpcServer_1WaySSL, grpcServer_2WaySSL)
+                         Stream.of(grpcServer_1WaySSL, grpcServer_2WaySSL, grpcServer_2WaySSLConfig)
                         .map(server -> server.shutdown().toCompletableFuture())
                         .toArray(CompletableFuture<?>[]::new);
 

@@ -36,6 +36,7 @@
         <module>opentracing</module>
         <module>security</module>
         <module>security-abac</module>
+        <module>security-outbound</module>
     </modules>
 
 </project>

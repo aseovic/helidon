@@ -247,6 +247,8 @@ public class SslIT {
         // call the gRPC Echo service
         Echo.EchoResponse response = EchoServiceGrpc.newBlockingStub(channel).echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
         assertThat(response.getMessage(), is("foo"));
+
+        ((ManagedChannel) channel).shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
 
     @Test

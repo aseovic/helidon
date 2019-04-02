@@ -143,12 +143,10 @@ public class SslIT {
     @AfterClass
     public static void cleanup() throws Exception
     {
-        Set<GrpcServer> setServers = Stream.of(grpcServer_1WaySSL, grpcServer_2WaySSL).collect(Collectors.toSet());
-
         CompletableFuture<?>[] futures =
-                        setServers.stream()
+                         Stream.of(grpcServer_1WaySSL, grpcServer_2WaySSL)
                         .map(server -> server.shutdown().toCompletableFuture())
-                        .toArray(CompletableFuture[]::new);
+                        .toArray(CompletableFuture<?>[]::new);
 
         CompletableFuture.allOf(futures).get(10, TimeUnit.SECONDS);
     }

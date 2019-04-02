@@ -62,6 +62,27 @@ public interface GrpcRouting {
     }
 
     /**
+     * Creates new {@link GrpcServer} instance with provided configuration and this routing.
+     *
+     * @param configuration a gRPC server configuration
+     * @return new {@link GrpcServer} instance
+     * @throws IllegalStateException if none SPI implementation found
+     */
+    default GrpcServer createServer(GrpcServerConfiguration configuration) {
+        return GrpcServer.create(configuration, this);
+    }
+
+    /**
+     * Creates new {@link GrpcServer} instance with this routing and default configuration.
+     *
+     * @return new {@link GrpcServer} instance
+     * @throws IllegalStateException if none SPI implementation found
+     */
+    default GrpcServer createServer() {
+        return GrpcServer.create(this);
+    }
+
+    /**
      * A {@link io.helidon.common.Builder} that can build {@link GrpcRouting} instances.
      */
     final class Builder implements io.helidon.common.Builder<GrpcRouting> {
@@ -156,13 +177,33 @@ public interface GrpcRouting {
 
         // ---- helpers -----------------------------------------------------
 
+        @SuppressWarnings("unchecked")
         private Builder register(ServiceDescriptor.Builder builder,
                                  Consumer<ServiceDescriptor.Config> configurer) {
             if (configurer != null) {
                 configurer.accept(builder);
             }
+
+            interceptors.stream()
+                    .filter(this::isServiceDescriptorConfigConsumer)
+                    .map(Consumer.class::cast)
+                    .forEach(consumer -> consumer.accept(builder));
+
             services.add(builder.build());
             return this;
+        }
+
+        private boolean isServiceDescriptorConfigConsumer(ServerInterceptor interceptor) {
+            if (interceptor instanceof Consumer) {
+                try {
+                    interceptor.getClass().getMethod("accept", ServiceDescriptor.Config.class);
+                    return true;
+                } catch (NoSuchMethodException e) {
+                    return false;
+                }
+            } else {
+                return false;
+            }
         }
     }
 }

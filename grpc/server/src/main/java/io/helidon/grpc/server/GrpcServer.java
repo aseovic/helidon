@@ -177,9 +177,10 @@ public interface GrpcServer {
      * @throws NullPointerException  if 'GrpcRouting' parameter is {@code null}
      */
     static GrpcServer create(GrpcServerConfiguration configuration, GrpcRouting routing) {
-        Objects.requireNonNull(routing, "Parameter 'GrpcRouting' is null!");
+        Objects.requireNonNull(routing, "Parameter 'routing' is null!");
 
-        return builder(routing).config(configuration)
+        return builder(routing)
+                .config(configuration)
                 .build();
     }
 
@@ -215,7 +216,7 @@ public interface GrpcServer {
      * @return the builder
      */
     static Builder builder(GrpcRouting routing) {
-        return new Builder(routing);
+        return new Builder(GrpcServerConfiguration.create(), routing);
     }
 
     /**
@@ -229,9 +230,11 @@ public interface GrpcServer {
 
         private GrpcServerConfiguration configuration;
 
-        private Builder(GrpcRouting routing) {
+        private Builder(GrpcServerConfiguration configuration, GrpcRouting routing) {
+            Objects.requireNonNull(configuration, "Parameter 'configuration' must not be null!");
             Objects.requireNonNull(routing, "Parameter 'routing' must not be null!");
 
+            this.configuration = configuration;
             this.routing = routing;
         }
 
@@ -242,7 +245,7 @@ public interface GrpcServer {
          * @return an updated builder
          */
         public Builder config(GrpcServerConfiguration configuration) {
-            this.configuration = configuration;
+            this.configuration = configuration != null ? configuration : GrpcServerConfiguration.create();
             return this;
         }
 
@@ -255,7 +258,7 @@ public interface GrpcServer {
         public Builder config(Supplier<GrpcServerConfiguration> configurationBuilder) {
             this.configuration = configurationBuilder != null
                     ? configurationBuilder.get()
-                    : null;
+                    : GrpcServerConfiguration.create();
             return this;
         }
 
@@ -269,10 +272,13 @@ public interface GrpcServer {
         public GrpcServer build() {
             List<ServerInterceptor> interceptors = new ArrayList<>();
             GrpcServerImpl server = new GrpcServerImpl(configuration);
-            Tracer tracer = configuration.tracer();
 
             interceptors.add(new ContextSettingServerInterceptor());
-            interceptors.add(new GrpcTracing(tracer, configuration.tracingConfig()));
+
+            Tracer tracer = configuration.tracer();
+            if (tracer != null) {
+                interceptors.add(new GrpcTracing(tracer, configuration.tracingConfig()));
+            }
 
             // add the global interceptors from the routing AFTER the tracing interceptor
             // so that all of those interceptors are included in the trace timings

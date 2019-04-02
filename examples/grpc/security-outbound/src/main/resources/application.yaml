@@ -14,11 +14,21 @@
 # limitations under the License.
 #
 
+app:
+  greeting: "Hello"
 
-grpcserver {
-  name: "foo"
-  port: 19,
-  bind-address: "127.0.0.1",
-  native: true
-  workers: 51
-}
+grpc:
+  name: "test.server"
+  port: 1408
+
+webserver:
+  port: 8080
+
+http-basic-auth:
+  users:
+    - login: "Ted"
+      password: "secret"
+      roles: ["user", "admin"]
+    - login: "Bob"
+      password: "password"
+      roles: ["user"]

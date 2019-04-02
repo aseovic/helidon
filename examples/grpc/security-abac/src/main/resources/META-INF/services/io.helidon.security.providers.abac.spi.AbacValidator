@@ -14,11 +14,6 @@
 # limitations under the License.
 #
 
-
-grpcserver {
-  name: "foo"
-  port: 19,
-  bind-address: "127.0.0.1",
-  native: true
-  workers: 51
-}
+io.helidon.security.abac.scope.ScopeValidator
+io.helidon.security.abac.policy.PolicyValidator
+io.helidon.security.abac.time.TimeValidator

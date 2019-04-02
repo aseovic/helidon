@@ -133,7 +133,11 @@ public class GrpcSecurityHandler
         authorize = builder.authorize;
         combined = builder.combined;
 
-        config.ifPresent(conf -> conf.asNodeList().get().forEach(node -> configMap.put(node.name(), node)));
+        config.ifPresent(conf -> {
+            if (conf.exists() && !conf.isLeaf()) {
+                conf.asNodeList().get().forEach(node -> configMap.put(node.name(), node));
+            }
+        });
     }
 
     /**

@@ -100,7 +100,16 @@ public interface GrpcServerConfiguration {
     SslConfiguration sslConfig();
 
     /**
-     * Creates new instance with defaults from external configuration source.
+     * Creates new instance with default values for all configuration properties.
+     *
+     * @return a new instance
+     */
+    static GrpcServerConfiguration create() {
+        return builder().build();
+    }
+
+    /**
+     * Creates new instance with values from external configuration.
      *
      * @param config the externalized configuration
      * @return a new instance

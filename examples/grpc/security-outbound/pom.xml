@@ -24,15 +24,15 @@
         <artifactId>helidon-examples-grpc-project</artifactId>
         <version>1.0.3-SNAPSHOT</version>
     </parent>
-    <artifactId>helidon-examples-grpc-security</artifactId>
-    <name>Helidon gRPC Server Examples Security</name>
+    <artifactId>helidon-examples-grpc-security-outbound</artifactId>
+    <name>Helidon gRPC Server Examples Outbound Security</name>
 
     <description>
-        Examples of securing gRPC services
+        Examples of outbound security when using gRPC services
     </description>
 
     <properties>
-        <mainClass>io.helidon.grpc.examples.security.SecureServer</mainClass>
+        <mainClass>io.helidon.grpc.examples.security.outbound.SecureServer</mainClass>
     </properties>
 
     <dependencies>
@@ -58,32 +58,44 @@
             <version>${project.version}</version>
         </dependency>
         <dependency>
-            <groupId>io.helidon.security.providers</groupId>
-            <artifactId>helidon-security-providers-http-auth</artifactId>
+            <groupId>io.helidon.bundles</groupId>
+            <artifactId>helidon-bundles-config</artifactId>
+           <version>${project.version}</version>
+       </dependency>
+        <dependency>
+            <groupId>io.helidon.bundles</groupId>
+            <artifactId>helidon-bundles-webserver</artifactId>
             <version>${project.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.core</groupId>
+            <artifactId>jersey-client</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>org.glassfish.jersey.inject</groupId>
+            <artifactId>jersey-hk2</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>io.helidon.security.integration</groupId>
+            <artifactId>helidon-security-integration-jersey</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+           <groupId>io.helidon.bundles</groupId>
+           <artifactId>helidon-bundles-security</artifactId>
+           <version>${project.version}</version>
+           <exclusions>
+               <exclusion>
+                   <groupId>com.google.code.findbugs</groupId>
+                   <artifactId>jsr305</artifactId>
+               </exclusion>
+           </exclusions>
+       </dependency>
 
         <dependency>
             <groupId>io.helidon.grpc</groupId>
             <artifactId>helidon-grpc-client</artifactId>
             <version>${project.version}</version>
-        </dependency>
-
-        <dependency>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-netty</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-stub</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-services</artifactId>
-        </dependency>
-        <dependency>
-          <groupId>io.grpc</groupId>
-          <artifactId>grpc-protobuf</artifactId>
         </dependency>
     </dependencies>
 </project>

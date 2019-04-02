@@ -21,16 +21,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.logging.LogManager;
 
 import io.helidon.config.Config;
+import io.helidon.config.ConfigSources;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
-import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.grpc.server.test.Echo;
 import io.helidon.grpc.server.test.EchoServiceGrpc;
 import io.helidon.grpc.server.test.StringServiceGrpc;
-import io.helidon.grpc.server.test.Strings.StringMessage;
-import io.helidon.security.Security;
-import io.helidon.security.providers.httpauth.HttpBasicAuthProvider;
+import io.helidon.grpc.server.test.Strings;
 
 import io.grpc.Channel;
 import io.grpc.Status;
@@ -49,8 +47,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 /**
  * @author Jonathan Knight
  */
-public class ServiceAndMethodLevelSecurityIT {
-
+public class SecurityFromConfigIT {
     private static GrpcServer grpcServer;
 
     private static TestCallCredentials adminCreds = new TestCallCredentials("Ted", "secret");
@@ -72,27 +69,14 @@ public class ServiceAndMethodLevelSecurityIT {
         LogManager.getLogManager().readConfiguration(
                 ServiceAndMethodLevelSecurityIT.class.getResourceAsStream("/logging.properties"));
 
-        Config config = Config.create();
+        // load the config containing the gRPC service security settings
+        Config config = Config.builder().sources(ConfigSources.classpath("secure-services.conf")).build();
 
-        Security security = Security.builder()
-                .addProvider(HttpBasicAuthProvider.create(config.get("http-basic-auth")))
-                .build();
-
-
-        ServiceDescriptor echoService = ServiceDescriptor.builder(new EchoService())
-                .intercept(GrpcSecurity.rolesAllowed("admin"))
-                .build();
-
-        ServiceDescriptor stringService = ServiceDescriptor.builder(new StringService())
-                .intercept("Upper", GrpcSecurity.rolesAllowed("admin"))
-                .intercept("Split", GrpcSecurity.rolesAllowed("admin"))
-                .build();
-
-        // Add the EchoService
+        // Create the gRPC routing configuring the GrpcSecurity interceptor from config
         GrpcRouting routing = GrpcRouting.builder()
-                                         .intercept(GrpcSecurity.create(security).securityDefaults(GrpcSecurity.authenticate()))
-                                         .register(echoService)
-                                         .register(stringService)
+                                         .intercept(GrpcSecurity.create(config.get("security")))
+                                         .register(new EchoService())
+                                         .register(new StringService())
                                          .build();
 
         // Run the server on port 0 so that it picks a free ephemeral port
@@ -118,12 +102,21 @@ public class ServiceAndMethodLevelSecurityIT {
         grpcServer.shutdown();
     }
 
+    /**
+     * The StringService lower method is secured at the global default level
+     * to allow any authenticated user so should allow access to user Bob.
+     */
     @Test
     public void shouldBeSecuredWithGlobalSettingsAllowAccess() {
-        StringMessage message = userStringStub.lower(toMessage("ABCD"));
+        Strings.StringMessage message = userStringStub.lower(toMessage("ABCD"));
         assertThat(message.getText(), is("abcd"));
     }
 
+    /**
+     * The StringService lower method is secured at the global default level
+     * to allow any authenticated user so should disallow access to access
+     * without credentials.
+     */
     @Test
     public void shouldBeSecuredWithGlobalSettingsDenyAccess() {
         StatusRuntimeException thrown = assertThrows(StatusRuntimeException.class, () ->
@@ -132,12 +125,20 @@ public class ServiceAndMethodLevelSecurityIT {
         assertThat(thrown.getStatus().getCode(), is(Status.PERMISSION_DENIED.getCode()));
     }
 
+    /**
+     * The EchoService echo method is secured roles-allowed = ["admin"] at the service level
+     * so should allow user Ted access.
+     */
     @Test
     public void shouldBeSecuredWithServiceSettingsAllowAccess() {
         Echo.EchoResponse response = adminEchoStub.echo(Echo.EchoRequest.newBuilder().setMessage("foo").build());
         assertThat(response.getMessage(), is("foo"));
     }
 
+    /**
+     * The EchoService echo method is secured roles-allowed = ["admin"] at the service level
+     * so should deny user Bob access.
+     */
     @Test
     public void shouldBeSecuredWithServiceSettingsDenyAccess() {
         StatusRuntimeException thrown = assertThrows(StatusRuntimeException.class, () ->
@@ -146,17 +147,25 @@ public class ServiceAndMethodLevelSecurityIT {
         assertThat(thrown.getStatus().getCode(), is(Status.PERMISSION_DENIED.getCode()));
     }
 
+    /**
+     * The StringService upper method is secured with roles-allowed = ["admin"]
+     * so should allow user Ted access.
+     */
     @Test
     public void shouldBeSecuredWithMethodSettingsAllowAccess() {
-        StringMessage message = adminStringStub.upper(toMessage("abcd"));
+        Strings.StringMessage message = adminStringStub.upper(toMessage("abcd"));
         assertThat(message.getText(), is("ABCD"));
     }
 
+    /**
+     * The StringService split method is secured with roles-allowed = ["admin"]
+     * so should deny user Bob access.
+     */
     @Test
     public void shouldBeSecuredWithMethodSettingsDenyAccess() {
         // StringService.split is a server streaming call so the proto generated code will
         // return an Iterator even though the actual call fails with PERMISSION_DENIED
-        Iterator<StringMessage> it = userStringStub.split(toMessage("a b c d"));
+        Iterator<Strings.StringMessage> it = userStringStub.split(toMessage("a b c d"));
 
         // It is not until accessing methods on the Iterator that we get the exception
         StatusRuntimeException thrown = assertThrows(StatusRuntimeException.class, it::hasNext);
@@ -164,7 +173,7 @@ public class ServiceAndMethodLevelSecurityIT {
         assertThat(thrown.getStatus().getCode(), is(Status.PERMISSION_DENIED.getCode()));
     }
 
-    private StringMessage toMessage(String text) {
-        return StringMessage.newBuilder().setText(text).build();
+    private Strings.StringMessage toMessage(String text) {
+        return Strings.StringMessage.newBuilder().setText(text).build();
     }
 }

@@ -397,7 +397,7 @@ public class UnaryMethodHandlerSupplier
     /**
      * A unary {@link MethodHandler} that calls a handler method of the form.
      * <pre>
-     *     CompletableFuture&ltResT&gt; invoke(ReqT request)
+     *     CompletableFuture&lt;ResT&gt; invoke(ReqT request)
      * </pre>
      * <p>
      * If the future returned completes normally and has a none null none
@@ -432,7 +432,7 @@ public class UnaryMethodHandlerSupplier
     /**
      * A unary {@link MethodHandler} that calls a handler method of the form.
      * <pre>
-     *     CompletableFuture&ltResT&gt; invoke()
+     *     CompletableFuture&lt;ResT&gt; invoke()
      * </pre>
      * <p>
      * If the future returned completes normally and has a none null none

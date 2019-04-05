@@ -27,7 +27,7 @@ import io.grpc.Status;
 public interface Instance {
 
     /**
-     * Create an {@link Supplier<Object>} that supplies a
+     * Create a {@link Supplier} that supplies a
      * singleton.
      *
      * @param instance  the singleton instance to supply
@@ -41,7 +41,7 @@ public interface Instance {
     }
 
     /**
-     * Create an {@link Supplier<Object>} that supplies a
+     * Create an {@link Supplier} that supplies a
      * singleton of the specified Class.
      * <p>
      * The Class provided must have a no-args default constructor.
@@ -57,7 +57,7 @@ public interface Instance {
     }
 
     /**
-     * Create an {@link Supplier<Object>} that supplies a
+     * Create an {@link Supplier} that supplies a
      * new instances of the specified Class.
      * <p>
      * The Class provided must have a no-args default constructor.

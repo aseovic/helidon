@@ -23,6 +23,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import io.helidon.grpc.core.MarshallerSupplier;
+
 import io.grpc.Context;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
@@ -47,11 +49,11 @@ public class MethodDescriptor<ReqT, ResT> {
     private final List<ServerInterceptor> interceptors;
 
     private MethodDescriptor(String name,
-                     io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
-                     ServerCallHandler<ReqT, ResT> callHandler,
-                     MetricType metricType,
-                     Map<Context.Key, Object> context,
-                     List<ServerInterceptor> interceptors) {
+                             io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
+                             ServerCallHandler<ReqT, ResT> callHandler,
+                             MetricType metricType,
+                             Map<Context.Key, Object> context,
+                             List<ServerInterceptor> interceptors) {
         this.name = name;
         this.descriptor = descriptor;
         this.callHandler = callHandler;
@@ -115,13 +117,21 @@ public class MethodDescriptor<ReqT, ResT> {
     static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
                                                     io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                                                     ServerCallHandler<ReqT, ResT> callHandler) {
-        return new Builder<>(name, descriptor, callHandler);
+        return new Builder<>(name, descriptor, callHandler, null, null);
+    }
+
+    static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
+                                                    io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
+                                                    ServerCallHandler<ReqT, ResT> callHandler,
+                                                    Class<ReqT> requestType,
+                                                    Class<ResT> responseType) {
+        return new Builder<>(name, descriptor, callHandler, requestType, responseType);
     }
 
     static <ReqT, ResT> MethodDescriptor<ReqT, ResT> create(String name,
                                                             io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                                                             ServerCallHandler<ReqT, ResT> callHandler) {
-        return builder(name, descriptor, callHandler).build();
+        return builder(name, descriptor, callHandler, null, null).build();
     }
 
     /**
@@ -167,6 +177,16 @@ public class MethodDescriptor<ReqT, ResT> {
         Config<ReqT, ResT> disableMetrics();
 
         /**
+         * Register the {@link MarshallerSupplier} for the method.
+         * <p>
+         * If not set the default {@link MarshallerSupplier} from the service will be used.
+         *
+         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance for fluent call chaining
+         */
+        Config marshallerSupplier(MarshallerSupplier marshallerSupplier);
+
+        /**
          * Add a {@link Context.Key} and value to be added to the call {@link io.grpc.Context}
          * when this method is invoked.
          *
@@ -197,7 +217,8 @@ public class MethodDescriptor<ReqT, ResT> {
      * @param <ReqT> request type
      * @param <ResT> response type
      */
-    static final class Builder<ReqT, ResT> implements Config<ReqT, ResT>, io.helidon.common.Builder<MethodDescriptor<ReqT, ResT>> {
+    public static final class Builder<ReqT, ResT>
+            implements Config<ReqT, ResT>, io.helidon.common.Builder<MethodDescriptor<ReqT, ResT>> {
         private final String name;
         private final io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;
@@ -208,11 +229,20 @@ public class MethodDescriptor<ReqT, ResT> {
 
         private MetricType metricType;
 
+        private Class<ReqT> requestType;
+
+        private Class<ResT> responseType;
+
         Builder(String name,
                 io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
-                ServerCallHandler<ReqT, ResT> callHandler) {
+                ServerCallHandler<ReqT, ResT> callHandler,
+                Class<ReqT> requestType,
+                Class<ResT> responseType) {
+
             this.name = name;
             this.callHandler = callHandler;
+            this.requestType = requestType;
+            this.responseType = responseType;
 
             String fullName = descriptor.getFullMethodName();
             String prefix = extractNamePrefix(fullName);
@@ -246,6 +276,15 @@ public class MethodDescriptor<ReqT, ResT> {
             return metricType(MetricType.INVALID);
         }
 
+        @Override
+        public Builder<ReqT, ResT> marshallerSupplier(MarshallerSupplier supplier) {
+            if (supplier != null) {
+                descriptor.setRequestMarshaller(supplier.get(requestType))
+                          .setResponseMarshaller(supplier.get(responseType));
+            }
+            return this;
+        }
+
         Builder<ReqT, ResT> fullname(String name) {
             descriptor.setFullMethodName(name);
             return this;
@@ -270,8 +309,12 @@ public class MethodDescriptor<ReqT, ResT> {
 
         @Override
         public MethodDescriptor<ReqT, ResT> build() {
-            return new MethodDescriptor<>(name, descriptor.build(), callHandler, metricType,
-                                          context, interceptors);
+            return new MethodDescriptor<>(name,
+                                          descriptor.build(),
+                                          callHandler,
+                                          metricType,
+                                          context,
+                                          interceptors);
         }
     }
 }

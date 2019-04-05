@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package io.helidon.grpc.server;
+package io.helidon.grpc.core;
 
+import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -24,25 +25,20 @@ import java.lang.annotation.Target;
 import io.grpc.MethodDescriptor.MethodType;
 
 /**
- * An annotation to mark a class as representing a gRPC service
- * or a method as a gRPC service method.
- *
- * @author Aleksandar Seovic
+ * An annotation to mark a method as representing a
+ * unary gRPC method.
  */
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RpcMethod {
+@RpcMethod(type = MethodType.UNARY)
+@Documented
+public @interface Unary {
     /**
-     * Obtain the name of the service or method.
+     * Obtain the name of the method.
+     * <p>
+     * If not set the name of the actual annotated method is used.
      *
-     * @return  name of the service or method
+     * @return  name of the method
      */
     String name() default "";
-
-    /**
-     * Obtain the gRPC method type.
-     *
-     * @return the gRPC method type
-     */
-    MethodType type();
 }

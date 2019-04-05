@@ -90,7 +90,7 @@ public interface GrpcRouting {
          * The {@link List} of the {@link ServiceDescriptor} instances
          * to add to the {@link GrpcRouting}.
          */
-        private List<ServiceDescriptor> services = new ArrayList<>();
+        private List<ServiceDescriptor.Builder> services = new ArrayList<>();
 
         /**
          * The {@link List} of the global {@link io.grpc.ServerInterceptor}s that should be
@@ -175,12 +175,65 @@ public interface GrpcRouting {
         }
 
         /**
-         * Register a {@link ServiceDescriptor} with the {@link GrpcRouting} to be built by this builder.
-         *
-         * @param service  the {@link ServiceDescriptor} to register
+         * Add a component such as a service or a feature to the {@link GrpcRouting}.
+         * @param component  the component to register
          * @return this builder to allow fluent method chaining
          */
-        public Builder register(ServiceDescriptor service) {
+        public Builder register(Object component) {
+            return register(component, null);
+        }
+
+        /**
+         * Add a component such as a service or a feature to the {@link GrpcRouting}.
+         * <p>
+         * If the component registered is not a service (either an implementation of {@link GrpcService}
+         * or {@link BindableService} or a annotated with {@link io.helidon.grpc.core.RpcService} then
+         * the {@code configurer} will be ignored.
+         *
+         * @param component  the component to register
+         * @param configurer an optional consumer that can update the {@link ServiceDescriptor}
+         *                   for the registered service
+         * @return this builder to allow fluent method chaining
+         */
+        public Builder register(Object component, ServiceDescriptor.Configurer configurer) {
+            ServiceModeller modeller = new ServiceModeller(component);
+            return register(modeller.createServiceBuilder(), configurer);
+        }
+
+        /**
+         * Add a {@link BindableService} with the {@link GrpcRouting} to be built by this builder.
+         *
+         * @param service    the class of the service to register
+         * @return this builder to allow fluent method chaining
+         */
+        public Builder register(Class<?> service) {
+            return register(service, null);
+        }
+
+        /**
+         * Add a component such as a service or a feature to the {@link GrpcRouting}.
+         * <p>
+         * If the component registered is not a service (either an implementation of {@link GrpcService}
+         * or {@link BindableService} or a annotated with {@link io.helidon.grpc.core.RpcService} then
+         * the {@code configurer} will be ignored.
+         *
+         * @param component  the class of the component to register
+         * @param configurer an optional consumer that can update the {@link ServiceDescriptor}
+         *                   for the registered service
+         * @return this builder to allow fluent method chaining
+         */
+        public Builder register(Class<?> component, ServiceDescriptor.Configurer configurer) {
+            ServiceModeller modeller = new ServiceModeller(component);
+            return register(modeller.createServiceBuilder(), configurer);
+        }
+
+        /**
+         * Register a {@link ServiceDescriptor.Builder} with the {@link GrpcRouting} to be built by this builder.
+         *
+         * @param service  the {@link ServiceDescriptor.Builder} to register
+         * @return this builder to allow fluent method chaining
+         */
+        public Builder register(ServiceDescriptor.Builder service) {
             services.add(service);
             return this;
         }
@@ -191,7 +244,11 @@ public interface GrpcRouting {
          * @return a new {@link GrpcRouting} instance
          */
         public GrpcRouting build() {
-            return new GrpcRoutingImpl(services, interceptors);
+            List<ServiceDescriptor> list = services.stream()
+                                                   .map(ServiceDescriptor.Builder::build)
+                                                   .collect(Collectors.toList());
+
+            return new GrpcRoutingImpl(list, interceptors);
         }
 
         // ---- helpers -----------------------------------------------------
@@ -207,7 +264,7 @@ public interface GrpcRouting {
                     .map(ServiceDescriptor.Configurer.class::cast)
                     .forEach(interceptor -> interceptor.configure(builder));
 
-            services.add(builder.build());
+            services.add(builder);
             return this;
         }
     }

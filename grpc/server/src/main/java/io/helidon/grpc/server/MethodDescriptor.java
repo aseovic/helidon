@@ -173,6 +173,27 @@ public class MethodDescriptor<ReqT, ResT> {
         Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
+         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param priority     the priority to assign to the interceptors
+         * @param interceptors one or more {@link ServerInterceptor}s to register
+         * @return this builder to allow fluent method chaining
+         */
+        Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors);
+
+        /**
+         * Register the {@link MarshallerSupplier} for the method.
+         * <p>
+         * If not set the default {@link MarshallerSupplier} from the service will be used.
+         *
+         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
+         */
+        Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
+
+        /**
          * Set the request type.
          * <p>
          * Setting the request type is optional as it is used to obtain the

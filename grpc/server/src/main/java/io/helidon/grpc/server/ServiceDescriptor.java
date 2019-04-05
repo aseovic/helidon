@@ -25,6 +25,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import io.helidon.grpc.core.MarshallerSupplier;
 
@@ -147,6 +148,16 @@ public class ServiceDescriptor {
 
     /**
      * Create a {@link Builder}.
+     * @param serviceClass  the {@link Class} representing the service
+     * @param name the name of the service
+     * @return a {@link Builder}
+     */
+    public static Builder builder(Class serviceClass, String name) {
+        return new Builder(serviceClass, name);
+    }
+
+    /**
+     * Create a {@link Builder}.
      * @param service  the {@link GrpcService} to use to initialise the builder
      * @return a {@link Builder}
      */
@@ -257,6 +268,23 @@ public class ServiceDescriptor {
                                  MethodDescriptor.Configurer<ReqT, ResT> configurer);
 
         /**
+         * Register unary method for the service.
+         *
+         * @param name          the name of the method
+         * @param requestType   the Class of the request type
+         * @param responseType  the Class of the response type
+         * @param method        the unary method to register
+         * @param configurer    the method configurer
+         * @param <ReqT>        the method request type
+         * @param <ResT>        the method response type
+         * @return this {@link Rules} instance for fluent call chaining
+         */
+        <ReqT, ResT> Rules unary(String name,
+                                  Class<ReqT> requestType,
+                                  Class<ResT> responseType,
+                                  ServerCalls.UnaryMethod<ReqT, ResT> method,
+                                 MethodDescriptor.Configurer<ReqT, ResT> configurer);
+        /**
          * Register server streaming method for the service.
          *
          * @param name   the name of the method
@@ -280,6 +308,24 @@ public class ServiceDescriptor {
         <ReqT, ResT> Rules serverStreaming(String name,
                                            ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
                                            MethodDescriptor.Configurer<ReqT, ResT> configurer);
+
+        /**
+         * Register server streaming method for the service.
+         *
+         * @param name          the name of the method
+         * @param requestType   the Class of the request type
+         * @param responseType  the Class of the response type
+         * @param method        the server streaming method to register
+         * @param configurer    the method configurer
+         * @param <ReqT>        the method request type
+         * @param <ResT>        the method response type
+         * @return this {@link Config} instance for fluent call chaining
+         */
+        <ReqT, ResT> Config serverStreaming(String name,
+                                            Class<ReqT> requestType,
+                                            Class<ResT> responseType,
+                                            ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
+                                            Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer);
 
         /**
          * Register client streaming method for the service.
@@ -307,6 +353,24 @@ public class ServiceDescriptor {
                                            MethodDescriptor.Configurer<ReqT, ResT> configurer);
 
         /**
+         * Register client streaming method for the service.
+         *
+         * @param name          the name of the method
+         * @param requestType   the Class of the request type
+         * @param responseType  the Class of the response type
+         * @param method        the client streaming method to register
+         * @param configurer    the method configurer
+         * @param <ReqT>        the method request type
+         * @param <ResT>        the method response type
+         * @return this {@link Config} instance for fluent call chaining
+         */
+        <ReqT, ResT> Config clientStreaming(String name,
+                                            Class<ReqT> requestType,
+                                            Class<ResT> responseType,
+                                            ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
+                                            Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer);
+
+        /**
          * Register bi-directional streaming method for the service.
          *
          * @param name   the name of the method
@@ -330,6 +394,24 @@ public class ServiceDescriptor {
         <ReqT, ResT> Rules bidirectional(String name,
                                          ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
                                          MethodDescriptor.Configurer<ReqT, ResT> configurer);
+
+        /**
+         * Register bi-directional streaming method for the service.
+         *
+         * @param name          the name of the method
+         * @param requestType   the Class of the request type
+         * @param responseType  the Class of the response type
+         * @param method        the bi-directional streaming method to register
+         * @param configurer    the method configurer
+         * @param <ReqT>        the method request type
+         * @param <ResT>        the method response type
+         * @return this {@link Config} instance for fluent call chaining
+         */
+        <ReqT, ResT> Config bidirectional(String name,
+                                          Class<ReqT> requestType,
+                                          Class<ResT> responseType,
+                                          ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
+                                          Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer);
 
         /**
          * Register the service {@link HealthCheck}.
@@ -387,6 +469,12 @@ public class ServiceDescriptor {
         private Map<Context.Key<?>, Object> context = new HashMap<>();
         private HealthCheck healthCheck;
 
+        Builder(Class<?> serviceClass, String name) {
+            this.name         = name == null || name.trim().isEmpty() ? serviceClass.getSimpleName() : name.trim();
+            this.serviceClass = serviceClass;
+            this.healthCheck  = ConstantHealthCheck.up(name);
+        }
+
         Builder(GrpcService service) {
             this.name         = service.name();
             this.serviceClass = service.getClass();
@@ -404,7 +492,7 @@ public class ServiceDescriptor {
             this.healthCheck  = ConstantHealthCheck.up(name);
 
             for (ServerMethodDefinition smd : def.getMethods()) {
-                io.grpc.MethodDescriptor md      = smd.getMethodDescriptor();
+                io.grpc.MethodDescriptor md = smd.getMethodDescriptor();
                 ServerCallHandler        handler = smd.getServerCallHandler();
                 String                   methodName = extractMethodName(md.getFullMethodName());
                 MethodDescriptor.Builder descriptor = MethodDescriptor.builder(methodName, md, handler);
@@ -449,15 +537,26 @@ public class ServiceDescriptor {
 
         @Override
         public <ReqT, ResT> Builder unary(String name, ServerCalls.UnaryMethod<ReqT, ResT> method) {
-            return unary(name, method, null);
+            return unary(name, null, null, method, null);
         }
 
         @Override
         public <ReqT, ResT> Builder unary(String name,
                                           ServerCalls.UnaryMethod<ReqT, ResT> method,
+                                          Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+            return unary(name, null, null, method, configurer);
+        }
+
+        @Override
+        public <ReqT, ResT> Builder unary(String name,
+                                          Class<ReqT> requestType,
+                                          Class<ResT> responseType,
+                                          ServerCalls.UnaryMethod<ReqT, ResT> method,
                                           MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.UNARY,
+                                                            requestType,
+                                                            responseType,
                                                             ServerCalls.asyncUnaryCall(method),
                                                             configurer));
             return this;
@@ -465,15 +564,26 @@ public class ServiceDescriptor {
 
         @Override
         public <ReqT, ResT> Builder serverStreaming(String name, ServerCalls.ServerStreamingMethod<ReqT, ResT> method) {
-            return serverStreaming(name, method, null);
+            return serverStreaming(name, null, null, method, null);
         }
 
         @Override
         public <ReqT, ResT> Builder serverStreaming(String name,
                                                     ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
+                                                    Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+            return serverStreaming(name, null, null, method, configurer);
+        }
+
+        @Override
+        public <ReqT, ResT> Builder serverStreaming(String name,
+                                                    Class<ReqT> requestType,
+                                                    Class<ResT> responseType,
+                                                    ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
                                                     MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING,
+                                                            requestType,
+                                                            responseType,
                                                             ServerCalls.asyncServerStreamingCall(method),
                                                             configurer));
             return this;
@@ -481,7 +591,7 @@ public class ServiceDescriptor {
 
         @Override
         public <ReqT, ResT> Builder clientStreaming(String name, ServerCalls.ClientStreamingMethod<ReqT, ResT> method) {
-            return clientStreaming(name, method, null);
+            return clientStreaming(name, null, null, method, null);
         }
 
         @Override
@@ -490,6 +600,23 @@ public class ServiceDescriptor {
                                                     MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING,
+                                                            requestType,
+                                                            responseType,
+                                                            ServerCalls.asyncClientStreamingCall(method),
+                                                            configurer));
+            return this;
+        }
+
+        @Override
+        public <ReqT, ResT> Builder clientStreaming(String name,
+                                                    Class<ReqT> requestType,
+                                                    Class<ResT> responseType,
+                                                    ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
+                                                    Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+            methodBuilders.put(name, createMethodDescriptor(name,
+                                                            io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING,
+                                                            requestType,
+                                                            responseType,
                                                             ServerCalls.asyncClientStreamingCall(method),
                                                             configurer));
             return this;
@@ -497,7 +624,7 @@ public class ServiceDescriptor {
 
         @Override
         public <ReqT, ResT> Builder bidirectional(String name, ServerCalls.BidiStreamingMethod<ReqT, ResT> method) {
-            return bidirectional(name, method, null);
+            return bidirectional(name, null, null, method, null);
         }
 
         @Override
@@ -506,6 +633,23 @@ public class ServiceDescriptor {
                                                   MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,
+                                                            requestType,
+                                                            responseType,
+                                                            ServerCalls.asyncBidiStreamingCall(method),
+                                                            configurer));
+            return this;
+        }
+
+        @Override
+        public <ReqT, ResT> Builder bidirectional(String name,
+                                                  Class<ReqT> requestType,
+                                                  Class<ResT> responseType,
+                                                  ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
+                                                  Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+            methodBuilders.put(name, createMethodDescriptor(name,
+                                                            io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,
+                                                            requestType,
+                                                            responseType,
                                                             ServerCalls.asyncBidiStreamingCall(method),
                                                             configurer));
             return this;
@@ -567,24 +711,28 @@ public class ServiceDescriptor {
 
         // ---- helpers -----------------------------------------------------
 
-        @SuppressWarnings("unchecked")
         private <ReqT, ResT> MethodDescriptor.Builder<ReqT, ResT> createMethodDescriptor(
                 String methodName,
                 io.grpc.MethodDescriptor.MethodType methodType,
+                Class<ReqT> requestType,
+                Class<ResT> responseType,
                 ServerCallHandler<ReqT, ResT> callHandler,
                 MethodDescriptor.Configurer<ReqT, ResT> configurer) {
-            Class<ReqT> requestType = (Class<ReqT>) getTypeFromMethodDescriptor(methodName, true);
-            Class<ResT> responseType = (Class<ResT>) getTypeFromMethodDescriptor(methodName, false);
+
+            Class<ReqT> requestClass = getTypeFromMethodDescriptor(methodName, true, requestType);
+            Class<ResT> responseClass = getTypeFromMethodDescriptor(methodName, false, responseType);
 
             io.grpc.MethodDescriptor<ReqT, ResT> grpcDesc = io.grpc.MethodDescriptor.<ReqT, ResT>newBuilder()
                     .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.name, methodName))
                     .setType(methodType)
-                    .setRequestMarshaller(marshallerSupplier.get(requestType))
-                    .setResponseMarshaller(marshallerSupplier.get(responseType))
+                    .setRequestMarshaller(marshallerSupplier.get(requestClass))
+                    .setResponseMarshaller(marshallerSupplier.get(responseClass))
                     .setSampledToLocalTracing(true)
                     .build();
 
-            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(methodName, grpcDesc, callHandler);
+            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor
+                    .builder(methodName, grpcDesc, callHandler, requestType, responseType);
+
             if (configurer != null) {
                 configurer.configure(builder);
             }
@@ -592,13 +740,14 @@ public class ServiceDescriptor {
             return builder;
         }
 
-        private Class<?> getTypeFromMethodDescriptor(String methodName, boolean fInput) {
+        @SuppressWarnings("unchecked")
+        private <T> Class<T> getTypeFromMethodDescriptor(String methodName, boolean fInput, Class<T> defaultType) {
             // if the proto is not present, assume that we are not using
             // protobuf for marshalling and that whichever marshaller is used
             // doesn't need type information (basically, that the serialized
             // stream is self-describing)
             if (proto == null) {
-                return Object.class;
+                return defaultType == null ? (Class<T>) Object.class : defaultType;
             }
 
             // todo: add error handling here, and fail fast with a more
@@ -619,7 +768,7 @@ public class ServiceDescriptor {
             // be loaded by the same class loader that loaded the service class,
             // as the service implementation is bound to depend on them
             try {
-                return serviceClass.getClassLoader().loadClass(className);
+                return (Class<T>) serviceClass.getClassLoader().loadClass(className);
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }

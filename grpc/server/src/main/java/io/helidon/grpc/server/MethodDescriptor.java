@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import io.helidon.grpc.core.MarshallerSupplier;
+
 import io.grpc.Context;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
@@ -102,13 +104,21 @@ public class MethodDescriptor<ReqT, ResT> {
     static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
                                                     io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                                                     ServerCallHandler<ReqT, ResT> callHandler) {
-        return new Builder<>(name, descriptor, callHandler);
+        return new Builder<>(name, descriptor, callHandler, null, null);
+    }
+
+    static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
+                                                    io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
+                                                    ServerCallHandler<ReqT, ResT> callHandler,
+                                                    Class<ReqT> requestType,
+                                                    Class<ResT> responseType) {
+        return new Builder<>(name, descriptor, callHandler, requestType, responseType);
     }
 
     static <ReqT, ResT> MethodDescriptor<ReqT, ResT> create(String name,
                                                             io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                                                             ServerCallHandler<ReqT, ResT> callHandler) {
-        return builder(name, descriptor, callHandler).build();
+        return builder(name, descriptor, callHandler, null, null).build();
     }
 
     @Override
@@ -149,6 +159,16 @@ public class MethodDescriptor<ReqT, ResT> {
          * @return this {@link ServiceDescriptor.Rules} instance for fluent call chaining
          */
         Rules<ReqT, ResT> intercept(ServerInterceptor... interceptors);
+
+        /**
+         * Register the {@link MarshallerSupplier} for the method.
+         * <p>
+         * If not set the default {@link MarshallerSupplier} from the service will be used.
+         *
+         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
+         */
+        Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
     }
 
     /**
@@ -183,11 +203,20 @@ public class MethodDescriptor<ReqT, ResT> {
 
         private final Map<Context.Key, Object> context = new HashMap<>();
 
+        private Class<ReqT> requestType;
+
+        private Class<ResT> responseType;
+
         Builder(String name,
                 io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
-                ServerCallHandler<ReqT, ResT> callHandler) {
+                ServerCallHandler<ReqT, ResT> callHandler,
+                Class<ReqT> requestType,
+                Class<ResT> responseType) {
+
             this.name = name;
             this.callHandler = callHandler;
+            this.requestType = requestType;
+            this.responseType = responseType;
 
             String fullName = descriptor.getFullMethodName();
             String prefix = extractNamePrefix(fullName);
@@ -198,6 +227,15 @@ public class MethodDescriptor<ReqT, ResT> {
 
         Builder<ReqT, ResT> fullname(String name) {
             descriptor.setFullMethodName(name);
+            return this;
+        }
+
+        @Override
+        public Builder<ReqT, ResT> marshallerSupplier(MarshallerSupplier supplier) {
+            if (supplier != null) {
+                descriptor.setRequestMarshaller(supplier.get(requestType))
+                          .setResponseMarshaller(supplier.get(responseType));
+            }
             return this;
         }
 

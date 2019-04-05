@@ -14,30 +14,31 @@
  * limitations under the License.
  */
 
-package io.helidon.grpc.server;
+package io.helidon.grpc.core;
 
+import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
+import io.grpc.MethodDescriptor.MethodType;
+
 /**
- * An annotation used to mark a class as representing a gRPC service.
+ * An annotation to mark a class as representing a
+ * bi-directional streaming gRPC method.
  */
-@Target(ElementType.TYPE)
+@Target({ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RpcService {
+@RpcMethod(type = MethodType.BIDI_STREAMING)
+@Documented
+public @interface BidiStreaming {
     /**
-     * Obtain the service name.
+     * Obtain the name of the method.
+     * <p>
+     * If not set the name of the actual annotated method is used.
      *
-     * @return  the service name
+     * @return  name of the method
      */
     String name() default "";
-
-    /**
-     * Obtain the service version.
-     *
-     * @return  the service version
-     */
-    int version() default 0;
 }

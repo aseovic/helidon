@@ -110,11 +110,11 @@ public final class ModelHelper {
      * Get privileged action to find a method on a class given an existing method.
      * If run using security manager, the returned privileged action
      * must be invoked within a doPrivileged block.
-     * <p/>
+     * <p>
      * If there exists a public method on the class that has the same name
      * and parameters as the existing method then that public method is
      * returned from the action.
-     * <p/>
+     * <p>
      * Otherwise, if there exists a public method on the class that has
      * the same name and the same number of parameters as the existing method,
      * and each generic parameter type, in order, of the public method is equal

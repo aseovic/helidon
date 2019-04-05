@@ -241,7 +241,7 @@ public class ServiceModeller {
             LOGGER.log(Level.WARNING, e, () -> String.format("Error calling name() method on annotation %s", actualAnnotation));
         }
 
-        if (name.trim().isEmpty()) {
+        if (name == null || name.trim().isEmpty()) {
             name = method.method().getName();
         }
 
@@ -261,7 +261,7 @@ public class ServiceModeller {
      * applies configuration changes based on annotations present
      * on the gRPC method.
      */
-    private class AnnotatedMethodConfigurer
+    private static class AnnotatedMethodConfigurer
             implements Consumer<MethodDescriptor.Config<?, ?>> {
 
         private final AnnotatedMethod method;

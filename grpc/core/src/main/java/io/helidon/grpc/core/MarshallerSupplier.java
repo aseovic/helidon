@@ -16,12 +16,7 @@
 
 package io.helidon.grpc.core;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-
 import javax.inject.Named;
-
-import io.helidon.grpc.core.proto.Types;
 
 import com.google.protobuf.MessageLite;
 import io.grpc.MethodDescriptor;

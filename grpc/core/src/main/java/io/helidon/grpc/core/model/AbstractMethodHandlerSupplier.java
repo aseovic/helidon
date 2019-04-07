@@ -110,7 +110,12 @@ public abstract class AbstractMethodHandlerSupplier
 
         @Override
         public void invoke(ReqT request, StreamObserver<RespT> observer) {
+            if (Types.Empty.class.equals(requestType)) {
+                observer = new NullHandlingResponseObserver<>(observer);
+            }
+
             StreamObserver<RespT> safe = SafeStreamObserver.ensureSafeObserver(observer);
+
             try {
                 invoke(method.declaredMethod(), instance.get(), request, safe);
             } catch (Throwable thrown) {
@@ -257,6 +262,39 @@ public abstract class AbstractMethodHandlerSupplier
             } catch (Exception e) {
                 throw new IllegalArgumentException(e);
             }
+        }
+    }
+
+    /**
+     * A response that handles null values.
+     * @param <V> the type of the response
+     */
+    private static class NullHandlingResponseObserver<V>
+            implements StreamObserver<V> {
+
+        private final StreamObserver delegate;
+
+        private NullHandlingResponseObserver(StreamObserver<V> delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public void onNext(V value) {
+            if (value == null) {
+                delegate.onNext(Types.Empty.getDefaultInstance());
+            }
+            delegate.onNext(value);
+        }
+
+        @Override
+        public void onError(Throwable throwable) {
+            delegate.onError(throwable);
+        }
+
+        @Override
+        public void onCompleted() {
+            delegate.onCompleted();
         }
     }
 }

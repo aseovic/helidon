@@ -44,12 +44,17 @@ public class UnaryMethodHandlerSupplier
     }
 
     @Override
+    public boolean supplies(AnnotatedMethod method) {
+        return super.supplies(method) && determineCallType(method) != CallType.unknown;
+    }
+
+    @Override
     public <ReqT, RespT> MethodHandler<ReqT, RespT> get(AnnotatedMethod method, Supplier<?> instance) {
         if (!isRequiredMethodType(method)) {
             throw new IllegalArgumentException("Method not annotated as a unary method: " + method);
         }
 
-        CallType type = determineUnaryType(method);
+        CallType type = determineCallType(method);
         MethodHandler<ReqT, RespT> handler;
 
         switch (type) {
@@ -96,7 +101,7 @@ public class UnaryMethodHandlerSupplier
      * @param method  the method to analyze
      * @return the {@link CallType} of the method
      */
-    private CallType determineUnaryType(AnnotatedMethod method) {
+    private CallType determineCallType(AnnotatedMethod method) {
         Type[] parameterTypes = method.parameterTypes();
         int paramCount = parameterTypes.length;
         Type returnType = method.returnType();

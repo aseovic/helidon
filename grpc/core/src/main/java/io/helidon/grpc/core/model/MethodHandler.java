@@ -15,6 +15,9 @@
  */
 package io.helidon.grpc.core.model;
 
+import io.helidon.grpc.core.proto.Types;
+
+import com.google.protobuf.MessageLite;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.stub.ServerCalls;
@@ -61,5 +64,19 @@ public interface MethodHandler<ReqT, RespT>
     default StreamObserver<ReqT> invoke(StreamObserver<RespT> observer) {
         observer.onError(Status.UNIMPLEMENTED.asException());
         return null;
+    }
+
+
+    /**
+     * Obtain the value to use for a null response.
+     * @return  the value to use for a null response
+     */
+    default Object getNullResponse() {
+        Class<?> type = getResponseType();
+        if (type != null && MessageLite.class.isAssignableFrom(type)) {
+            return Types.Empty.getDefaultInstance();
+        } else {
+            return null;
+        }
     }
 }

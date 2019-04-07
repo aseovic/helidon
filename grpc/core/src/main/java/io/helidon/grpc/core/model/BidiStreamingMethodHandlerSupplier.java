@@ -41,6 +41,11 @@ public class BidiStreamingMethodHandlerSupplier
     }
 
     @Override
+    public boolean supplies(AnnotatedMethod method) {
+        return super.supplies(method) && determineCallType(method) != CallType.unknown;
+    }
+
+    @Override
     public <ReqT, RespT> MethodHandler<ReqT, RespT> get(AnnotatedMethod method, Supplier<?> instance) {
         if (!isRequiredMethodType(method)) {
             throw new IllegalArgumentException("Method not annotated as a bi-directional streaming method: " + method);

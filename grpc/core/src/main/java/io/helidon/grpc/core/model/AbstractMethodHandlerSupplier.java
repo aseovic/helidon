@@ -25,7 +25,6 @@ import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.function.Supplier;
 
-import io.helidon.common.GenericType;
 import io.helidon.grpc.core.GrpcHelper;
 import io.helidon.grpc.core.RequestType;
 import io.helidon.grpc.core.ResponseType;

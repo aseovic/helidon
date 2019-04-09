@@ -20,18 +20,13 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.TypeVariable;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Objects;
 import java.util.ServiceLoader;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.stream.StreamSupport;
 
 import javax.inject.Named;
@@ -43,7 +38,6 @@ import io.helidon.grpc.core.RpcMarshaller;
  * Common model helper methods.
  */
 public final class ModelHelper {
-    private static final Logger LOGGER = Logger.getLogger(ModelHelper.class.getName());
 
     /**
      * Get the class in the provided resource class ancestor hierarchy that
@@ -195,180 +189,6 @@ public final class ModelHelper {
             }
         }
         return true;
-    }
-
-    /**
-     * Resolve generic type parameter(s) of a raw class and it's generic type
-     * based on the class that declares the generic type parameter(s) to be resolved
-     * and a concrete implementation of the declaring class.
-     *
-     * @param concreteClass       concrete implementation of the declaring class.
-     * @param declaringClass      class declaring the generic type parameter(s) to be
-     *                            resolved.
-     * @param rawResolvedType     raw class of the generic type to be resolved.
-     * @param genericResolvedType generic type information of th type to be resolved.
-     * @return a pair of class and the generic type values with the the resolved
-     * generic parameter types.
-     */
-    public static ClassAndType resolveGenericType(final Class concreteClass, final Class declaringClass,
-                                                   final Class rawResolvedType, final Type genericResolvedType) {
-        if (genericResolvedType instanceof TypeVariable) {
-            final ClassAndType ct = resolveTypeVariable(
-                    concreteClass,
-                    declaringClass,
-                    (TypeVariable) genericResolvedType);
-
-            if (ct != null) {
-                return ct;
-            }
-        } else if (genericResolvedType instanceof ParameterizedType) {
-            final ParameterizedType pt = (ParameterizedType) genericResolvedType;
-            final Type[] ptts = pt.getActualTypeArguments();
-            boolean modified = false;
-            for (int i = 0; i < ptts.length; i++) {
-                final ClassAndType ct =
-                        resolveGenericType(concreteClass, declaringClass, (Class) pt.getRawType(), ptts[i]);
-                if (ct.type() != ptts[i]) {
-                    ptts[i] = ct.type();
-                    modified = true;
-                }
-            }
-            if (modified) {
-                final ParameterizedType rpt = new ParameterizedType() {
-
-                    @Override
-                    public Type[] getActualTypeArguments() {
-                        return ptts.clone();
-                    }
-
-                    @Override
-                    public Type getRawType() {
-                        return pt.getRawType();
-                    }
-
-                    @Override
-                    public Type getOwnerType() {
-                        return pt.getOwnerType();
-                    }
-                };
-                return ClassAndType.of((Class<?>) pt.getRawType(), rpt);
-            }
-        } else if (genericResolvedType instanceof GenericArrayType) {
-            final GenericArrayType gat = (GenericArrayType) genericResolvedType;
-            final ClassAndType ct =
-                    resolveGenericType(concreteClass, declaringClass, null, gat.getGenericComponentType());
-            if (gat.getGenericComponentType() != ct.type()) {
-                try {
-                    final Class ac = getArrayForComponentType(ct.rawClass());
-                    return ClassAndType.of(ac);
-                } catch (final Exception e) {
-                    LOGGER.log(Level.FINEST, "", e);
-                }
-            }
-        }
-
-        return ClassAndType.of(rawResolvedType, genericResolvedType);
-    }
-
-    /**
-     * Given a type variable resolve the Java class of that variable.
-     *
-     * @param c  the concrete class from which all type variables are resolved.
-     * @param dc the declaring class where the type variable was defined.
-     * @param tv the type variable.
-     * @return the resolved Java class and type, otherwise null if the type variable
-     * could not be resolved.
-     */
-    public static ClassAndType resolveTypeVariable(final Class<?> c, final Class<?> dc, final TypeVariable tv) {
-        return resolveTypeVariable(c, dc, tv, new HashMap<>());
-    }
-
-    private static ClassAndType resolveTypeVariable(final Class<?> c, final Class<?> dc, final TypeVariable tv,
-                                                     final Map<TypeVariable, Type> map) {
-        final Type[] gis = c.getGenericInterfaces();
-        for (final Type gi : gis) {
-            if (gi instanceof ParameterizedType) {
-                // process pt of interface
-                final ParameterizedType pt = (ParameterizedType) gi;
-                final ClassAndType ctp = resolveTypeVariable(pt, (Class<?>) pt.getRawType(), dc, tv, map);
-                if (ctp != null) {
-                    return ctp;
-                }
-            }
-        }
-
-        final Type gsc = c.getGenericSuperclass();
-        if (gsc instanceof ParameterizedType) {
-            // process pt of class
-            final ParameterizedType pt = (ParameterizedType) gsc;
-            return resolveTypeVariable(pt, c.getSuperclass(), dc, tv, map);
-        } else if (gsc instanceof Class) {
-            return resolveTypeVariable(c.getSuperclass(), dc, tv, map);
-        }
-        return null;
-    }
-
-    private static ClassAndType resolveTypeVariable(ParameterizedType pt, Class<?> c, final Class<?> dc, final TypeVariable tv,
-                                                     final Map<TypeVariable, Type> map) {
-        final Type[] typeArguments = pt.getActualTypeArguments();
-
-        final TypeVariable[] typeParameters = c.getTypeParameters();
-
-        final Map<TypeVariable, Type> subMap = new HashMap<>();
-        for (int i = 0; i < typeArguments.length; i++) {
-            // Substitute a type variable with the Java class
-            final Type typeArgument = typeArguments[i];
-            if (typeArgument instanceof TypeVariable) {
-                final Type t = map.get(typeArgument);
-                subMap.put(typeParameters[i], t);
-            } else {
-                subMap.put(typeParameters[i], typeArgument);
-            }
-        }
-
-        if (c == dc) {
-            Type t = subMap.get(tv);
-            if (t instanceof Class) {
-                return ClassAndType.of((Class) t);
-            } else if (t instanceof GenericArrayType) {
-                final GenericArrayType gat = (GenericArrayType) t;
-                t = gat.getGenericComponentType();
-                if (t instanceof Class) {
-                    c = (Class<?>) t;
-                    try {
-                        return ClassAndType.of(getArrayForComponentType(c));
-                    } catch (final Exception ignored) {
-                        // ignored
-                    }
-                    return null;
-                } else if (t instanceof ParameterizedType) {
-                    final Type rt = ((ParameterizedType) t).getRawType();
-                    if (rt instanceof Class) {
-                        c = (Class<?>) rt;
-                    } else {
-                        return null;
-                    }
-                    try {
-                        return ClassAndType.of(getArrayForComponentType(c), gat);
-                    } catch (final Exception e) {
-                        return null;
-                    }
-                } else {
-                    return null;
-                }
-            } else if (t instanceof ParameterizedType) {
-                pt = (ParameterizedType) t;
-                if (pt.getRawType() instanceof Class) {
-                    return ClassAndType.of((Class<?>) pt.getRawType(), pt);
-                } else {
-                    return null;
-                }
-            } else {
-                return null;
-            }
-        } else {
-            return resolveTypeVariable(c, dc, tv, subMap);
-        }
     }
 
     /**

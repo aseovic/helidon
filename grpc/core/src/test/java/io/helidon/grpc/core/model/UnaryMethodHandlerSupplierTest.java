@@ -27,6 +27,7 @@ import io.helidon.grpc.core.ResponseType;
 import io.helidon.grpc.core.ServerStreaming;
 import io.helidon.grpc.core.proto.Types;
 
+import io.grpc.MethodDescriptor;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 
@@ -72,6 +73,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -97,6 +99,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -123,6 +126,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -147,6 +151,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Types.Empty.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -171,6 +176,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Types.Empty.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -197,6 +203,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -223,6 +230,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -247,6 +255,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -270,6 +279,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -293,6 +303,7 @@ public class UnaryMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -307,8 +318,23 @@ public class UnaryMethodHandlerSupplierTest {
 
         MethodHandler<String, String> handler = supplier.get(method, () -> service);
         assertThat(handler, is(notNullValue()));
-        assertThat(Long.class.equals(handler.getRequestType()), is(true));
-        assertThat(String.class.equals(handler.getResponseType()), is(true));
+        assertThat(handler.getRequestType(), equalTo(Long.class));
+        assertThat(handler.getResponseType(), equalTo(String.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.UNARY));
+    }
+
+    @Test
+    public void shouldNotSupplyNullMethod() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        assertThat(supplier.supplies(null), is(false));
+    }
+
+    @Test
+    public void shouldThrowExceptionSupplingNullMethod() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        UnaryService service = mock(UnaryService.class);
+
+        assertThrows(IllegalArgumentException.class, () -> supplier.get(null, () -> service));
     }
 
     @Test

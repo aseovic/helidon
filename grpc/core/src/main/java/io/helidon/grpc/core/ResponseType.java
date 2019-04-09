@@ -30,9 +30,9 @@ import java.lang.annotation.Target;
 @Documented
 public @interface ResponseType {
     /**
-     * Obtain the gRPC request type.
+     * Obtain the gRPC response type.
      *
-     * @return the gRPC request type
+     * @return the gRPC response type
      */
     Class value();
 }

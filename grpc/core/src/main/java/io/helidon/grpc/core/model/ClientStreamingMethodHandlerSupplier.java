@@ -193,7 +193,8 @@ public class ClientStreamingMethodHandlerSupplier
      * @param <RespT> the response type
      */
     public static class FutureResponse<ReqT, RespT>
-            extends AbstractServerStreamingHandler<ReqT, RespT> {
+            extends AbstractServerStreamingHandler<ReqT, RespT>
+            implements ResponseHelper {
 
         FutureResponse(AnnotatedMethod method, Supplier<?> instance) {
             super(method, instance);
@@ -206,7 +207,7 @@ public class ClientStreamingMethodHandlerSupplier
         protected StreamObserver<ReqT> invoke(Method method, Object instance, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             CompletableFuture<RespT> future = new CompletableFuture<>();
-            ResponseHelper.completeAsync(observer, future);
+            completeAsync(observer, future);
             return (StreamObserver<ReqT>) method.invoke(instance, future);
         }
     }

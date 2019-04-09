@@ -19,6 +19,12 @@ import java.util.function.Supplier;
 
 /**
  * A supplier of {@link MethodHandler}s for {@link AnnotatedMethod}s.
+ * <p>
+ * Implementation classes may be annotated with {@link javax.annotation.Priority}
+ * to influence their priority order when determining which supplier is used if
+ * more than one supplier is able to supply a handler for a method.
+ * The built-in default suppliers have a priority of zero, which is also the default
+ * priority for classes that are not annotated.
  */
 public interface MethodHandlerSupplier {
 

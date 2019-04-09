@@ -32,6 +32,7 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Priority;
 import javax.inject.Singleton;
 
 import io.helidon.grpc.core.ContextKeys;
@@ -248,11 +249,30 @@ public class ServiceModeller {
         return name;
     }
 
+    /**
+     * Load the {@link MethodHandlerSupplier} instances using the {@link ServiceLoader}
+     * and return them in priority order.
+     * <p>
+     * Priority is determined by the value obtained from the {@link Priority} annotation on
+     * any implementation classes. Classes not annotated with {@link Priority} have a
+     * priority of zero.
+     *
+     * @return a priority ordered list of {@link MethodHandlerSupplier} instances
+     */
     private List<MethodHandlerSupplier> loadHandlerSuppliers() {
         List<MethodHandlerSupplier> list = new ArrayList<>();
         for (MethodHandlerSupplier supplier : ServiceLoader.load(MethodHandlerSupplier.class)) {
             list.add(supplier);
         }
+
+        list.sort((left, right) -> {
+            Priority leftPriority = left.getClass().getAnnotation(Priority.class);
+            Priority rightPriority = right.getClass().getAnnotation(Priority.class);
+            int leftValue = leftPriority == null ? 0 : leftPriority.value();
+            int rightValue = rightPriority == null ? 0 : rightPriority.value();
+            return leftValue - rightValue;
+        });
+
         return list;
     }
 

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-io.helidon.grpc.core.model.BidiStreamingMethodHandlerSupplier
+io.helidon.grpc.core.model.BidirectionalMethodHandlerSupplier
 io.helidon.grpc.core.model.ClientStreamingMethodHandlerSupplier
 io.helidon.grpc.core.model.ServerStreamingMethodHandlerSupplier
 io.helidon.grpc.core.model.UnaryMethodHandlerSupplier

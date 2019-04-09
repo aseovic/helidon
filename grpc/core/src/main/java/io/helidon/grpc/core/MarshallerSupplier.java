@@ -85,13 +85,8 @@ public interface MarshallerSupplier {
         @SuppressWarnings("unchecked")
         public <T> MethodDescriptor.Marshaller<T> get(Class<T> clazz) {
             try {
-                MessageLite instance;
-//                if (Void.class.equals(clazz)) {
-//                    instance = Types.ProtoVoid.getDefaultInstance();
-//                } else {
-                    java.lang.reflect.Method getDefaultInstance = clazz.getDeclaredMethod("getDefaultInstance");
-                    instance = (MessageLite) getDefaultInstance.invoke(clazz);
-//                }
+                java.lang.reflect.Method getDefaultInstance = clazz.getDeclaredMethod("getDefaultInstance");
+                MessageLite instance = (MessageLite) getDefaultInstance.invoke(clazz);
 
                 return (MethodDescriptor.Marshaller<T>) ProtoLiteUtils.marshaller(instance);
             } catch (Exception e) {

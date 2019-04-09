@@ -25,7 +25,7 @@ import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import io.helidon.grpc.core.BidiStreaming;
+import io.helidon.grpc.core.Bidirectional;
 import io.helidon.grpc.core.ClientStreaming;
 import io.helidon.grpc.core.ResponseHelper;
 import io.helidon.grpc.core.RpcService;
@@ -338,11 +338,12 @@ public class AnnotatedServiceIT {
      * The server streaming service.
      */
     @RpcService
-    public static class ServerStreamingService {
+    public static class ServerStreamingService
+            implements ResponseHelper {
 
         @ServerStreaming
         public void streaming(Services.TestRequest request, StreamObserver<TestResponse> observer) {
-            ResponseHelper.stream(observer, split(request.getMessage()));
+            stream(observer, split(request.getMessage()));
         }
 
         @ServerStreaming
@@ -352,7 +353,7 @@ public class AnnotatedServiceIT {
 
         @ServerStreaming
         public void streamingNoRequest(StreamObserver<TestResponse> observer) {
-            ResponseHelper.stream(observer, split("A B C D"));
+            stream(observer, split("A B C D"));
         }
 
         @ServerStreaming
@@ -415,7 +416,7 @@ public class AnnotatedServiceIT {
      */
     @RpcService
     public static class BidiService {
-        @BidiStreaming
+        @Bidirectional
         public StreamObserver<TestRequest> bidi(StreamObserver<TestResponse> observer) {
             return new StreamObserver<TestRequest>() {
                 public void onNext(TestRequest request) {

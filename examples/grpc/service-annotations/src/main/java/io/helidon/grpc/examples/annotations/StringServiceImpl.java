@@ -31,11 +31,11 @@ import io.grpc.stub.StreamObserver;
  * @author Jonathan Knight
  */
 public class StringServiceImpl
-        implements StringService {
+        implements StringService, ResponseHelper {
 
     @Override
     public void upper(StringMessage request, StreamObserver<StringMessage> observer) {
-        ResponseHelper.completeAsync(observer, () -> response(request.getText().toUpperCase()));
+        completeAsync(observer, () -> response(request.getText().toUpperCase()));
     }
 
     @Override

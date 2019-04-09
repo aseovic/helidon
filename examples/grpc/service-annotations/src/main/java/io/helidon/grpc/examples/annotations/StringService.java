@@ -17,7 +17,7 @@ package io.helidon.grpc.examples.annotations;
 
 import java.util.stream.Stream;
 
-import io.helidon.grpc.core.BidiStreaming;
+import io.helidon.grpc.core.Bidirectional;
 import io.helidon.grpc.core.ClientStreaming;
 import io.helidon.grpc.core.RpcService;
 import io.helidon.grpc.core.ServerStreaming;
@@ -70,6 +70,6 @@ public interface StringService {
      * @param observer  the {@link StreamObserver} to send responses to
      * @return  the {@link StreamObserver} to receive requests from
      */
-    @BidiStreaming(name = "Echo")
+    @Bidirectional(name = "Echo")
     StreamObserver<StringMessage> echo(StreamObserver<StringMessage> observer);
 }

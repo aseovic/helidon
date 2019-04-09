@@ -32,7 +32,7 @@ import io.grpc.MethodDescriptor.MethodType;
 @Retention(RetentionPolicy.RUNTIME)
 @RpcMethod(type = MethodType.BIDI_STREAMING)
 @Documented
-public @interface BidiStreaming {
+public @interface Bidirectional {
     /**
      * Obtain the name of the method.
      * <p>

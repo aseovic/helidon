@@ -19,7 +19,7 @@ package io.helidon.grpc.core.model;
 import java.util.stream.Stream;
 
 import io.helidon.common.CollectionsHelper;
-import io.helidon.grpc.core.BidiStreaming;
+import io.helidon.grpc.core.Bidirectional;
 import io.helidon.grpc.core.ClientStreaming;
 import io.helidon.grpc.core.RequestType;
 import io.helidon.grpc.core.ResponseType;
@@ -291,7 +291,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         @ClientStreaming
         StreamObserver<Long> clientStreaming(StreamObserver<String> request);
 
-        @BidiStreaming
+        @Bidirectional
         StreamObserver<Long> bidi(StreamObserver<String> observer);
     }
 }

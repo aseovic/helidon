@@ -18,7 +18,7 @@ package io.helidon.grpc.core.model;
 
 import java.util.concurrent.CompletableFuture;
 
-import io.helidon.grpc.core.BidiStreaming;
+import io.helidon.grpc.core.Bidirectional;
 import io.helidon.grpc.core.ClientStreaming;
 import io.helidon.grpc.core.RequestType;
 import io.helidon.grpc.core.ResponseType;
@@ -199,7 +199,7 @@ public class ClientStreamingMethodHandlerSupplierTest {
         @ClientStreaming
         StreamObserver<Long> tooManyArgs(StreamObserver<String> observer, String bad);
 
-        @BidiStreaming
+        @Bidirectional
         StreamObserver<Long> bidi(StreamObserver<String> observer);
 
         @Unary

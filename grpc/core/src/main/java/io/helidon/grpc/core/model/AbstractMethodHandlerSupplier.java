@@ -48,6 +48,7 @@ public abstract class AbstractMethodHandlerSupplier
 
     /**
      * Create an {@link AbstractMethodHandlerSupplier}.
+     *
      * @param methodType  the {@link MethodDescriptor.MethodType} to handle
      * @throws java.lang.NullPointerException if the method type parameter is {@code null}
      */
@@ -79,6 +80,7 @@ public abstract class AbstractMethodHandlerSupplier
 
     /**
      * A base class for method handlers.
+     *
      * @param <ReqT>  the request type
      * @param <RespT> the response type
      */
@@ -93,6 +95,7 @@ public abstract class AbstractMethodHandlerSupplier
 
         /**
          * Create a handler.
+         *
          * @param method   the underlying handler method this handler should call
          * @param instance the supplier to use to obtain the object to call the method on
          * @param methodType the type of method handled by this handler
@@ -125,6 +128,7 @@ public abstract class AbstractMethodHandlerSupplier
 
         /**
          * Invoke the actual unary or server streaming gRPC method handler.
+         *
          * @param method    the {@link Method} to invoke
          * @param instance  the service instance to invoke the method on
          * @param request   the method request
@@ -147,6 +151,7 @@ public abstract class AbstractMethodHandlerSupplier
 
         /**
          * Invoke the actual client streaming or bi-directional gRPC method handler.
+         *
          * @param method    the {@link Method} to invoke
          * @param instance  the service instance to invoke the method on
          * @param observer  the method response observer
@@ -169,6 +174,7 @@ public abstract class AbstractMethodHandlerSupplier
         /**
          * Set the request type to use if no {@link RequestType} annotation
          * is present on the annotated method.
+         *
          * @param requestType  the request type
          */
         protected void setRequestType(Class<?> requestType) {
@@ -267,6 +273,7 @@ public abstract class AbstractMethodHandlerSupplier
 
     /**
      * A response that handles null values.
+     *
      * @param <V> the type of the response
      */
     private static class NullHandlingResponseObserver<V>

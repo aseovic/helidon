@@ -16,7 +16,7 @@
 
 package io.helidon.grpc.core.model;
 
-import io.helidon.grpc.core.BidiStreaming;
+import io.helidon.grpc.core.Bidirectional;
 import io.helidon.grpc.core.ClientStreaming;
 import io.helidon.grpc.core.RequestType;
 import io.helidon.grpc.core.ResponseType;
@@ -39,7 +39,7 @@ import static org.mockito.Mockito.when;
 /**
  * @author Jonathan Knight
  */
-public class BidiStreamingMethodHandlerSupplierTest {
+public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldSupplyBidirectionalMethods() {
@@ -159,18 +159,18 @@ public class BidiStreamingMethodHandlerSupplierTest {
      * The test service with bi-directional streaming methods.
      */
     public interface Service {
-        @BidiStreaming
+        @Bidirectional
         StreamObserver<Long> bidi(StreamObserver<String> observer);
 
-        @BidiStreaming
+        @Bidirectional
         @RequestType(Long.class)
         @ResponseType(String.class)
         StreamObserver bidiReqResp(StreamObserver observer);
 
-        @BidiStreaming
+        @Bidirectional
         StreamObserver<Long> badArg(String bad);
 
-        @BidiStreaming
+        @Bidirectional
         StreamObserver<Long> tooManyArgs(StreamObserver<String> observer, String bad);
 
         @Unary

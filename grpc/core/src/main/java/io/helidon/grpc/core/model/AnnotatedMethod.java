@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 
 import io.helidon.common.CollectionsHelper;
-import io.helidon.grpc.core.BidiStreaming;
+import io.helidon.grpc.core.Bidirectional;
 import io.helidon.grpc.core.ClientStreaming;
 import io.helidon.grpc.core.RpcMethod;
 import io.helidon.grpc.core.ServerStreaming;
@@ -52,7 +52,7 @@ public class AnnotatedMethod implements AnnotatedElement {
      */
     private static final Set<Class<? extends Annotation>> METHOD_ANNOTATIONS
             = CollectionsHelper.setOf(RpcMethod.class,
-                                      BidiStreaming.class,
+                                      Bidirectional.class,
                                       ClientStreaming.class,
                                       ServerStreaming.class,
                                       Unary.class);

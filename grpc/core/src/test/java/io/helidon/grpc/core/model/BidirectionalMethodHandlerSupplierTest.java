@@ -45,7 +45,7 @@ public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldSupplyBidirectionalMethods() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getBidiMethod();
         assertThat(supplier.supplies(method), is(true));
     }
@@ -53,7 +53,7 @@ public class BidirectionalMethodHandlerSupplierTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldSupplyBidiHandler() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getBidiMethod();
         StreamObserver<Long> responseObserver = mock(StreamObserver.class);
         Service service = mock(Service.class);
@@ -74,7 +74,7 @@ public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldSupplyBidiHandlerWithTypesFromAnnotation() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("bidiReqResp", StreamObserver.class);
         Service service = mock(Service.class);
 
@@ -87,13 +87,13 @@ public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldNotSupplyNullMethod() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         assertThat(supplier.supplies(null), is(false));
     }
 
     @Test
     public void shouldThrowExceptionSupplingNullMethod() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         Service service = mock(Service.class);
 
         assertThrows(IllegalArgumentException.class, () -> supplier.get(null, () -> service));
@@ -101,7 +101,7 @@ public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldNotSupplyNoneBidiHandler() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getUnaryMethod();
         Service service = mock(Service.class);
 
@@ -110,7 +110,7 @@ public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldNotSupplyBidiAnnotatedMethodWithWrongArgType() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("badArg", String.class);
         Service service = mock(Service.class);
 
@@ -119,7 +119,7 @@ public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldNotSupplyBidiAnnotatedMethodWithTooManyArgs() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("tooManyArgs", StreamObserver.class, String.class);
         Service service = mock(Service.class);
 
@@ -128,21 +128,21 @@ public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
     public void shouldNotSupplyClientStreamingMethods() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getClientStreamingMethod();
         assertThat(supplier.supplies(method), is(false));
     }
 
     @Test
     public void shouldNotSupplyServerStreamingMethods() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getServerStreamingMethod();
         assertThat(supplier.supplies(method), is(false));
     }
 
     @Test
     public void shouldNotSupplyUnaryMethods() {
-        BidiStreamingMethodHandlerSupplier supplier = new BidiStreamingMethodHandlerSupplier();
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getUnaryMethod();
         assertThat(supplier.supplies(method), is(false));
     }

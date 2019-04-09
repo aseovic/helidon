@@ -18,7 +18,7 @@ package io.helidon.grpc.core.model;
 
 import java.util.concurrent.CompletableFuture;
 
-import io.helidon.grpc.core.BidiStreaming;
+import io.helidon.grpc.core.Bidirectional;
 import io.helidon.grpc.core.ClientStreaming;
 import io.helidon.grpc.core.RpcService;
 import io.helidon.grpc.core.Unary;
@@ -29,7 +29,6 @@ import io.helidon.grpc.core.proto.Types;
 
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
-import org.mockito.ArgumentMatchers;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -443,7 +442,7 @@ public class UnaryMethodHandlerSupplierTest {
         @ClientStreaming
         StreamObserver<Long> clientStreaming(StreamObserver<String> request);
 
-        @BidiStreaming
+        @Bidirectional
         StreamObserver<Long> bidi(StreamObserver<String> observer);
 
         @ServerStreaming

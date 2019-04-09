@@ -34,13 +34,7 @@ import io.grpc.stub.StreamObserver;
  *
  * @author Aleksandar Seovic
  */
-public class ResponseHelper {
-
-    /**
-     * Private constructor for utility class.
-     */
-    private ResponseHelper() {
-    }
+public interface ResponseHelper {
 
     /**
      * Complete a gRPC request.
@@ -52,7 +46,7 @@ public class ResponseHelper {
      * @param value     the value to use when calling {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void complete(StreamObserver<T> observer, T value) {
+    default <T> void complete(StreamObserver<T> observer, T value) {
         StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
         safe.onNext(value);
         safe.onCompleted();
@@ -73,7 +67,7 @@ public class ResponseHelper {
      *                  {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void complete(StreamObserver<T> observer, CompletionStage<T> future) {
+    default <T> void complete(StreamObserver<T> observer, CompletionStage<T> future) {
         future.whenComplete(completeWithResult(observer));
     }
 
@@ -94,7 +88,7 @@ public class ResponseHelper {
      *                  {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void completeAsync(StreamObserver<T> observer, CompletionStage<T> future) {
+    default <T> void completeAsync(StreamObserver<T> observer, CompletionStage<T> future) {
         future.whenCompleteAsync(completeWithResult(observer));
     }
 
@@ -115,7 +109,7 @@ public class ResponseHelper {
      *                  request completion
      * @param <T>       they type of the request result
      */
-    public static <T> void completeAsync(StreamObserver<T> observer, CompletionStage<T> future, Executor executor) {
+    default <T> void completeAsync(StreamObserver<T> observer, CompletionStage<T> future, Executor executor) {
         future.whenCompleteAsync(completeWithResult(observer), executor);
     }
 
@@ -134,7 +128,7 @@ public class ResponseHelper {
      *                  {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void complete(StreamObserver<T> observer, Callable<T> callable) {
+    default <T> void complete(StreamObserver<T> observer, Callable<T> callable) {
         try {
             observer.onNext(callable.call());
             observer.onCompleted();
@@ -160,7 +154,7 @@ public class ResponseHelper {
      *                  {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void completeAsync(StreamObserver<T> observer, Callable<T> callable) {
+    default <T> void completeAsync(StreamObserver<T> observer, Callable<T> callable) {
         completeAsync(observer, CompletableFuture.supplyAsync(createSupplier(callable)));
     }
 
@@ -181,7 +175,7 @@ public class ResponseHelper {
      *                  request completion
      * @param <T>       they type of the request result
      */
-    public static <T> void completeAsync(StreamObserver<T> observer, Callable<T> callable, Executor executor) {
+    default <T> void completeAsync(StreamObserver<T> observer, Callable<T> callable, Executor executor) {
         completeAsync(observer, CompletableFuture.supplyAsync(createSupplier(callable), executor));
     }
 
@@ -198,7 +192,7 @@ public class ResponseHelper {
      * @param result    the result to pass to {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void complete(StreamObserver<T> observer, Runnable task, T result) {
+    default <T> void complete(StreamObserver<T> observer, Runnable task, T result) {
         complete(observer, Executors.callable(task, result));
     }
 
@@ -217,7 +211,7 @@ public class ResponseHelper {
      * @param result    the result to pass to {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void completeAsync(StreamObserver<T> observer, Runnable task, T result) {
+    default <T> void completeAsync(StreamObserver<T> observer, Runnable task, T result) {
         completeAsync(observer, Executors.callable(task, result));
     }
 
@@ -236,7 +230,7 @@ public class ResponseHelper {
      *                  request completion
      * @param <T>       they type of the request result
      */
-    public static <T> void completeAsync(StreamObserver<T> observer, Runnable task, T result, Executor executor) {
+    default <T> void completeAsync(StreamObserver<T> observer, Runnable task, T result, Executor executor) {
         completeAsync(observer, Executors.callable(task, result), executor);
     }
 
@@ -250,7 +244,7 @@ public class ResponseHelper {
      * @param stream    the {@link Stream} of results to send to {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void stream(StreamObserver<T> observer, Stream<? extends T> stream) {
+    default <T> void stream(StreamObserver<T> observer, Stream<? extends T> stream) {
         stream(observer, () -> stream);
     }
 
@@ -266,7 +260,7 @@ public class ResponseHelper {
      *                  request completion
      * @param <T>       they type of the request result
      */
-    public static <T> void streamAsync(StreamObserver<T> observer, Stream<? extends T> stream, Executor executor) {
+    default <T> void streamAsync(StreamObserver<T> observer, Stream<? extends T> stream, Executor executor) {
         executor.execute(() -> stream(observer, () -> stream));
     }
 
@@ -280,7 +274,7 @@ public class ResponseHelper {
      * @param supplier  the {@link Supplier} of the {@link Stream} of results to send to {@link StreamObserver#onNext(Object)}
      * @param <T>       they type of the request result
      */
-    public static <T> void stream(StreamObserver<T> observer, Supplier<Stream<? extends T>> supplier) {
+    default <T> void stream(StreamObserver<T> observer, Supplier<Stream<? extends T>> supplier) {
         StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
         Throwable thrown = null;
 
@@ -309,7 +303,7 @@ public class ResponseHelper {
      *                  request completion
      * @param <T>       they type of the request result
      */
-    public static <T> void streamAsync(StreamObserver<T> observer, Supplier<Stream<? extends T>> supplier, Executor executor) {
+    default <T> void streamAsync(StreamObserver<T> observer, Supplier<Stream<? extends T>> supplier, Executor executor) {
         executor.execute(() -> stream(observer, supplier));
     }
 
@@ -328,7 +322,7 @@ public class ResponseHelper {
      * @return a {@link Consumer} that can be used to send values to the {@link StreamObserver#onNext(Object)} method
      */
     // todo: a bit of a chicken or egg when used with Coherence streaming methods, isn't it?
-    public static <T> Consumer<T> stream(StreamObserver<T> observer, CompletionStage<Void> stage) {
+    default <T> Consumer<T> stream(StreamObserver<T> observer, CompletionStage<Void> stage) {
         StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
         stage.whenComplete(completeWithoutResult(safe));
         return safe::onNext;
@@ -348,7 +342,7 @@ public class ResponseHelper {
      *
      * @return a {@link Consumer} that can be used to send values to the {@link StreamObserver#onNext(Object)} method
      */
-    public static <T> Consumer<T> streamAsync(StreamObserver<T> observer, CompletionStage<Void> stage) {
+    default <T> Consumer<T> streamAsync(StreamObserver<T> observer, CompletionStage<Void> stage) {
         StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
         stage.whenCompleteAsync(completeWithoutResult(safe));
         return value -> CompletableFuture.runAsync(() -> safe.onNext(value));
@@ -370,7 +364,7 @@ public class ResponseHelper {
      *
      * @return a {@link Consumer} that can be used to send values to the {@link StreamObserver#onNext(Object)} method
      */
-    public static <T> Consumer<T> streamAsync(StreamObserver<T> observer, CompletionStage<Void> stage, Executor executor) {
+    default <T> Consumer<T> streamAsync(StreamObserver<T> observer, CompletionStage<Void> stage, Executor executor) {
         StreamObserver<T> safe = SafeStreamObserver.ensureSafeObserver(observer);
         stage.whenCompleteAsync(completeWithoutResult(safe), executor);
         return value -> CompletableFuture.runAsync(() -> safe.onNext(value), executor);
@@ -383,7 +377,7 @@ public class ResponseHelper {
      * @param <U>  the type of the response
      * @return a {@link Consumer} that can be used to send values to the {@link StreamObserver#onNext(Object)} method
      */
-    public static <T, U> BiConsumer<T, Throwable> completeWithResult(StreamObserver<U> observer) {
+    default <T, U> BiConsumer<T, Throwable> completeWithResult(StreamObserver<U> observer) {
         return new CompletionAction<>(observer, true);
     }
 
@@ -393,11 +387,19 @@ public class ResponseHelper {
      * @param <U>  the type of the response
      * @return a {@link Consumer} that can be used to complete a {@link StreamObserver}
      */
-    public static <U> BiConsumer<Void, Throwable> completeWithoutResult(StreamObserver<U> observer) {
+    default <U> BiConsumer<Void, Throwable> completeWithoutResult(StreamObserver<U> observer) {
         return new CompletionAction<>(observer, false);
     }
 
-    private static class CompletionAction<T, U> implements BiConsumer<T, Throwable> {
+    /**
+     * A {@link BiConsumer} that is used to handle completion of a
+     * {@link java.util.concurrent.CompletionStage} by forwarding
+     * the result to a {@link io.grpc.stub.StreamObserver}.
+     *
+     * @param <T>  the type of the {@link java.util.concurrent.CompletionStage}'s result
+     * @param <U>  the type of result expected by the {@link io.grpc.stub.StreamObserver}
+     */
+    class CompletionAction<T, U> implements BiConsumer<T, Throwable> {
         private StreamObserver<U> observer;
         private boolean sendResult;
 
@@ -420,11 +422,21 @@ public class ResponseHelper {
         }
     }
 
-    private static <T> Supplier<T> createSupplier(Callable<T> callable) {
+    /**
+     * Convert a {@link Callable} to a {@link Supplier}.
+     * @param callable  the {@link Callable} to convert
+     * @param <T>  the result returned by the {@link Callable}
+     * @return  a {@link Supplier} that wraps the {@link Callable}
+     */
+    static <T> Supplier<T> createSupplier(Callable<T> callable) {
         return new CallableSupplier<>(callable);
     }
 
-    private static class CallableSupplier<T> implements Supplier<T> {
+    /**
+     * A class that converts a {@link Callable} to a {@link Supplier}.
+     * @param <T>  the type of result returned from the callable
+     */
+    class CallableSupplier<T> implements Supplier<T> {
         private Callable<T> callable;
 
         CallableSupplier(Callable<T> callable) {

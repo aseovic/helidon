@@ -254,7 +254,8 @@ public class ServerStreamingMethodHandlerSupplier
      * @param <RespT> the response type
      */
     public static class StreamResponse<ReqT, RespT>
-            extends AbstractServerStreamingHandler<ReqT, RespT> {
+            extends AbstractServerStreamingHandler<ReqT, RespT>
+            implements ResponseHelper {
 
         StreamResponse(AnnotatedMethod method, Supplier<?> instance) {
             super(method, instance);
@@ -267,7 +268,7 @@ public class ServerStreamingMethodHandlerSupplier
         protected void invoke(Method method, Object instance, ReqT request, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             Stream<RespT> stream = (Stream<RespT>) method.invoke(instance, request);
-            ResponseHelper.stream(observer, stream);
+            stream(observer, stream);
         }
     }
 
@@ -284,7 +285,8 @@ public class ServerStreamingMethodHandlerSupplier
      * @param <RespT> the response type
      */
     public static class StreamResponseNoRequest<ReqT, RespT>
-            extends AbstractServerStreamingHandler<ReqT, RespT> {
+            extends AbstractServerStreamingHandler<ReqT, RespT>
+            implements ResponseHelper {
 
         StreamResponseNoRequest(AnnotatedMethod method, Supplier<?> instance) {
             super(method, instance);
@@ -296,7 +298,7 @@ public class ServerStreamingMethodHandlerSupplier
         protected void invoke(Method method, Object instance, ReqT request, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             Stream<RespT> stream = (Stream<RespT>) method.invoke(instance);
-            ResponseHelper.stream(observer, stream);
+            stream(observer, stream);
         }
     }
 }

@@ -25,9 +25,11 @@ import io.helidon.grpc.core.ResponseType;
 import io.helidon.grpc.core.ServerStreaming;
 import io.helidon.grpc.core.Unary;
 
+import io.grpc.MethodDescriptor;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
@@ -62,8 +64,9 @@ public class ClientStreamingMethodHandlerSupplierTest {
 
         MethodHandler<Long, String> handler = supplier.get(method, () -> service);
         assertThat(handler, is(notNullValue()));
-        assertThat(Long.class.equals(handler.getRequestType()), is(true));
-        assertThat(String.class.equals(handler.getResponseType()), is(true));
+        assertThat(handler.getRequestType(), equalTo(Long.class));
+        assertThat(handler.getResponseType(), equalTo(String.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.CLIENT_STREAMING));
 
         StreamObserver<String> observer = mock(StreamObserver.class);
         StreamObserver<Long> result = handler.invoke(observer);
@@ -83,8 +86,9 @@ public class ClientStreamingMethodHandlerSupplierTest {
 
         MethodHandler<Long, String> handler = supplier.get(method, () -> service);
         assertThat(handler, is(notNullValue()));
-        assertThat(Long.class.equals(handler.getRequestType()), is(true));
-        assertThat(String.class.equals(handler.getResponseType()), is(true));
+        assertThat(handler.getRequestType(), equalTo(Long.class));
+        assertThat(handler.getResponseType(), equalTo(String.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.CLIENT_STREAMING));
 
         StreamObserver<String> observer = mock(StreamObserver.class);
         StreamObserver<Long> result = handler.invoke(observer);
@@ -102,6 +106,20 @@ public class ClientStreamingMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(Long.class.equals(handler.getRequestType()), is(true));
         assertThat(String.class.equals(handler.getResponseType()), is(true));
+    }
+
+    @Test
+    public void shouldNotSupplyNullMethod() {
+        ClientStreamingMethodHandlerSupplier supplier = new ClientStreamingMethodHandlerSupplier();
+        assertThat(supplier.supplies(null), is(false));
+    }
+
+    @Test
+    public void shouldThrowExceptionSupplingNullMethod() {
+        ClientStreamingMethodHandlerSupplier supplier = new ClientStreamingMethodHandlerSupplier();
+        Service service = mock(Service.class);
+
+        assertThrows(IllegalArgumentException.class, () -> supplier.get(null, () -> service));
     }
 
     @Test

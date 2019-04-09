@@ -18,7 +18,6 @@ package io.helidon.grpc.core.model;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Array;
-import java.lang.reflect.Field;
 import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -404,19 +403,6 @@ public final class ModelHelper {
         } catch (final Exception e) {
             throw new IllegalArgumentException(e);
         }
-    }
-
-    /**
-     * Get privileged action to obtain fields declared on given class.
-     * If run using security manager, the returned privileged action
-     * must be invoked within a doPrivileged block.
-     *
-     * @param clazz class for which to get the declared fields.
-     * @return privileged action to obtain fields declared on the {@code clazz} class.
-     * @see java.security.AccessController#doPrivileged(java.security.PrivilegedAction)
-     */
-    public static PrivilegedAction<Field[]> getDeclaredFieldsPA(final Class<?> clazz) {
-        return () -> clazz.getDeclaredFields();
     }
 
     /**

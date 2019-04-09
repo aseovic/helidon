@@ -113,11 +113,11 @@ public abstract class AbstractMethodHandlerSupplier
 
         @Override
         public void invoke(ReqT request, StreamObserver<RespT> observer) {
-            if (Types.Empty.class.equals(requestType)) {
-                observer = new NullHandlingResponseObserver<>(observer);
-            }
-
             StreamObserver<RespT> safe = SafeStreamObserver.ensureSafeObserver(observer);
+
+            if (Types.Empty.class.equals(requestType)) {
+                safe = new NullHandlingResponseObserver<>(observer);
+            }
 
             try {
                 invoke(method.declaredMethod(), instance.get(), request, safe);

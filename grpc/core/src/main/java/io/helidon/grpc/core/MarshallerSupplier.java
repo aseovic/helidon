@@ -74,10 +74,8 @@ public interface MarshallerSupplier {
     /**
      * A {@link MarshallerSupplier} implementation that
      * supplies Protocol Buffer marshaller instances.
-     *
-     * @author Jonathan Knight
      */
-    @Named("proto")
+    @Named(PROTO)
     class ProtoMarshallerSupplier
             implements MarshallerSupplier {
 
@@ -91,7 +89,7 @@ public interface MarshallerSupplier {
                 return (MethodDescriptor.Marshaller<T>) ProtoLiteUtils.marshaller(instance);
             } catch (Exception e) {
                 String msg = String.format(
-                        "Attempting to use class %s, which is not a valid Protobuf message, with a default marshaller",
+                        "Attempting to use class %s, which is not a valid Protocol buffer message, with a default marshaller",
                         clazz.getName());
                 throw new IllegalArgumentException(msg);
             }

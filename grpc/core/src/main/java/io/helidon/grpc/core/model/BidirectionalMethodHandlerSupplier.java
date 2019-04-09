@@ -30,13 +30,13 @@ import io.grpc.stub.StreamObserver;
  *
  * @author Jonathan Knight
  */
-public class BidiStreamingMethodHandlerSupplier
+public class BidirectionalMethodHandlerSupplier
         extends AbstractMethodHandlerSupplier {
 
     /**
      * Create a supplier of handlers for bi-directional streaming methods.
      */
-    public BidiStreamingMethodHandlerSupplier() {
+    public BidirectionalMethodHandlerSupplier() {
         super(MethodDescriptor.MethodType.BIDI_STREAMING);
     }
 

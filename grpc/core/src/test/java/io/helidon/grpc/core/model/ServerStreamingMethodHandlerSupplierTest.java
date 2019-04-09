@@ -28,6 +28,7 @@ import io.helidon.grpc.core.ServerStreaming;
 import io.helidon.grpc.core.Unary;
 import io.helidon.grpc.core.proto.Types;
 
+import io.grpc.MethodDescriptor;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -75,6 +76,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.SERVER_STREAMING));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -98,6 +100,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.SERVER_STREAMING));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -124,6 +127,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.SERVER_STREAMING));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -153,6 +157,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.SERVER_STREAMING));
 
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
@@ -171,8 +176,23 @@ public class ServerStreamingMethodHandlerSupplierTest {
 
         MethodHandler<String, String> handler = supplier.get(method, () -> service);
         assertThat(handler, is(notNullValue()));
-        assertThat(Long.class.equals(handler.getRequestType()), is(true));
-        assertThat(String.class.equals(handler.getResponseType()), is(true));
+        assertThat(handler.getRequestType(), equalTo(Long.class));
+        assertThat(handler.getResponseType(), equalTo(String.class));
+        assertThat(handler.type(), equalTo(MethodDescriptor.MethodType.SERVER_STREAMING));
+    }
+
+    @Test
+    public void shouldNotSupplyNullMethod() {
+        ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
+        assertThat(supplier.supplies(null), is(false));
+    }
+
+    @Test
+    public void shouldThrowExceptionSupplingNullMethod() {
+        ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
+        Service service = mock(Service.class);
+
+        assertThrows(IllegalArgumentException.class, () -> supplier.get(null, () -> service));
     }
 
     @Test

@@ -255,6 +255,7 @@ public class AnnotatedMethod implements AnnotatedElement {
                      .filter(ann -> ann.annotationType().isAnnotationPresent(type));
     }
 
+    @SuppressWarnings("unchecked")
     private <T extends Annotation> T annotationOrMetaAnnotation(Class<T> type, Annotation annotation) {
         if (annotation.annotationType().equals(type)) {
             return (T) annotation;

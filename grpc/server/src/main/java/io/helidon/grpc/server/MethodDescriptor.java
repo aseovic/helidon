@@ -145,6 +145,11 @@ public class MethodDescriptor<ReqT, ResT> {
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
+         * <p>
+         * If the added interceptors are annotated with the {@link javax.annotation.Priority}
+         * annotation then that value will be used to assign a priority to use when applying
+         * the interceptor otherwise a priority of {@link InterceptorPriorities#USER} will
+         * be used.
          *
          * @param interceptors one or more {@link ServerInterceptor}s to register
          * @return this builder to allow fluent method chaining
@@ -192,6 +197,17 @@ public class MethodDescriptor<ReqT, ResT> {
          * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
         Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
+
+        /**
+         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param priority     the priority to assign to the interceptors
+         * @param interceptors one or more {@link ServerInterceptor}s to register
+         * @return this builder to allow fluent method chaining
+         */
+        Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors);
 
         /**
          * Set the request type.
@@ -274,11 +290,7 @@ public class MethodDescriptor<ReqT, ResT> {
         Builder(String name, io.grpc.MethodDescriptor<ReqT, ResT> descriptor, ServerCallHandler<ReqT, ResT> callHandler) {
             this.name = name;
             this.callHandler = callHandler;
-
-            String fullName = descriptor.getFullMethodName();
-            String prefix = extractNamePrefix(fullName);
-
-            this.descriptor = descriptor.toBuilder().setFullMethodName(prefix + "/" + name);
+            this.descriptor = descriptor.setFullMethodName(serviceName + "/" + name);
         }
 
         Builder<ReqT, ResT> fullname(String name) {
@@ -393,8 +405,13 @@ public class MethodDescriptor<ReqT, ResT> {
                 supplier = defaultMarshallerSupplier;
             }
 
-            descriptor.setRequestMarshaller((io.grpc.MethodDescriptor.Marshaller<ReqT>) supplier.get(requestType))
-                      .setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
+            if (requestType != null) {
+                descriptor.setRequestMarshaller((io.grpc.MethodDescriptor.Marshaller<ReqT>) supplier.get(requestType));
+            }
+
+            if (responseType != null) {
+                descriptor.setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
+            }
 
             return new MethodDescriptor<>(name,
                                           descriptor.build(),

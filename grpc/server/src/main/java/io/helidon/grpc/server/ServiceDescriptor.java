@@ -643,16 +643,15 @@ public class ServiceDescriptor {
                 ServerCallHandler<ReqT, ResT> callHandler,
                 MethodDescriptor.Configurer<ReqT, ResT> configurer) {
 
-            io.grpc.MethodDescriptor<ReqT, ResT> grpcDesc = io.grpc.MethodDescriptor.<ReqT, ResT>newBuilder()
+            io.grpc.MethodDescriptor.Builder<ReqT, ResT> grpcDesc = io.grpc.MethodDescriptor.<ReqT, ResT>newBuilder()
                     .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.name, methodName))
                     .setType(methodType)
-                    .setSampledToLocalTracing(true)
-                    .build();
+                    .setSampledToLocalTracing(true);
 
             Class<ReqT> requestType = getTypeFromMethodDescriptor(methodName, true);
             Class<ResT> responseType = getTypeFromMethodDescriptor(methodName, false);
 
-            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(methodName, grpcDesc, callHandler)
+            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(this.name, methodName, grpcDesc, callHandler)
                     .defaultMarshallerSupplier(marshallerSupplier)
                     .requestType(requestType)
                     .responseType(responseType);

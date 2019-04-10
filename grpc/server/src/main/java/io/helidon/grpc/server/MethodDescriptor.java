@@ -271,9 +271,14 @@ public class MethodDescriptor<ReqT, ResT> {
                 io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor,
                 ServerCallHandler<ReqT, ResT> callHandler) {
 
+        Builder(String name, io.grpc.MethodDescriptor<ReqT, ResT> descriptor, ServerCallHandler<ReqT, ResT> callHandler) {
             this.name = name;
             this.callHandler = callHandler;
-            this.descriptor = descriptor.setFullMethodName(serviceName + "/" + name);
+
+            String fullName = descriptor.getFullMethodName();
+            String prefix = extractNamePrefix(fullName);
+
+            this.descriptor = descriptor.toBuilder().setFullMethodName(prefix + "/" + name);
         }
 
         Builder<ReqT, ResT> fullname(String name) {
@@ -346,6 +351,50 @@ public class MethodDescriptor<ReqT, ResT> {
             if (responseType != null) {
                 descriptor.setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
             }
+
+            return new MethodDescriptor<>(name,
+                                          descriptor.build(),
+                                          callHandler,
+                                          context,
+                                          interceptors);
+        }
+
+        @SuppressWarnings("unchecked")
+        private void processInterceptors(ServerInterceptor... interceptors) {
+            // If any interceptors implement MethodDescriptor.Configurer allow them to apply further configuration
+            Arrays.stream(interceptors)
+                    .filter(interceptor -> MethodDescriptor.Configurer.class.isAssignableFrom(interceptor.getClass()))
+                    .map(MethodDescriptor.Configurer.class::cast)
+                    .forEach(interceptor -> interceptor.configure(this));
+
+            return this;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <Rnew> Builder<Rnew, ResT> requestType(Class<Rnew> requestType) {
+            this.requestType = requestType;
+            return (Builder<Rnew, ResT>) this;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <Rnew> Builder<ReqT, Rnew> responseType(Class<Rnew> responseType) {
+            this.responseType = responseType;
+            return (Builder<ReqT, Rnew>) this;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public MethodDescriptor<ReqT, ResT> build() {
+            MarshallerSupplier supplier = this.marshallerSupplier;
+
+            if (supplier == null) {
+                supplier = defaultMarshallerSupplier;
+            }
+
+            descriptor.setRequestMarshaller((io.grpc.MethodDescriptor.Marshaller<ReqT>) supplier.get(requestType))
+                      .setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
 
             return new MethodDescriptor<>(name,
                                           descriptor.build(),

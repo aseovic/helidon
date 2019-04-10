@@ -135,15 +135,11 @@ public class ServiceModeller {
     }
 
     private static Supplier<?> createInstanceSupplier(Class<?> cls) {
-        if (isSingleton(cls)) {
+        if (cls.isAnnotationPresent(Singleton.class)) {
             return Instance.singleton(cls);
         } else {
             return Instance.create(cls);
         }
-    }
-
-    private static boolean isSingleton(Class<?> cls) {
-        return cls.isAnnotationPresent(Singleton.class);
     }
 
     private void checkForNonPublicMethodIssues() {
@@ -170,6 +166,12 @@ public class ServiceModeller {
         return result;
     }
 
+    /**
+     * Add methods to the {@link ServiceDescriptor.Builder}.
+     *
+     * @param builder     the {@link ServiceDescriptor.Builder} to add the method to
+     * @param methodList  the list of methods to add
+     */
     private void addServiceMethods(ServiceDescriptor.Builder builder, AnnotatedMethodList methodList) {
         for (AnnotatedMethod am : methodList.withAnnotation(RpcMethod.class)) {
             addServiceMethod(builder, am);
@@ -179,33 +181,42 @@ public class ServiceModeller {
         }
     }
 
+    /**
+     * Add a method to the {@link ServiceDescriptor.Builder}.
+     * <p>
+     * The method configuration will be determined by the annotations present on the
+     * method and the method signature.
+     *
+     * @param builder  the {@link ServiceDescriptor.Builder} to add the method to
+     * @param method   the {@link AnnotatedMethod} representing the method to add
+     */
     @SuppressWarnings("unchecked")
-    private void addServiceMethod(ServiceDescriptor.Builder builder, AnnotatedMethod am) {
-        RpcMethod annotation = am.firstAnnotationOrMetaAnnotation(RpcMethod.class);
-        String name = determineMethodName(am, annotation);
+    private void addServiceMethod(ServiceDescriptor.Builder builder, AnnotatedMethod method) {
+        RpcMethod annotation = method.firstAnnotationOrMetaAnnotation(RpcMethod.class);
+        String name = determineMethodName(method, annotation);
 
         MethodHandler handler = handlerSuppliers.stream()
-                .filter(supplier -> supplier.supplies(am))
+                .filter(supplier -> supplier.supplies(method))
                 .findFirst()
-                .map(supplier -> supplier.get(am, instance))
-                .orElseThrow(() -> new IllegalArgumentException("Cannot locate a method handler supplier for method " + am));
+                .map(supplier -> supplier.get(method, instance))
+                .orElseThrow(() -> new IllegalArgumentException("Cannot locate a method handler supplier for method " + method));
 
         Class<?> requestType = handler.getRequestType();
         Class<?> responseType = handler.getResponseType();
-        AnnotatedMethodConfigurer configurer = new AnnotatedMethodConfigurer(am);
+        AnnotatedMethodConfigurer configurer = new AnnotatedMethodConfigurer(method, requestType, responseType);
 
         switch (annotation.type()) {
         case UNARY:
-            builder.unary(name, requestType, responseType, handler, configurer::accept);
+            builder.unary(name, handler, configurer::accept);
             break;
         case CLIENT_STREAMING:
-            builder.clientStreaming(name, requestType, responseType, handler, configurer::accept);
+            builder.clientStreaming(name, handler, configurer::accept);
             break;
         case SERVER_STREAMING:
-            builder.serverStreaming(name, requestType, responseType, handler, configurer::accept);
+            builder.serverStreaming(name, handler, configurer::accept);
             break;
         case BIDI_STREAMING:
-            builder.bidirectional(name, requestType, responseType, handler, configurer::accept);
+            builder.bidirectional(name, handler, configurer::accept);
             break;
         case UNKNOWN:
         default:
@@ -285,14 +296,20 @@ public class ServiceModeller {
             implements Consumer<MethodDescriptor.Config<?, ?>> {
 
         private final AnnotatedMethod method;
+        private final Class<?> requestType;
+        private final Class<?> responseType;
 
-        private AnnotatedMethodConfigurer(AnnotatedMethod method) {
+        private AnnotatedMethodConfigurer(AnnotatedMethod method, Class<?> requestType, Class<?> responseType) {
             this.method = method;
+            this.requestType = requestType;
+            this.responseType = responseType;
         }
 
         @Override
         public void accept(MethodDescriptor.Config<?, ?> config) {
-            config.addContextKey(ContextKeys.SERVICE_METHOD, method);
+            config.addContextKey(ContextKeys.SERVICE_METHOD, method)
+                  .requestType(requestType)
+                  .responseType(responseType);
 
             if (method.isAnnotationPresent(RpcMarshaller.class)) {
                 config.marshallerSupplier(ModelHelper.getMarshallerSupplier(method.getAnnotation(RpcMarshaller.class)));

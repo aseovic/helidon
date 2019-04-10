@@ -117,21 +117,13 @@ public class MethodDescriptor<ReqT, ResT> {
     static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
                                                     io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                                                     ServerCallHandler<ReqT, ResT> callHandler) {
-        return new Builder<>(name, descriptor, callHandler, null, null);
-    }
-
-    static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
-                                                    io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
-                                                    ServerCallHandler<ReqT, ResT> callHandler,
-                                                    Class<ReqT> requestType,
-                                                    Class<ResT> responseType) {
-        return new Builder<>(name, descriptor, callHandler, requestType, responseType);
+        return new Builder<>(name, descriptor, callHandler);
     }
 
     static <ReqT, ResT> MethodDescriptor<ReqT, ResT> create(String name,
                                                             io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                                                             ServerCallHandler<ReqT, ResT> callHandler) {
-        return builder(name, descriptor, callHandler, null, null).build();
+        return builder(name, descriptor, callHandler).build();
     }
 
     /**
@@ -209,6 +201,38 @@ public class MethodDescriptor<ReqT, ResT> {
          * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance for fluent call chaining
          */
         Config<ReqT, ResT> intercept(ServerInterceptor... interceptors);
+
+        /**
+         * Set the request type.
+         * <p>
+         * Setting the request type is optional as it is used to obtain the
+         * correct marshaller so if the marshaller supplier being used is type
+         * agnostic, such as Java serialization then whereas some marshallers
+         * such as Protocol Buffers require a type.
+         *
+         * @param requestType  the type of the request message
+         * @param <Rnew>       the type of the request message
+         *
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance
+         *         for fluent call chaining
+         */
+        <Rnew> Builder<Rnew, ResT> requestType(Class<Rnew> requestType);
+
+        /**
+         * Set the response type.
+         * <p>
+         * Setting the response type is optional as it is used to obtain the
+         * correct marshaller so if the marshaller supplier being used is type
+         * agnostic, such as Java serialization then whereas some marshallers
+         * such as Protocol Buffers require a type.
+         *
+         * @param responseType  the type of the request message
+         * @param <Rnew>        the type of the request message
+         *
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance
+         *         for fluent call chaining
+         */
+        <Rnew> Builder<ReqT, Rnew> responseType(Class<Rnew> responseType);
     }
 
     /**
@@ -229,26 +253,21 @@ public class MethodDescriptor<ReqT, ResT> {
 
         private MetricType metricType;
 
-        private Class<ReqT> requestType;
+        private Class<?> requestType;
 
-        private Class<ResT> responseType;
+        private Class<?> responseType;
 
-        Builder(String name,
-                io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
-                ServerCallHandler<ReqT, ResT> callHandler,
-                Class<ReqT> requestType,
-                Class<ResT> responseType) {
+        private MarshallerSupplier defaultMarshallerSupplier = MarshallerSupplier.defaultInstance();
+        private MarshallerSupplier marshallerSupplier;
 
+        Builder(String name, io.grpc.MethodDescriptor<ReqT, ResT> descriptor, ServerCallHandler<ReqT, ResT> callHandler) {
             this.name = name;
             this.callHandler = callHandler;
-            this.requestType = requestType;
-            this.responseType = responseType;
 
             String fullName = descriptor.getFullMethodName();
             String prefix = extractNamePrefix(fullName);
 
-            this.descriptor = descriptor.toBuilder()
-                    .setFullMethodName(prefix + "/" + name);
+            this.descriptor = descriptor.toBuilder().setFullMethodName(prefix + "/" + name);
         }
 
         @Override
@@ -278,9 +297,15 @@ public class MethodDescriptor<ReqT, ResT> {
 
         @Override
         public Builder<ReqT, ResT> marshallerSupplier(MarshallerSupplier supplier) {
-            if (supplier != null) {
-                descriptor.setRequestMarshaller(supplier.get(requestType))
-                          .setResponseMarshaller(supplier.get(responseType));
+            this.marshallerSupplier = supplier;
+            return this;
+        }
+
+        Builder<ReqT, ResT> defaultMarshallerSupplier(MarshallerSupplier supplier) {
+            if (supplier == null) {
+                this.defaultMarshallerSupplier = MarshallerSupplier.defaultInstance();
+            } else {
+                this.defaultMarshallerSupplier = supplier;
             }
             return this;
         }
@@ -308,7 +333,31 @@ public class MethodDescriptor<ReqT, ResT> {
         }
 
         @Override
+        @SuppressWarnings("unchecked")
+        public <Rnew> Builder<Rnew, ResT> requestType(Class<Rnew> requestType) {
+            this.requestType = requestType;
+            return (Builder<Rnew, ResT>) this;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public <Rnew> Builder<ReqT, Rnew> responseType(Class<Rnew> responseType) {
+            this.responseType = responseType;
+            return (Builder<ReqT, Rnew>) this;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
         public MethodDescriptor<ReqT, ResT> build() {
+            MarshallerSupplier supplier = this.marshallerSupplier;
+
+            if (supplier == null) {
+                supplier = defaultMarshallerSupplier;
+            }
+
+            descriptor.setRequestMarshaller((io.grpc.MethodDescriptor.Marshaller<ReqT>) supplier.get(requestType))
+                      .setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
+
             return new MethodDescriptor<>(name,
                                           descriptor.build(),
                                           callHandler,

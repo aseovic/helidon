@@ -29,11 +29,12 @@ import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import javax.annotation.Priority;
+
 import io.helidon.config.Config;
-import io.helidon.grpc.core.InterceptorPriority;
+import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcService;
-import io.helidon.grpc.server.PriorityServerInterceptor;
 import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.security.EndpointConfig;
 import io.helidon.security.Security;
@@ -47,6 +48,7 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
 import io.grpc.Status;
 import io.opentracing.Span;
 import io.opentracing.SpanContext;
@@ -101,8 +103,9 @@ import io.opentracing.contrib.grpc.OpenTracingContextKey;
  */
 // we need to have all fields optional and this is cleaner than checking for null
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
+@Priority(InterceptorPriorities.AUTHENTICATION)
 public final class GrpcSecurity
-        implements PriorityServerInterceptor, Consumer<ServiceDescriptor.Config> {
+        implements ServerInterceptor, Consumer<ServiceDescriptor.Config> {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurity.class.getName());
 
     /**
@@ -425,11 +428,6 @@ public final class GrpcSecurity
                 serviceConfig.intercept(defaults);
             }
         }
-    }
-
-    @Override
-    public InterceptorPriority getInterceptorPriority() {
-        return InterceptorPriority.Security;
     }
 
     @Override

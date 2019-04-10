@@ -48,7 +48,7 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor descriptor = MethodDescriptor.create("foo", grpcDescriptor, handler);
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor.create("EchoService","foo", grpcDescriptor.toBuilder(), handler);
 
         assertThat(descriptor, is(notNullValue()));
         assertThat(descriptor.name(), is("foo"));
@@ -71,7 +71,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .counted()
                 .build();
 
@@ -93,7 +94,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .histogram()
                 .build();
 
@@ -115,7 +117,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .metered()
                 .build();
 
@@ -137,7 +140,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .timed()
                 .build();
 
@@ -159,7 +163,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .disableMetrics()
                 .build();
 
@@ -182,7 +187,8 @@ public class MethodDescriptorTest {
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
         Context.Key<String> key = Context.key("test");
-        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .addContextKey(key, "test-value")
                 .build();
 
@@ -205,7 +211,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor<?, ?> descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .intercept()
                 .build();
 
@@ -223,7 +230,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor<?, ?> descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .intercept(interceptor)
                 .build();
 
@@ -243,7 +251,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        MethodDescriptor<?, ?> descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .intercept(interceptor1, interceptor2)
                 .intercept(interceptor3)
                 .build();
@@ -261,8 +270,8 @@ public class MethodDescriptorTest {
                 .findFirst()
                 .orElseThrow(() -> new AssertionError("Could not find echo method"));
 
-        Context.Key<String> key = Context.key("test");
-        MethodDescriptor descriptor = MethodDescriptor.builder("foo", grpcDescriptor, handler)
+        MethodDescriptor<?, ?> descriptor = MethodDescriptor
+                .builder("EchoService", "foo", grpcDescriptor.toBuilder(), handler)
                 .fullname("Test/bar")
                 .build();
 

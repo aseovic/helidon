@@ -14,33 +14,25 @@
  * limitations under the License.
  */
 
-package io.helidon.grpc.server;
+package io.helidon.grpc.core;
 
-import io.helidon.grpc.core.ResponseHelper;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
- * A Helidon gRPC service.
- *
- * @author Aleksandar Seovic
+ * An annotation to indicate the response type of a gRPC method.
  */
-public interface GrpcService
-        extends ResponseHelper {
-
+@Target({ElementType.METHOD})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface ResponseType {
     /**
-     * Update service configuration.
+     * Obtain the gRPC response type.
      *
-     * @param config configuration to update
+     * @return the gRPC response type
      */
-    void update(ServiceDescriptor.Config config);
-
-    /**
-     * Obtain the name of this service.
-     * <p>
-     * The default implementation returns the implementation class's {@link Class#getSimpleName()}.
-     *
-     * @return  the name of this service
-     */
-    default String name() {
-        return getClass().getSimpleName();
-    }
+    Class value();
 }

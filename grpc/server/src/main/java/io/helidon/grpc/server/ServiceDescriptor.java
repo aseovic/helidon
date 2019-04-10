@@ -143,6 +143,16 @@ public class ServiceDescriptor {
 
     /**
      * Create a {@link Builder}.
+     * @param serviceClass  the {@link Class} representing the service
+     * @param name the name of the service
+     * @return a {@link Builder}
+     */
+    public static Builder builder(Class serviceClass, String name) {
+        return new Builder(serviceClass, name);
+    }
+
+    /**
+     * Create a {@link Builder}.
      * @param service  the {@link GrpcService} to use to initialise the builder
      * @return a {@link Builder}
      */
@@ -403,6 +413,12 @@ public class ServiceDescriptor {
         private MetricType metricType;
         private HealthCheck healthCheck;
 
+        Builder(Class<?> serviceClass, String name) {
+            this.name         = name == null || name.trim().isEmpty() ? serviceClass.getSimpleName() : name.trim();
+            this.serviceClass = serviceClass;
+            this.healthCheck  = ConstantHealthCheck.up(name);
+        }
+
         Builder(GrpcService service) {
             this.name         = service.name();
             this.serviceClass = service.getClass();
@@ -420,7 +436,7 @@ public class ServiceDescriptor {
             this.healthCheck  = ConstantHealthCheck.up(name);
 
             for (ServerMethodDefinition smd : def.getMethods()) {
-                io.grpc.MethodDescriptor md      = smd.getMethodDescriptor();
+                io.grpc.MethodDescriptor md = smd.getMethodDescriptor();
                 ServerCallHandler        handler = smd.getServerCallHandler();
                 String                   methodName = extractMethodName(md.getFullMethodName());
                 MethodDescriptor.Builder descriptor = MethodDescriptor.builder(methodName, md, handler);
@@ -472,6 +488,7 @@ public class ServiceDescriptor {
         public <ReqT, ResT> Builder unary(String name,
                                           ServerCalls.UnaryMethod<ReqT, ResT> method,
                                           Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.UNARY,
                                                             ServerCalls.asyncUnaryCall(method),
@@ -488,6 +505,7 @@ public class ServiceDescriptor {
         public <ReqT, ResT> Builder serverStreaming(String name,
                                                     ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
                                                     Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING,
                                                             ServerCalls.asyncServerStreamingCall(method),
@@ -504,6 +522,7 @@ public class ServiceDescriptor {
         public <ReqT, ResT> Builder clientStreaming(String name,
                                                     ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
                                                     Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING,
                                                             ServerCalls.asyncClientStreamingCall(method),
@@ -520,6 +539,7 @@ public class ServiceDescriptor {
         public <ReqT, ResT> Builder bidirectional(String name,
                                                   ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
                                                   Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,
                                                             ServerCalls.asyncBidiStreamingCall(method),
@@ -606,24 +626,26 @@ public class ServiceDescriptor {
 
         // ---- helpers -----------------------------------------------------
 
-        @SuppressWarnings("unchecked")
         private <ReqT, ResT> MethodDescriptor.Builder<ReqT, ResT> createMethodDescriptor(
                 String methodName,
                 io.grpc.MethodDescriptor.MethodType methodType,
                 ServerCallHandler<ReqT, ResT> callHandler,
                 Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
-            Class<ReqT> requestType = (Class<ReqT>) getTypeFromMethodDescriptor(methodName, true);
-            Class<ResT> responseType = (Class<ResT>) getTypeFromMethodDescriptor(methodName, false);
 
             io.grpc.MethodDescriptor<ReqT, ResT> grpcDesc = io.grpc.MethodDescriptor.<ReqT, ResT>newBuilder()
                     .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.name, methodName))
                     .setType(methodType)
-                    .setRequestMarshaller(marshallerSupplier.get(requestType))
-                    .setResponseMarshaller(marshallerSupplier.get(responseType))
                     .setSampledToLocalTracing(true)
                     .build();
 
-            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(methodName, grpcDesc, callHandler);
+            Class<ReqT> requestType = getTypeFromMethodDescriptor(methodName, true);
+            Class<ResT> responseType = getTypeFromMethodDescriptor(methodName, false);
+
+            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(methodName, grpcDesc, callHandler)
+                    .defaultMarshallerSupplier(marshallerSupplier)
+                    .requestType(requestType)
+                    .responseType(responseType);
+
             if (configurer != null) {
                 configurer.accept(builder);
             }
@@ -631,13 +653,14 @@ public class ServiceDescriptor {
             return builder;
         }
 
-        private Class<?> getTypeFromMethodDescriptor(String methodName, boolean fInput) {
+        @SuppressWarnings("unchecked")
+        private <T> Class<T> getTypeFromMethodDescriptor(String methodName, boolean fInput) {
             // if the proto is not present, assume that we are not using
             // protobuf for marshalling and that whichever marshaller is used
             // doesn't need type information (basically, that the serialized
             // stream is self-describing)
             if (proto == null) {
-                return Object.class;
+                return (Class<T>) Object.class;
             }
 
             // todo: add error handling here, and fail fast with a more
@@ -658,7 +681,7 @@ public class ServiceDescriptor {
             // be loaded by the same class loader that loaded the service class,
             // as the service implementation is bound to depend on them
             try {
-                return serviceClass.getClassLoader().loadClass(className);
+                return (Class<T>) serviceClass.getClassLoader().loadClass(className);
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
             }

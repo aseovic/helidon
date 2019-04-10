@@ -13,36 +13,32 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package io.helidon.grpc.core;
 
-package io.helidon.grpc.server;
-
+import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-import io.grpc.MethodDescriptor.MethodType;
-
 /**
- * An annotation to mark a class as representing a gRPC service
- * or a method as a gRPC service method.
+ * An annotation used to annotate a type or method to specify the
+ * named marshaller supplier to use for rpc method calls.
  *
- * @author Aleksandar Seovic
+ * @author Jonathan Knight
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface RpcMethod {
+@Documented
+public @interface RpcMarshaller {
     /**
-     * Obtain the name of the service or method.
-     *
-     * @return  name of the service or method
+     * The name to use to specify the default marshaller supplier.
      */
-    String name() default "";
+    String DEFAULT = "default";
 
     /**
-     * Obtain the gRPC method type.
-     *
-     * @return the gRPC method type
+     * Obtain the type of the {@link MarshallerSupplier} to use.
+     * @return  the type of the {@link MarshallerSupplier} to use
      */
-    MethodType type();
+    String value() default DEFAULT;
 }

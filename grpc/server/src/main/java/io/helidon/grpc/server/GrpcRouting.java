@@ -17,11 +17,13 @@
 package io.helidon.grpc.server;
 
 import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
+import io.helidon.grpc.core.InterceptorPriorities;
+import io.helidon.grpc.core.PriorityBag;
 import io.helidon.grpc.server.model.ServiceModeller;
 
 import io.grpc.BindableService;
@@ -50,7 +52,7 @@ public interface GrpcRouting {
      * @return a {@link List} of the global {@link io.grpc.ServerInterceptor interceptors}
      *         that should be applied to all services
      */
-    List<ServerInterceptor> interceptors();
+    PriorityBag<ServerInterceptor> interceptors();
 
     /**
      * Obtain a GrpcRouting builder.
@@ -97,17 +99,37 @@ public interface GrpcRouting {
          * The {@link List} of the global {@link io.grpc.ServerInterceptor}s that should be
          * applied to all services.
          */
-        private List<ServerInterceptor> interceptors = new ArrayList<>();
+        private PriorityBag<ServerInterceptor> interceptors = new PriorityBag<>(InterceptorPriorities.USER);
 
         /**
          * Add one or more global {@link ServerInterceptor} instances that will intercept calls
          * to all services in the {@link GrpcRouting} built by this builder.
+         * <p>
+         * If the added interceptors are annotated with the {@link javax.annotation.Priority}
+         * annotation then that value will be used to assign a priority to use when applying
+         * the interceptor otherwise a priority of {@link InterceptorPriorities#USER} will
+         * be used.
          *
          * @param interceptors one or more global {@link ServerInterceptor}s
          * @return this builder to allow fluent method chaining
          */
         public Builder intercept(ServerInterceptor... interceptors) {
-            Collections.addAll(this.interceptors, Objects.requireNonNull(interceptors));
+            this.interceptors.addAll(Arrays.asList(interceptors));
+            return this;
+        }
+
+        /**
+         * Add one or more global {@link ServerInterceptor} instances that will intercept calls
+         * to all services in the {@link GrpcRouting} built by this builder.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param priority the priority to assign to the interceptors
+         * @param interceptors one or more global {@link ServerInterceptor}s
+         * @return this builder to allow fluent method chaining
+         */
+        public Builder intercept(int priority, ServerInterceptor... interceptors) {
+            this.interceptors.addAll(Arrays.asList(interceptors), priority);
             return this;
         }
 

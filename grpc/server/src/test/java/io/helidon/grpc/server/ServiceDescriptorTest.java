@@ -24,6 +24,7 @@ import java.util.stream.Collectors;
 
 import io.helidon.grpc.core.JavaMarshaller;
 import io.helidon.grpc.core.MarshallerSupplier;
+import io.helidon.grpc.core.PriorityBag;
 import io.helidon.grpc.server.test.Echo;
 import io.helidon.grpc.server.test.EchoServiceGrpc;
 
@@ -463,7 +464,7 @@ public class ServiceDescriptorTest {
                 .unary("bar", this::dummyUnary)
                 .build();
 
-        io.grpc.MethodDescriptor<?, ?> methodDescriptor = descriptor.bindableService(Collections.emptyList())
+        io.grpc.MethodDescriptor<?, ?> methodDescriptor = descriptor.bindableService(new PriorityBag<>())
                 .bindService()
                 .getMethod("foo/bar")
                 .getMethodDescriptor();
@@ -482,7 +483,7 @@ public class ServiceDescriptorTest {
 
         assertThat(descriptor.name(), is(grpcDescriptor.getName()));
 
-        BindableService bindableService = descriptor.bindableService(Collections.emptyList());
+        BindableService bindableService = descriptor.bindableService(new PriorityBag<>());
         assertThat(bindableService, is(notNullValue()));
 
         ServerServiceDefinition ssd = bindableService.bindService();
@@ -513,7 +514,7 @@ public class ServiceDescriptorTest {
 
         assertThat(descriptor.name(), is("Foo"));
 
-        BindableService bindableService = descriptor.bindableService(Collections.emptyList());
+        BindableService bindableService = descriptor.bindableService(new PriorityBag<>());
         assertThat(bindableService, is(notNullValue()));
 
         ServerServiceDefinition ssd = bindableService.bindService();
@@ -545,7 +546,7 @@ public class ServiceDescriptorTest {
 
         assertThat(descriptor.name(), is("EchoService"));
 
-        BindableService bindableService = descriptor.bindableService(Collections.emptyList());
+        BindableService bindableService = descriptor.bindableService(new PriorityBag<>());
         assertThat(bindableService, is(notNullValue()));
 
         ServerServiceDefinition ssd = bindableService.bindService();

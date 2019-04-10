@@ -26,7 +26,7 @@ import java.util.Map;
 
 import io.helidon.config.Config;
 import io.helidon.config.ConfigSources;
-import io.helidon.grpc.core.InterceptorPriority;
+import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.server.test.EchoServiceGrpc;
 import io.helidon.security.EndpointConfig;
 import io.helidon.security.Security;
@@ -58,13 +58,6 @@ import static org.mockito.Mockito.when;
 
 @SuppressWarnings("unchecked")
 public class GrpcSecurityTest {
-    @Test
-    public void shouldHaveCorrectPriority() {
-        GrpcSecurity security = GrpcSecurity.create(Security.builder().build());
-
-        assertThat(security.getInterceptorPriority(), is(InterceptorPriority.Security));
-    }
-
     @Test
     public void shouldRegisterSecurityContext() {
         MethodDescriptor<String, String> descriptor = getEchoMethod();

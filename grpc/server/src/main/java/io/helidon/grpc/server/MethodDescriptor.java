@@ -20,17 +20,16 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.core.MarshallerSupplier;
+import io.helidon.grpc.core.PriorityBag;
 
 import io.grpc.Context;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
-
-import static io.helidon.grpc.core.GrpcHelper.extractNamePrefix;
 
 /**
  * Encapsulates all metadata necessary to define a gRPC method.
@@ -43,18 +42,18 @@ public class MethodDescriptor<ReqT, ResT> {
     private final io.grpc.MethodDescriptor<ReqT, ResT> descriptor;
     private final ServerCallHandler<ReqT, ResT> callHandler;
     private final Map<Context.Key, Object> context;
-    private final List<ServerInterceptor> interceptors;
+    private final PriorityBag<ServerInterceptor> interceptors;
 
     private MethodDescriptor(String name,
-                     io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
-                     ServerCallHandler<ReqT, ResT> callHandler,
-                     Map<Context.Key, Object> context,
-                     List<ServerInterceptor> interceptors) {
+                             io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
+                             ServerCallHandler<ReqT, ResT> callHandler,
+                             Map<Context.Key, Object> context,
+                             PriorityBag<ServerInterceptor> interceptors) {
         this.name = name;
         this.descriptor = descriptor;
         this.callHandler = callHandler;
         this.context = context;
-        this.interceptors = new ArrayList<>(interceptors);
+        this.interceptors = interceptors.copyMe();
     }
 
     /**
@@ -97,20 +96,22 @@ public class MethodDescriptor<ReqT, ResT> {
      *
      * @return the {@link io.grpc.ServerInterceptor}s to use for this method
      */
-    public List<ServerInterceptor> interceptors() {
-        return Collections.unmodifiableList(interceptors);
+    public PriorityBag<ServerInterceptor> interceptors() {
+        return interceptors.readOnly();
     }
 
-    static <ReqT, ResT> Builder<ReqT, ResT> builder(String name,
-                                                    io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
+    static <ReqT, ResT> Builder<ReqT, ResT> builder(String serviceName,
+                                                    String name,
+                                                    io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor,
                                                     ServerCallHandler<ReqT, ResT> callHandler) {
-        return new Builder<>(name, descriptor, callHandler);
+        return new Builder<>(serviceName, name, descriptor, callHandler);
     }
 
-    static <ReqT, ResT> MethodDescriptor<ReqT, ResT> create(String name,
-                                                            io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
+    static <ReqT, ResT> MethodDescriptor<ReqT, ResT> create(String serviceName,
+                                                            String name,
+                                                            io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor,
                                                             ServerCallHandler<ReqT, ResT> callHandler) {
-        return builder(name, descriptor, callHandler).build();
+        return builder(serviceName, name, descriptor, callHandler).build();
     }
 
     @Override
@@ -145,10 +146,14 @@ public class MethodDescriptor<ReqT, ResT> {
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
+         * <p>
+         * If the added interceptors are annotated with the {@link javax.annotation.Priority}
+         * annotation then that value will be used to assign a priority to use when applying
+         * the interceptor otherwise a priority of {@link InterceptorPriorities#USER} will
+         * be used.
          *
-         * @param interceptors the interceptor(s) to register
-         *
-         * @return this {@link ServiceDescriptor.Rules} instance for fluent call chaining
+         * @param interceptors one or more {@link ServerInterceptor}s to register
+         * @return this builder to allow fluent method chaining
          */
         Rules<ReqT, ResT> intercept(ServerInterceptor... interceptors);
 
@@ -163,6 +168,17 @@ public class MethodDescriptor<ReqT, ResT> {
         Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
+         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param priority     the priority to assign to the interceptors
+         * @param interceptors one or more {@link ServerInterceptor}s to register
+         * @return this builder to allow fluent method chaining
+         */
+        Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors);
+
+        /**
          * Set the request type.
          * <p>
          * Setting the request type is optional as it is used to obtain the
@@ -173,7 +189,7 @@ public class MethodDescriptor<ReqT, ResT> {
          * @param requestType  the type of the request message
          * @param <Rnew>       the type of the request message
          *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance
          *         for fluent call chaining
          */
         <Rnew> Rules<Rnew, ResT> requestType(Class<Rnew> requestType);
@@ -189,7 +205,7 @@ public class MethodDescriptor<ReqT, ResT> {
          * @param responseType  the type of the request message
          * @param <Rnew>        the type of the request message
          *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance
          *         for fluent call chaining
          */
         <Rnew> Rules<ReqT, Rnew> responseType(Class<Rnew> responseType);
@@ -224,7 +240,7 @@ public class MethodDescriptor<ReqT, ResT> {
         private final io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;
 
-        private List<ServerInterceptor> interceptors = new ArrayList<>();
+        private PriorityBag<ServerInterceptor> interceptors = new PriorityBag<>(InterceptorPriorities.USER);
 
         private final Map<Context.Key, Object> context = new HashMap<>();
 
@@ -235,14 +251,14 @@ public class MethodDescriptor<ReqT, ResT> {
         private MarshallerSupplier defaultMarshallerSupplier = MarshallerSupplier.defaultInstance();
         private MarshallerSupplier marshallerSupplier;
 
-        Builder(String name, io.grpc.MethodDescriptor<ReqT, ResT> descriptor, ServerCallHandler<ReqT, ResT> callHandler) {
+        Builder(String serviceName,
+                String name,
+                io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor,
+                ServerCallHandler<ReqT, ResT> callHandler) {
+
             this.name = name;
             this.callHandler = callHandler;
-
-            String fullName = descriptor.getFullMethodName();
-            String prefix = extractNamePrefix(fullName);
-
-            this.descriptor = descriptor.toBuilder().setFullMethodName(prefix + "/" + name);
+            this.descriptor = descriptor.setFullMethodName(serviceName + "/" + name);
         }
 
         Builder<ReqT, ResT> fullname(String name) {
@@ -272,16 +288,20 @@ public class MethodDescriptor<ReqT, ResT> {
         }
 
         @Override
-        @SuppressWarnings("unchecked")
         public Builder<ReqT, ResT> intercept(ServerInterceptor... interceptors) {
-            Collections.addAll(this.interceptors, interceptors);
+            this.interceptors.addAll(Arrays.asList(interceptors));
+            return this;
+        }
 
-            // If any interceptors implement MethodDescriptor.Configurer allow them to apply further configuration
-            Arrays.stream(interceptors)
-                    .filter(interceptor -> MethodDescriptor.Configurer.class.isAssignableFrom(interceptor.getClass()))
-                    .map(MethodDescriptor.Configurer.class::cast)
-                    .forEach(interceptor -> interceptor.configure(this));
+        @Override
+        public Builder<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors) {
+            this.interceptors.addAll(Arrays.asList(interceptors), priority);
+            return this;
+        }
 
+        @Override
+        public Builder<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors) {
+            this.interceptors.addAll(Arrays.asList(interceptors), priority);
             return this;
         }
 
@@ -308,8 +328,13 @@ public class MethodDescriptor<ReqT, ResT> {
                 supplier = defaultMarshallerSupplier;
             }
 
-            descriptor.setRequestMarshaller((io.grpc.MethodDescriptor.Marshaller<ReqT>) supplier.get(requestType))
-                      .setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
+            if (requestType != null) {
+                descriptor.setRequestMarshaller((io.grpc.MethodDescriptor.Marshaller<ReqT>) supplier.get(requestType));
+            }
+
+            if (responseType != null) {
+                descriptor.setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
+            }
 
             return new MethodDescriptor<>(name,
                                           descriptor.build(),

@@ -22,11 +22,12 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
+import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.core.MarshallerSupplier;
+import io.helidon.grpc.core.PriorityBag;
 
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
@@ -53,20 +54,20 @@ public class ServiceDescriptor {
 
     private final String name;
     private final Map<String, MethodDescriptor> methods;
-    private final List<ServerInterceptor> interceptors;
+    private final PriorityBag<ServerInterceptor> interceptors;
     private final Map<Context.Key<?>, Object> context;
     private final HealthCheck healthCheck;
 
     private ServiceDescriptor(String name,
                               Map<String, MethodDescriptor> methods,
-                              List<ServerInterceptor> interceptors,
+                              PriorityBag<ServerInterceptor> interceptors,
                               Map<Context.Key<?>, Object> context,
                               HealthCheck healthCheck) {
         this.name = Objects.requireNonNull(name);
         this.methods = methods;
-        this.interceptors = new ArrayList<>(interceptors);
         this.context = Collections.unmodifiableMap(context);
         this.healthCheck = healthCheck;
+        this.interceptors = interceptors.copyMe();
     }
 
     /**
@@ -99,8 +100,8 @@ public class ServiceDescriptor {
      * Return service interceptors.
      * @return service interceptors
      */
-    public List<ServerInterceptor> interceptors() {
-        return interceptors;
+    public PriorityBag<ServerInterceptor> interceptors() {
+        return interceptors.readOnly();
     }
 
     /**
@@ -119,7 +120,7 @@ public class ServiceDescriptor {
         return healthCheck;
     }
 
-    BindableService bindableService(List<ServerInterceptor> interceptors) {
+    BindableService bindableService(PriorityBag<ServerInterceptor> interceptors) {
         return new BindableServiceImpl(this, interceptors);
     }
 
@@ -212,24 +213,62 @@ public class ServiceDescriptor {
         Rules marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
-         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the service.
+         * Add one or more {@link ServerInterceptor} instances that will intercept calls
+         * to this service.
+         * <p>
+         * If the added interceptors are annotated with the {@link javax.annotation.Priority}
+         * annotation then that value will be used to assign a priority to use when applying
+         * the interceptor otherwise a priority of {@link InterceptorPriorities#USER} will
+         * be used.
          *
-         * @param interceptors the interceptor(s) to register
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
+         * @param interceptors one or more {@link ServerInterceptor}s to add
+         * @return this builder to allow fluent method chaining
          */
         Rules intercept(ServerInterceptor... interceptors);
 
         /**
+         * Add one or more {@link ServerInterceptor} instances that will intercept calls
+         * to this service.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param priority     the priority to assign to the interceptors
+         * @param interceptors one or more {@link ServerInterceptor}s to add
+         * @return this builder to allow fluent method chaining
+         */
+        Rules intercept(int priority, ServerInterceptor... interceptors);
+
+        /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for a named method of the service.
+         * <p>
+         * If the added interceptors are annotated with the {@link javax.annotation.Priority}
+         * annotation then that value will be used to assign a priority to use when applying
+         * the interceptor otherwise a priority of {@link InterceptorPriorities#USER} will
+         * be used.
          *
          * @param methodName   the name of the method to intercept
+         * @param interceptors the interceptor(s) to register
+         *
+         * @return this {@link Rules} instance for fluent call chaining
+         *
+         * @throws IllegalArgumentException if no method exists for the specified name
+         */
+        Rules intercept(String methodName, ServerInterceptor... interceptors);
+
+        /**
+         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for a named method of the service.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param methodName   the name of the method to intercept
+         * @param priority     the priority to assign to the interceptors
          * @param interceptors the interceptor(s) to register
          *
          * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          *
          * @throws IllegalArgumentException if no method exists for the specified name
          */
-        Rules intercept(String methodName, ServerInterceptor... interceptors);
+        Rules intercept(String methodName, int priority, ServerInterceptor... interceptors);
 
         /**
          * Add value to the {@link io.grpc.Context} for the service.
@@ -393,7 +432,7 @@ public class ServiceDescriptor {
         private Descriptors.FileDescriptor proto;
         private MarshallerSupplier marshallerSupplier = MarshallerSupplier.defaultInstance();
         private Map<String, MethodDescriptor.Builder> methodBuilders = new LinkedHashMap<>();
-        private List<ServerInterceptor> interceptors = new ArrayList<>();
+        private PriorityBag<ServerInterceptor> interceptors = new PriorityBag<>(InterceptorPriorities.USER);
         private Map<Context.Key<?>, Object> context = new HashMap<>();
         private HealthCheck healthCheck;
 
@@ -423,7 +462,8 @@ public class ServiceDescriptor {
                 io.grpc.MethodDescriptor md = smd.getMethodDescriptor();
                 ServerCallHandler        handler = smd.getServerCallHandler();
                 String                   methodName = extractMethodName(md.getFullMethodName());
-                MethodDescriptor.Builder descriptor = MethodDescriptor.builder(methodName, md, handler);
+                MethodDescriptor.Builder descriptor = MethodDescriptor.builder(this.name, methodName, md.toBuilder(), handler)
+                        .marshallerSupplier(marshallerSupplier);
 
                 methodBuilders.put(methodName, descriptor);
             }
@@ -532,14 +572,13 @@ public class ServiceDescriptor {
 
         @Override
         public Builder intercept(ServerInterceptor... interceptors) {
-            Collections.addAll(this.interceptors, interceptors);
+            this.interceptors.addAll(Arrays.asList(interceptors));
+            return this;
+        }
 
-            // If any interceptors implement ServiceDescriptor.Configurer allow them to apply further configuration
-            Arrays.stream(interceptors)
-                    .filter(interceptor -> ServiceDescriptor.Configurer.class.isAssignableFrom(interceptor.getClass()))
-                    .map(ServiceDescriptor.Configurer.class::cast)
-                    .forEach(interceptor -> interceptor.configure(this));
-
+        @Override
+        public Builder intercept(int priority, ServerInterceptor... interceptors) {
+            this.interceptors.addAll(Arrays.asList(interceptors), priority);
             return this;
         }
 
@@ -552,6 +591,19 @@ public class ServiceDescriptor {
             }
 
             method.intercept(interceptors);
+
+            return this;
+        }
+
+        @Override
+        public Builder intercept(String methodName, int priority, ServerInterceptor... interceptors) {
+            MethodDescriptor.Builder method = methodBuilders.get(methodName);
+
+            if (method == null) {
+                throw new IllegalArgumentException("No method exists with name '" + methodName + "'");
+            }
+
+            method.intercept(priority, interceptors);
 
             return this;
         }
@@ -592,16 +644,15 @@ public class ServiceDescriptor {
                 ServerCallHandler<ReqT, ResT> callHandler,
                 MethodDescriptor.Configurer<ReqT, ResT> configurer) {
 
-            io.grpc.MethodDescriptor<ReqT, ResT> grpcDesc = io.grpc.MethodDescriptor.<ReqT, ResT>newBuilder()
+            io.grpc.MethodDescriptor.Builder<ReqT, ResT> grpcDesc = io.grpc.MethodDescriptor.<ReqT, ResT>newBuilder()
                     .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.name, methodName))
                     .setType(methodType)
-                    .setSampledToLocalTracing(true)
-                    .build();
+                    .setSampledToLocalTracing(true);
 
             Class<ReqT> requestType = getTypeFromMethodDescriptor(methodName, true);
             Class<ResT> responseType = getTypeFromMethodDescriptor(methodName, false);
 
-            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(methodName, grpcDesc, callHandler)
+            MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(this.name, methodName, grpcDesc, callHandler)
                     .defaultMarshallerSupplier(marshallerSupplier)
                     .requestType(requestType)
                     .responseType(responseType);

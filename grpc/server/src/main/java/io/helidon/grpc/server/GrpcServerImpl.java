@@ -38,6 +38,7 @@ import javax.net.ssl.SSLContext;
 
 import io.helidon.common.configurable.Resource;
 import io.helidon.common.pki.KeyConfig;
+import io.helidon.grpc.core.PriorityBag;
 
 import io.grpc.BindableService;
 import io.grpc.HandlerRegistry;
@@ -260,7 +261,7 @@ public class GrpcServerImpl implements GrpcServer {
      * @param globalInterceptors the global {@link io.grpc.ServerInterceptor}s to wrap all services with
      * @throws NullPointerException if {@code serviceDescriptor} is {@code null}
      */
-    public void deploy(ServiceDescriptor serviceDescriptor, List<ServerInterceptor> globalInterceptors) {
+    public void deploy(ServiceDescriptor serviceDescriptor, PriorityBag<ServerInterceptor> globalInterceptors) {
         Objects.requireNonNull(serviceDescriptor);
 
         String serverName = config.name();

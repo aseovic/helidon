@@ -83,18 +83,6 @@ public class GrpcClientTestUtil {
         return metricConfigurer;
     }
 
-    public static BaseInterceptor lowPriorityInterceptor() {
-        return new LowPriorityInterceptor();
-    }
-
-    public static BaseInterceptor mediumPriorityInterceptor() {
-        return new MediumPriorityInterceptor();
-    }
-
-    public static BaseInterceptor highPriorityInterceptor() {
-        return new HighPriorityInterceptor();
-    }
-
     public static class BaseInterceptor
             implements PriorityClientInterceptor {
 

@@ -28,24 +28,22 @@ import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 
 import io.helidon.grpc.client.test.StringServiceGrpc;
-import io.helidon.grpc.client.util.SingleValueResponseStreamObserverAdapter;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
 
 import io.grpc.CallOptions;
 import io.grpc.Channel;
-import io.grpc.ClientCall;
-import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannelBuilder;
-import io.grpc.MethodDescriptor;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import services.StringService;
 import services.TreeMapService;
 
+import static io.helidon.grpc.client.GrpcClientTestUtil.*;
 import static io.helidon.grpc.client.test.Strings.StringMessage;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -64,7 +62,12 @@ public class ProtoGrpcServiceClientIT {
     private static String inputStr = "Some_String_WITH_lower_and_UPPER_cases";
     private static StringMessage inputMsg = StringMessage.newBuilder().setText(inputStr).build();
 
+    private static LowPriorityInterceptor lowPriorityInterceptor = new LowPriorityInterceptor();
+    private static MediumPriorityInterceptor mediumPriorityInterceptor = new MediumPriorityInterceptor();
+    private static HighPriorityInterceptor highPriorityInterceptor = new HighPriorityInterceptor();
+
     @BeforeAll
+    @SuppressWarnings("uncheckled")
     public static void startServer() throws IOException, SecurityException {
 
         LogManager.getLogManager().readConfiguration();
@@ -90,23 +93,23 @@ public class ProtoGrpcServiceClientIT {
                     return null;
                 });
 
-        Class<StringMessage> strMsgType = StringMessage.class;
-
         ClientServiceDescriptor stringSvcDesc2 = ClientServiceDescriptor
                 .builder(StringService.class, StringServiceGrpc.getServiceDescriptor())
-                .intercept(GrpcClientTestUtil.lowPriorityInterceptor())
+                .intercept(mediumPriorityInterceptor)
                 .build();
 
 
         ClientMethodDescriptor upperDesc = stringSvcDesc2.<StringMessage, StringMessage>method("Upper")
-                .toBuilder().intercept(GrpcClientTestUtil.highPriorityInterceptor()).build();
+                .toBuilder().intercept(highPriorityInterceptor).build();
+        ClientMethodDescriptor lowerDesc = stringSvcDesc2.<StringMessage, StringMessage>method("Lower")
+                .toBuilder().intercept(lowPriorityInterceptor).build();
 
         stringSvcDesc = ClientServiceDescriptor
                 .builder(StringService.class, StringServiceGrpc.getServiceDescriptor())
-                .intercept(GrpcClientTestUtil.lowPriorityInterceptor())
-                .<StringMessage, StringMessage>registerMethod(upperDesc)
+                .intercept(mediumPriorityInterceptor)
+                .registerMethod(upperDesc)
+                .registerMethod(lowerDesc)
                 .build();
-
 
         // Build GrpcServiceClient
         Channel ch = ManagedChannelBuilder.forAddress("localhost", grpcPort).usePlaintext().build();
@@ -126,8 +129,20 @@ public class ProtoGrpcServiceClientIT {
         });
     }
 
+    @BeforeEach
+    public void resetInterceptors() {
+        lowPriorityInterceptor.reset();
+        mediumPriorityInterceptor.reset();
+        highPriorityInterceptor.reset();
+    }
+
     @Test
-    public void shouldHaveCorrectNameForStringService() {
+    public void testServiceName() {
+        assertThat(grpcClient.serviceName(), equalTo("StringService"));
+    }
+
+    @Test
+    public void testCorrectMethodCountForStringService() {
 
         Set<String> methodNames = new HashSet<>();
         methodNames.addAll(Arrays.asList("Lower", "Upper", "Split", "Join", "Echo"));
@@ -135,6 +150,13 @@ public class ProtoGrpcServiceClientIT {
         for (String name : methodNames) {
             assertThat(stringSvcDesc.method(name), notNullValue());
         }
+    }
+
+    @Test
+    public void testCorrectNameForStringService() {
+
+        Set<String> methodNames = new HashSet<>();
+        methodNames.addAll(Arrays.asList("Lower", "Upper", "Split", "Join", "Echo"));
 
         assertThat(stringSvcDesc.methods().size(), is(methodNames.size()));
     }
@@ -147,14 +169,16 @@ public class ProtoGrpcServiceClientIT {
     }
 
     @Test
-    public void testAsyncUnaryMethods() throws InterruptedException, ExecutionException {
-
+    public void testAsyncUnaryMethodWithCompletableFuture() throws InterruptedException, ExecutionException {
         // Async that returns a CompletableFuture.
         CompletableFuture<StringMessage> result = grpcClient.unary("Upper", inputMsg);
         assertThat(result.get().getText(), equalTo(inputStr.toUpperCase()));
+    }
 
+    @Test
+    public void testAsyncUnaryMethodWithStreamObserver() throws InterruptedException, ExecutionException {
         // Async that takes a StreamObserver.
-        SingleValueResponseStreamObserverAdapter<StringMessage> observer = new SingleValueResponseStreamObserverAdapter();
+        GrpcServiceClient.SingleValueStreamObserver<StringMessage> observer = new GrpcServiceClient.SingleValueStreamObserver();
         grpcClient.unary("Upper", inputMsg, observer);
         assertThat(observer.getFuture().get().getText(), equalTo(inputStr.toUpperCase()));
     }
@@ -173,7 +197,7 @@ public class ProtoGrpcServiceClientIT {
 
     @Test
     public void testAsyncClientStreamingMethod() throws Throwable {
-        SingleValueResponseStreamObserverAdapter<StringMessage> respStream = new SingleValueResponseStreamObserverAdapter();
+        GrpcServiceClient.SingleValueStreamObserver<StringMessage> respStream = new GrpcServiceClient.SingleValueStreamObserver();
         StreamObserver<StringMessage> clientStream = grpcClient.clientStreaming("Join", respStream);
 
         final String expectedSentence = "A simple invocation of a client streaming method";
@@ -230,7 +254,7 @@ public class ProtoGrpcServiceClientIT {
     }
 
     @Test
-    public void invokeBidiStreamingMethodWithIterable() throws InterruptedException, ExecutionException {
+    public void testBidiStreamingMethodWithIterable() throws InterruptedException, ExecutionException {
         final String sentence = "A simple invocation of a Bidi streaming method";
         final String[] expectedWords = sentence.split(" ");
 
@@ -264,7 +288,7 @@ public class ProtoGrpcServiceClientIT {
     }
 
     @Test
-    public void invokeBidiStreamingMethod() throws InterruptedException, ExecutionException {
+    public void testInvokeBidiStreamingMethod() throws InterruptedException, ExecutionException {
         final String sentence = "A simple invocation of a Bidi streaming method";
         final String[] expectedWords = sentence.split(" ");
 
@@ -299,6 +323,28 @@ public class ProtoGrpcServiceClientIT {
         clientStream.onCompleted();
 
         assertThat(status.get(), equalTo(true));
+    }
+
+    @Test
+    public void testLowAndMediumPriorityMethodInterceptors() {
+        assertThat(
+                grpcClient.<StringMessage, StringMessage>blockingUnary("Lower", inputMsg).getText(),
+                equalTo(inputStr.toLowerCase()));
+
+        assertThat(lowPriorityInterceptor.getInvocationCount(), equalTo(1));
+        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(2));
+        assertThat(highPriorityInterceptor.getInvocationCount(), equalTo(0));
+    }
+
+    @Test
+    public void testHighAndMediumPriorityMethodInterceptors() {
+        assertThat(
+                grpcClient.<StringMessage, StringMessage>blockingUnary("Upper", inputMsg).getText(),
+                equalTo(inputStr.toUpperCase()));
+
+        assertThat(lowPriorityInterceptor.getInvocationCount(), equalTo(0));
+        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(2));
+        assertThat(highPriorityInterceptor.getInvocationCount(), equalTo(1));
     }
 
 }

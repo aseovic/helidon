@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.helidon.grpc.client.util;
+package io.helidon.grpc.client;
 
 import java.util.LinkedList;
 import java.util.concurrent.CompletableFuture;
@@ -34,7 +34,7 @@ import io.grpc.stub.StreamObserver;
  *
  * @author Mahesh Kannan
  */
-public class AccumulatingResponseStreamObserverAdapter<T>
+public class AccumulatingStreamObserver<T>
         implements StreamObserver<T> {
 
     private LinkedList<T> result = new LinkedList<>();
@@ -42,9 +42,9 @@ public class AccumulatingResponseStreamObserverAdapter<T>
     private CompletableFuture<Boolean> resultFuture = new CompletableFuture<>();
 
     /**
-     * Create a SingleValueResponseStreamObserverAdapter.
+     * Create a SingleValueStreamObserver.
      */
-    public AccumulatingResponseStreamObserverAdapter() {
+    public AccumulatingStreamObserver() {
     }
 
     /**

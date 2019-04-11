@@ -16,10 +16,15 @@
 
 package io.helidon.grpc.client;
 
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.function.Consumer;
 
 import io.helidon.grpc.core.JavaMarshaller;
+import io.helidon.grpc.core.MarshallerSupplier;
 
+import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
 import org.eclipse.microprofile.metrics.MetricType;
 import org.junit.jupiter.api.Test;
@@ -27,7 +32,9 @@ import services.TreeMapService;
 
 import static io.helidon.grpc.client.GrpcClientTestUtil.getMetricConfigurer;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static services.TreeMapService.Person;
 
@@ -40,19 +47,91 @@ public class ClientServiceDescriptorTest {
     // Custom built ClientServiceDescriptor
 
     @Test
-    public void shouldHaveZeroMethodsByDefault() {
+    public void testServiceName() {
+        ClientServiceDescriptor svcDesc = createEmptyTreeMapServiceBuilder().build();
+        assertThat(svcDesc.serviceName(), equalTo("TreeMapService"));
+    }
+
+    @Test
+    public void testDefaultMethodCount() {
         ClientServiceDescriptor svcDesc = createEmptyTreeMapServiceBuilder().build();
         assertThat(svcDesc.methods().size(), equalTo(0));
-        assertThat(svcDesc.serviceClass(), equalTo(TreeMapService.class));
-        assertThat(svcDesc.serviceName(), equalTo("TreeMapService"));
-        assertThat(svcDesc.metricType(), equalTo(MetricType.INVALID));
-        assertThat(svcDesc.proto(), equalTo(null));
+    }
+
+    @Test
+    public void testDefaultMetricType() {
+        ClientServiceDescriptor svcDesc = createEmptyTreeMapServiceBuilder().build();
+        assertThat(svcDesc.metricType(), nullValue());
+    }
+
+    @Test
+    public void testDefaultContextSize() {
+        ClientServiceDescriptor svcDesc = createEmptyTreeMapServiceBuilder().build();
         assertThat(svcDesc.context().size(), equalTo(0));
+    }
+
+    @Test
+    public void testDefaultInterceptorCount() {
+        ClientServiceDescriptor svcDesc = createEmptyTreeMapServiceBuilder().build();
         assertThat(svcDesc.interceptors().size(), equalTo(0));
     }
 
     @Test
-    public void createUnaryMethod() {
+    public void testDefaultMetricTypes() {
+        ClientServiceDescriptor.Builder bldr = createEmptyTreeMapServiceBuilder();
+        System.out.println(bldr.build().metricType());
+        assertThat(bldr.build().metricType(), nullValue());
+    }
+
+    @Test
+    public void testMetricTypes() {
+        for (MetricType metricType : MetricType.values()) {
+            ClientServiceDescriptor.Builder bldr = createEmptyTreeMapServiceBuilder();
+            switch (metricType) {
+            case COUNTER:
+                bldr.counted();
+                assertThat(bldr.build().metricType(), equalTo(MetricType.COUNTER));
+                break;
+            case GAUGE:
+                bldr.gauged();
+                assertThat(bldr.build().metricType(), equalTo(MetricType.GAUGE));
+                break;
+            case HISTOGRAM:
+                bldr.histogram();
+                assertThat(bldr.build().metricType(), equalTo(MetricType.HISTOGRAM));
+                break;
+            case METERED:
+                bldr.metered();
+                assertThat(bldr.build().metricType(), equalTo(MetricType.METERED));
+                break;
+            case TIMER:
+                bldr.timed();
+                assertThat(bldr.build().metricType(), equalTo(MetricType.TIMER));
+                break;
+            default:
+                bldr.disableMetrics();
+                assertThat(bldr.build().metricType(), equalTo(MetricType.INVALID));
+                break;
+            }
+        }
+    }
+
+    @Test
+    public void testIfMarshallerSupplierCanBeSet() {
+        CustomMarshallerSupplier customMarshaller = new CustomMarshallerSupplier();
+        ClientServiceDescriptor svcDesc = createEmptyTreeMapServiceBuilder()
+                .marshallerSupplier(customMarshaller)
+                .unary("get", Double.class, Date.class)
+                .build();
+
+        Set<String> classNames = customMarshaller.getClassNames();
+        assertThat(classNames.size() == 2
+                           && classNames.contains("java.lang.Double")
+                           && classNames.contains("java.util.Date"), is(true));
+    }
+
+    @Test
+    public void testCreateUnaryMethod() {
 
         for (MetricType mt : MetricType.values()) {
             Consumer<ClientMethodDescriptor.Config<Object, Object>> metricConfigurer = getMetricConfigurer(mt);
@@ -76,7 +155,7 @@ public class ClientServiceDescriptorTest {
     }
 
     @Test
-    public void createClientStreamingMethod() {
+    public void testCreateClientStreamingMethod() {
 
         for (MetricType mt : MetricType.values()) {
             Consumer<ClientMethodDescriptor.Config<Object, Object>> metricConfigurer = getMetricConfigurer(mt);
@@ -100,7 +179,7 @@ public class ClientServiceDescriptorTest {
     }
 
     @Test
-    public void createServerStreamingMethod() {
+    public void testCreateServerStreamingMethod() {
 
         for (MetricType mt : MetricType.values()) {
             Consumer<ClientMethodDescriptor.Config<Object, Object>> metricConfigurer = getMetricConfigurer(mt);
@@ -124,7 +203,7 @@ public class ClientServiceDescriptorTest {
     }
 
     @Test
-    public void createBidiStreaming() {
+    public void testCreateBidiStreaming() {
 
         for (MetricType mt : MetricType.values()) {
             Consumer<ClientMethodDescriptor.Config<Object, Object>> metricConfigurer = getMetricConfigurer(mt);
@@ -148,7 +227,7 @@ public class ClientServiceDescriptorTest {
     }
 
     @Test
-    public void registerUnaryMethod() {
+    public void testRegisterUnaryMethod() {
 
         String methodName = "get";
         ClientMethodDescriptor<Integer, Person> cmd =
@@ -172,7 +251,7 @@ public class ClientServiceDescriptorTest {
     }
 
     @Test
-    public void registerClientStreamingMethod() {
+    public void testRegisterClientStreamingMethod() {
 
         String methodName = "get";
         ClientMethodDescriptor<Integer, Person> cmd =
@@ -195,4 +274,19 @@ public class ClientServiceDescriptorTest {
         assertThat(cmd.descriptor().getResponseMarshaller().getClass().getName(), equalTo(JavaMarshaller.class.getName()));
     }
 
+    private static class CustomMarshallerSupplier
+            extends MarshallerSupplier.DefaultMarshallerSupplier {
+
+        HashSet<String> classNames = new HashSet<>();
+
+        public HashSet<String> getClassNames() {
+            return classNames;
+        }
+
+        @Override
+        public <T> MethodDescriptor.Marshaller<T> get(Class<T> clazz) {
+            classNames.add(clazz.getName());
+            return super.get(clazz);
+        }
+    }
 }

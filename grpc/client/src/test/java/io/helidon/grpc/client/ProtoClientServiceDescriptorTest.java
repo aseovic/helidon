@@ -20,7 +20,6 @@ import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.MethodDescriptor.MethodType;
-import org.eclipse.microprofile.metrics.MetricType;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import services.StringService;
@@ -29,7 +28,7 @@ import static io.helidon.grpc.client.GrpcClientTestUtil._toLower;
 import static io.helidon.grpc.client.GrpcClientTestUtil.protoStringSvcDesc;
 import static io.helidon.grpc.client.test.Strings.StringMessage;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 public class ProtoClientServiceDescriptorTest {
@@ -46,33 +45,27 @@ public class ProtoClientServiceDescriptorTest {
     @Test
     public void shouldHaveCorrectNameAndNumberOfMethods() {
 
-        assertThat(protoStringSvcDesc.proto(), notNullValue());
         assertThat(protoStringSvcDesc.serviceName(), equalTo("StringService"));
         assertThat(protoStringSvcDesc.methods().size(), equalTo(5));
         assertThat(protoStringSvcDesc.context().size(), equalTo(0));
         assertThat(protoStringSvcDesc.interceptors().size(), equalTo(0));
-        assertThat(protoStringSvcDesc.metricType(), equalTo(MetricType.INVALID));
-        assertThat(protoStringSvcDesc.serviceClass(), equalTo(StringService.class));
+        assertThat(protoStringSvcDesc.metricType(), nullValue());
 
-        checkPreConditions(protoStringSvcDesc, "Lower", MethodType.UNARY);
-        checkPreConditions(protoStringSvcDesc, "Upper", MethodType.UNARY);
-        checkPreConditions(protoStringSvcDesc, "Split", MethodType.SERVER_STREAMING);
-        checkPreConditions(protoStringSvcDesc, "Join", MethodType.CLIENT_STREAMING);
-        checkPreConditions(protoStringSvcDesc, "Echo", MethodType.BIDI_STREAMING);
-
+        testCheckPreConditions(protoStringSvcDesc, "Lower", MethodType.UNARY);
+        testCheckPreConditions(protoStringSvcDesc, "Upper", MethodType.UNARY);
+        testCheckPreConditions(protoStringSvcDesc, "Split", MethodType.SERVER_STREAMING);
+        testCheckPreConditions(protoStringSvcDesc, "Join", MethodType.CLIENT_STREAMING);
+        testCheckPreConditions(protoStringSvcDesc, "Echo", MethodType.BIDI_STREAMING);
     }
 
     @Test
     public void shouldHaveCorrectMethodTypesAndMarshallers() {
 
-        assertThat(protoStringSvcDesc.proto(), notNullValue());
-
-        checkPreConditions(protoStringSvcDesc, "Lower", MethodType.UNARY);
-        checkPreConditions(protoStringSvcDesc, "Upper", MethodType.UNARY);
-        checkPreConditions(protoStringSvcDesc, "Split", MethodType.SERVER_STREAMING);
-        checkPreConditions(protoStringSvcDesc, "Join", MethodType.CLIENT_STREAMING);
-        checkPreConditions(protoStringSvcDesc, "Echo", MethodType.BIDI_STREAMING);
-
+        testCheckPreConditions(protoStringSvcDesc, "Lower", MethodType.UNARY);
+        testCheckPreConditions(protoStringSvcDesc, "Upper", MethodType.UNARY);
+        testCheckPreConditions(protoStringSvcDesc, "Split", MethodType.SERVER_STREAMING);
+        testCheckPreConditions(protoStringSvcDesc, "Join", MethodType.CLIENT_STREAMING);
+        testCheckPreConditions(protoStringSvcDesc, "Echo", MethodType.BIDI_STREAMING);
     }
 
     // Custom built ClientServiceDescriptor
@@ -81,16 +74,14 @@ public class ProtoClientServiceDescriptorTest {
     public void shouldHaveZeroMethodsByDefault() {
         ClientServiceDescriptor svcDesc = createEmptyStringServiceDescBuilder().build();
         assertThat(svcDesc.methods().size(), equalTo(0));
-        assertThat(svcDesc.serviceClass(), equalTo(StringService.class));
         assertThat(svcDesc.serviceName(), equalTo("StringService"));
-        assertThat(svcDesc.metricType(), equalTo(MetricType.INVALID));
-        assertThat(svcDesc.proto(), equalTo(null));
+        assertThat(svcDesc.metricType(), nullValue());
         assertThat(svcDesc.context().size(), equalTo(0));
         assertThat(svcDesc.interceptors().size(), equalTo(0));
     }
 
     @Test
-    public void createUnaryMethodFromExistingMethodDesc() {
+    public void testCreateUnaryMethodFromExistingMethodDesc() {
 
         ClientServiceDescriptor.Builder bldr = createEmptyStringServiceDescBuilder();
         ClientMethodDescriptor<StringMessage, StringMessage> cmd =
@@ -109,7 +100,7 @@ public class ProtoClientServiceDescriptorTest {
                 .build();
     }
 
-    private boolean checkPreConditions(ClientServiceDescriptor svcDesc,
+    private boolean testCheckPreConditions(ClientServiceDescriptor svcDesc,
                                        String name,
                                        MethodType methodType) {
 

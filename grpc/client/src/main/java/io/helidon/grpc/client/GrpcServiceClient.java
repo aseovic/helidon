@@ -22,10 +22,9 @@ import java.util.concurrent.CompletableFuture;
 
 import javax.annotation.concurrent.ThreadSafe;
 
-import io.helidon.grpc.client.util.SingleValueResponseStreamObserverAdapter;
-
 import io.grpc.CallOptions;
 import io.grpc.Channel;
+import io.grpc.ClientInterceptor;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.stub.AbstractStub;
 import io.grpc.stub.ClientCalls;
@@ -39,63 +38,9 @@ import io.grpc.stub.StreamObserver;
 @ThreadSafe
 public class GrpcServiceClient {
 
-    private Channel channel;
-
-    private CallOptions callOptions;
-
-    private HashMap<String, GrpcMethodStub> methodStubs = new HashMap<>();
+    private HashMap<String, GrpcMethodStub> methodStubs;
 
     private ClientServiceDescriptor clientServiceDescriptor;
-
-    /**
-     * Builder to build an instance of {@link io.helidon.grpc.client.GrpcServiceClient}.
-     */
-    public static class Builder {
-
-        // This is the client being built.
-        private GrpcServiceClient grpcClient = new GrpcServiceClient();
-
-        /**
-         * Create a new instance that can be used to invoke methods on the service.
-         *
-         * @param channel                 the {@link Channel} to connect to the server
-         * @return This {@link }GrpcServiceClient.Builder} for fluent API.
-         */
-        public Builder channel(Channel channel) {
-            this.grpcClient.channel = channel;
-            return this;
-        }
-
-        /**
-         * Create a new instance that can be used to invoke methods on the service.
-         *
-         * @param callOptions             the {@link CallOptions}
-         * @return This {@link }GrpcServiceClient.Builder} for fluent API.
-         */
-        public Builder callOptions(CallOptions callOptions) {
-            this.grpcClient.callOptions = callOptions;
-            return this;
-        }
-
-        /**
-         * Create a new instance that can be used to invoke methods on the service.
-         *
-         * @param clientServiceDescriptor The {@link io.helidon.grpc.client.ClientServiceDescriptor} that describes the service.
-         * @return This {@link }GrpcServiceClient.Builder} for fluent API.
-         */
-        public Builder clientServiceDescriptor(ClientServiceDescriptor clientServiceDescriptor) {
-            this.grpcClient.clientServiceDescriptor = clientServiceDescriptor;
-            return this;
-        }
-
-        /**
-         * Build an instance of {@link io.helidon.grpc.client.GrpcServiceClient}.
-         * @return an instance of {@link io.helidon.grpc.client.GrpcServiceClient}.
-         */
-        public GrpcServiceClient build() {
-            return new GrpcServiceClient(grpcClient);
-        }
-    }
 
     /**
      * Creates a new {@link GrpcServiceClient.Builder}.
@@ -105,12 +50,11 @@ public class GrpcServiceClient {
         return new GrpcServiceClient.Builder();
     }
 
-    private GrpcServiceClient() { }
-
-    private GrpcServiceClient(GrpcServiceClient other) {
-        this.channel = other.channel;
-        this.callOptions = other.callOptions;
-        this.clientServiceDescriptor = other.clientServiceDescriptor;
+    @SuppressWarnings("unchecked")
+    private GrpcServiceClient(Channel channel,
+                             CallOptions callOptions,
+                             ClientServiceDescriptor clientServiceDescriptor) {
+        this.clientServiceDescriptor = clientServiceDescriptor;
         this.methodStubs = new HashMap<>();
 
         // Merge Interceptors specified in Channel, ClientServiceDescriptor and ClientMethodDescriptor.
@@ -127,10 +71,18 @@ public class GrpcServiceClient {
             }
             if (interceptors.getInterceptors().size() > 0) {
                methodStub = (GrpcMethodStub) methodStub.withInterceptors(
-                       interceptors.getInterceptors().toArray(new PriorityClientInterceptor[0]));
+                       interceptors.getInterceptors().toArray(new ClientInterceptor[0]));
             }
             methodStubs.put(cmd.name(), methodStub);
         }
+    }
+
+    /**
+     * Obtain the service name.
+     * @return The name of the service.
+     */
+    public String serviceName() {
+        return clientServiceDescriptor.serviceName();
     }
 
     /**
@@ -158,7 +110,7 @@ public class GrpcServiceClient {
      * @return A {@link java.util.concurrent.CompletableFuture} to obtain the result.
      */
     public <ReqT, ResT> CompletableFuture<ResT> unary(String methodName, ReqT request) {
-        SingleValueResponseStreamObserverAdapter<ResT> observer = new SingleValueResponseStreamObserverAdapter<>();
+        SingleValueStreamObserver<ResT> observer = new SingleValueStreamObserver<>();
 
         GrpcMethodStub<ReqT, ResT> stub = ensureMethod(methodName, MethodType.UNARY);
         ClientCalls.asyncUnaryCall(
@@ -229,7 +181,7 @@ public class GrpcServiceClient {
      * @return A {@link io.grpc.stub.StreamObserver} to retrieve results.
      */
     public <ReqT, ResT> CompletableFuture<ResT> clientStreaming(String methodName, Iterable<ReqT> items) {
-        SingleValueResponseStreamObserverAdapter<ResT> obsv = new SingleValueResponseStreamObserverAdapter<>();
+        SingleValueStreamObserver<ResT> obsv = new SingleValueStreamObserver<>();
         GrpcMethodStub<ReqT, ResT> stub = ensureMethod(methodName, MethodType.CLIENT_STREAMING);
         StreamObserver<ReqT> reqStream = ClientCalls.asyncClientStreamingCall(
                 stub.getChannel().newCall(stub.descriptor().descriptor(), stub.getCallOptions()),
@@ -315,7 +267,7 @@ public class GrpcServiceClient {
     /**
      * GrpcMethodStub can be used to configure method specific Interceptors, Metrics, Tracing, Deadlines, etc.
      */
-    static class GrpcMethodStub<ReqT, ResT>
+    private static class GrpcMethodStub<ReqT, ResT>
         extends AbstractStub<GrpcMethodStub<ReqT, ResT>> {
 
         private ClientMethodDescriptor<ReqT, ResT> cmd;
@@ -335,4 +287,111 @@ public class GrpcServiceClient {
         }
     }
 
+    /**
+     * Builder to build an instance of {@link io.helidon.grpc.client.GrpcServiceClient}.
+     */
+    public static class Builder {
+
+        private Channel channel;
+
+        private CallOptions callOptions;
+
+        private ClientServiceDescriptor clientServiceDescriptor;
+
+        /**
+         * Create a new instance that can be used to invoke methods on the service.
+         *
+         * @param channel                 the {@link Channel} to connect to the server
+         * @return This {@link }GrpcServiceClient.Builder} for fluent API.
+         */
+        public Builder channel(Channel channel) {
+            this.channel = channel;
+            return this;
+        }
+
+        /**
+         * Create a new instance that can be used to invoke methods on the service.
+         *
+         * @param callOptions             the {@link CallOptions}
+         * @return This {@link }GrpcServiceClient.Builder} for fluent API.
+         */
+        public Builder callOptions(CallOptions callOptions) {
+            this.callOptions = callOptions;
+            return this;
+        }
+
+        /**
+         * Create a new instance that can be used to invoke methods on the service.
+         *
+         * @param clientServiceDescriptor The {@link io.helidon.grpc.client.ClientServiceDescriptor} that describes the service.
+         * @return This {@link }GrpcServiceClient.Builder} for fluent API.
+         */
+        public Builder clientServiceDescriptor(ClientServiceDescriptor clientServiceDescriptor) {
+            this.clientServiceDescriptor = clientServiceDescriptor;
+            return this;
+        }
+
+        /**
+         * Build an instance of {@link io.helidon.grpc.client.GrpcServiceClient}.
+         * @return an instance of {@link io.helidon.grpc.client.GrpcServiceClient}.
+         */
+        public GrpcServiceClient build() {
+            return new GrpcServiceClient(channel, callOptions, clientServiceDescriptor);
+        }
+    }
+
+    /**
+     * A simple {@link io.grpc.stub.StreamObserver} adapter class. Used internally and by test code. This
+     * object simply accumulates the only value received through the {@code onNext()}.
+     *
+     * Callers can use the {@code waitForCompletion} to block till the only value
+     * is received (and till the {@code onCompleted} is called).
+     *
+     * @param <T> The type of objects received in this stream.
+     *
+     * @author Mahesh Kannan
+     */
+    public static class SingleValueStreamObserver<T>
+            implements StreamObserver<T> {
+
+        private int count;
+
+        private T result;
+
+        private CompletableFuture<T> resultFuture = new CompletableFuture<>();
+
+        /**
+         * Create a SingleValueStreamObserver.
+         */
+        public SingleValueStreamObserver() {
+        }
+
+        /**
+         * Gte the CompletableFuture.
+         * @return The CompletableFuture.
+         */
+        public CompletableFuture<T> getFuture() {
+            return resultFuture;
+        }
+
+        @Override
+        public void onNext(T value) {
+            if (count++ == 0) {
+                result = value;
+            } else {
+                resultFuture.completeExceptionally(new IllegalStateException("More than one result received."));
+            }
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            resultFuture.completeExceptionally(t);
+        }
+
+        @Override
+        public void onCompleted() {
+            resultFuture.complete(result);
+        }
+
+    }
 }

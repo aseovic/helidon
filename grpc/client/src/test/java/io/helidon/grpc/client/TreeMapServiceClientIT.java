@@ -24,7 +24,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 
-import io.helidon.grpc.client.util.AccumulatingResponseStreamObserverAdapter;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
@@ -83,7 +82,7 @@ public class TreeMapServiceClientIT {
     }
 
     @Test
-    public void createAndInvokeUnary() throws ExecutionException, InterruptedException {
+    public void testCreateAndInvokeUnary() throws ExecutionException, InterruptedException {
         ClientServiceDescriptor svcDesc = ClientServiceDescriptor.builder("TreeMapService", TreeMapService.class)
                 .unary("get", Integer.class, Person.class)
                 .build();
@@ -99,7 +98,7 @@ public class TreeMapServiceClientIT {
     }
 
     @Test
-    public void createAndInvokeServerStreamingMethod() throws ExecutionException, InterruptedException {
+    public void testCreateAndInvokeServerStreamingMethod() throws ExecutionException, InterruptedException {
         ClientServiceDescriptor svcDesc = ClientServiceDescriptor.builder("TreeMapService", TreeMapService.class)
                 .unary("get", Integer.class, Person.class)
                 .serverStreaming("greaterOrEqualTo", Integer.class, Person.class)
@@ -114,7 +113,7 @@ public class TreeMapServiceClientIT {
 
         assertThat(treeSvcClient.unary("get", 1).get(), equalTo(TreeMapService.BILBO));
 
-        AccumulatingResponseStreamObserverAdapter<Person> respStream = new AccumulatingResponseStreamObserverAdapter<>();
+        AccumulatingStreamObserver<Person> respStream = new AccumulatingStreamObserver<>();
         treeSvcClient.serverStreaming("greaterOrEqualTo", 3, respStream);
         respStream.waitForCompletion();
 
@@ -126,7 +125,7 @@ public class TreeMapServiceClientIT {
 
 
     @Test
-    public void createAndInvokeClientStreamingMethod() throws ExecutionException, InterruptedException {
+    public void testCreateAndInvokeClientStreamingMethod() throws ExecutionException, InterruptedException {
         ClientServiceDescriptor svcDesc = ClientServiceDescriptor.builder("TreeMapService", TreeMapService.class)
                 .unary("get", Integer.class, Person.class)
                 .serverStreaming("greaterOrEqualTo", Integer.class, Person.class)
@@ -143,13 +142,13 @@ public class TreeMapServiceClientIT {
         CompletableFuture<Integer> sum = treeSvcClient.clientStreaming("sumOfAges", Arrays.asList(3, 4, 5));
         assertThat(sum.get(), equalTo(
                 TreeMapService.ARAGON.getAge() +
-                        TreeMapService.GALARDRIAL.getAge() +
+                        TreeMapService.GALARDRIEL.getAge() +
                         TreeMapService.GANDALF.getAge()));
     }
 
 
     @Test
-    public void createAndInvokeBidiStreamingMethod() throws ExecutionException, InterruptedException {
+    public void testCreateAndInvokeBidiStreamingMethod() throws ExecutionException, InterruptedException {
         ClientServiceDescriptor svcDesc = ClientServiceDescriptor.builder("TreeMapService", TreeMapService.class)
                 .unary("get", Integer.class, Person.class)
                 .bidirectional("persons", Integer.class, Person.class)
@@ -162,7 +161,7 @@ public class TreeMapServiceClientIT {
                 .callOptions(CallOptions.DEFAULT)
                 .build();
 
-        AccumulatingResponseStreamObserverAdapter<Person> persons = new AccumulatingResponseStreamObserverAdapter<>();
+        AccumulatingStreamObserver<Person> persons = new AccumulatingStreamObserver<>();
         StreamObserver<Integer> ids = treeSvcClient.bidiStreaming("persons", persons);
         for (int id : new int[] {3, 4, 5}) {
             ids.onNext(id);
@@ -172,7 +171,7 @@ public class TreeMapServiceClientIT {
         persons.waitForCompletion();
 
         assertThat(persons.getResult(), equalTo(Arrays.asList(
-                TreeMapService.ARAGON, TreeMapService.GALARDRIAL, TreeMapService.GANDALF
+                TreeMapService.ARAGON, TreeMapService.GALARDRIEL, TreeMapService.GANDALF
         )));
     }
 

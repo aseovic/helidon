@@ -34,6 +34,7 @@ import services.StringService;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsEmptyIterable.emptyIterable;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
@@ -58,7 +59,7 @@ public class ClientMethodDescriptorTest {
 
         assertThat(descriptor, is(notNullValue()));
         assertThat(descriptor.name(), is("foo"));
-        assertThat(descriptor.metricType(), is(MetricType.INVALID));
+        assertThat(descriptor.metricType(), nullValue());
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(0));
 
@@ -69,7 +70,7 @@ public class ClientMethodDescriptorTest {
 
         assertThat(descriptor2, is(notNullValue()));
         assertThat(descriptor2.name(), is("bar"));
-        assertThat(descriptor2.metricType(), is(MetricType.INVALID));
+        assertThat(descriptor2.metricType(), nullValue());
         assertThat(descriptor2.context(), is(notNullValue()));
         assertThat(descriptor2.context().size(), is(0));
 
@@ -197,7 +198,7 @@ public class ClientMethodDescriptorTest {
 
         assertThat(descriptor, is(notNullValue()));
         assertThat(descriptor.name(), is("foo"));
-        assertThat(descriptor.metricType(), is(MetricType.INVALID));
+        assertThat(descriptor.metricType(), nullValue());
         assertThat(descriptor.context(), is(notNullValue()));
         assertThat(descriptor.context().size(), is(1));
         assertThat(descriptor.context().get(key), is("test-value"));
@@ -465,7 +466,7 @@ public class ClientMethodDescriptorTest {
             assertThat(cmd.descriptor().getRequestMarshaller().getClass().getName(), equalTo(JavaMarshaller.class.getName()));
             assertThat(cmd.descriptor().getResponseMarshaller().getClass().getName(), equalTo(JavaMarshaller.class.getName()));
             assertThat(cmd.descriptor().getType(), equalTo(type));
-            assertThat(cmd.metricType(), equalTo(MetricType.INVALID));
+            assertThat(cmd.metricType(), nullValue());
 
             // Check Marshallers
             assertThat(cmd.descriptor().getRequestMarshaller().getClass().getName(), equalTo(JavaMarshaller.class.getName()));

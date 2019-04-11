@@ -33,9 +33,13 @@ import org.eclipse.microprofile.metrics.MetricType;
 import static io.helidon.grpc.core.GrpcHelper.extractNamePrefix;
 
 /**
- * Encapsulates all metadata necessary to define a gRPC method. In addition to wrapping a
- * {@link io.grpc.MethodDescriptor}, this class also holds the request and response
- * types of the gRPC method.
+ * Encapsulates all metadata necessary to define a gRPC method. In addition to wrapping a {@link io.grpc.MethodDescriptor},
+ * this class also holds the request and response types of the gRPC method. A
+ * {@link io.helidon.grpc.client.ClientServiceDescriptor} can contain zero or more {@link io.grpc.MethodDescriptor}.
+ *
+ * An instance of ClientMethodDescriptor can be created either from an existing {@link io.grpc.MethodDescriptor} or from
+ * one of the factory methods like {@link io.helidon.grpc.client.ClientMethodDescriptor#unary(String, Class, Class)}, or
+ * {@link io.helidon.grpc.client.ClientMethodDescriptor#clientStreaming(String, Class, Class)} etc.
  *
  * @param <ReqT> request type
  * @param <ResT> response type
@@ -58,12 +62,12 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
     /**
      * The metric type to be used for collecting method level metrics.
      */
-    private MetricType metricType = MetricType.INVALID;
+    private MetricType metricType;
 
     /**
      * The context to be used for method invocation.
      */
-    private Map<Context.Key, Object> context = new HashMap<>();
+    private Map<Context.Key, Object> context;
 
     /**
      * The type of the request parameter of this method.
@@ -78,24 +82,22 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
     /**
      * The list of client interceptors for this method.
      */
-    private ArrayList<ClientInterceptor> interceptors = new ArrayList<>();
+    private ArrayList<ClientInterceptor> interceptors;
 
-    private ClientMethodDescriptor(String name) {
+    private ClientMethodDescriptor(String name,
+                                  MethodDescriptor<ReqT, ResT> descriptor,
+                                  MetricType metricType,
+                                  Map<Context.Key, Object> context,
+                                  Class requestType,
+                                  Class responseType,
+                                  ArrayList<ClientInterceptor> interceptors) {
         this.name = name;
-    }
-
-    @SuppressWarnings("unchecked")
-    private ClientMethodDescriptor(ClientMethodDescriptor other) {
-        // The members in this class are not final so that the Builder can construct it much
-        // more easily than having to worry about the correct order of a large number of parameters
-        // in this constructor.
-        this.name = other.name;
-        this.requestType = other.requestType;
-        this.responseType = other.responseType;
-        this.metricType = other.metricType;
-        this.descriptor = other.descriptor;
-        this.interceptors.addAll(other.interceptors);
-        this.context.putAll(other.context);
+        this.descriptor = descriptor;
+        this.metricType = metricType;
+        this.context = context;
+        this.requestType = requestType;
+        this.responseType = responseType;
+        this.interceptors = interceptors;
     }
 
     /**
@@ -110,8 +112,7 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
     static <ReqT, ResT> Builder<ReqT, ResT> builder(String simpleName, io.grpc.MethodDescriptor<ReqT, ResT> descriptor) {
         String fullName = descriptor.getFullMethodName();
         int index = fullName.lastIndexOf('/');
-        String prefix = index == -1 ? "" : fullName.substring(0, index);
-        return new Builder<>(prefix + "/" + simpleName, descriptor);
+        return new Builder<>(fullName.substring(0, index) + "/" + simpleName, descriptor);
     }
 
     /**
@@ -417,10 +418,15 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
     public static class Builder<ReqT, ResT>
             implements Config<ReqT, ResT> {
 
-        // This is the currently built ClientMethodDescriptor.
-        private ClientMethodDescriptor<ReqT, ResT> cmd;
-
+        private String name;
+        private io.grpc.MethodDescriptor<ReqT, ResT> descriptor;
+        private MetricType metricType;
+        private Map<Context.Key, Object> context = new HashMap<>();
+        private Class requestType;
+        private Class responseType;
+        private ArrayList<ClientInterceptor> interceptors = new ArrayList<>();
         private io.grpc.MethodDescriptor.Builder<ReqT, ResT> descBuilder;
+
         /**
          * Constructs a new Builder instance.
          *
@@ -437,12 +443,8 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
          * @param descriptor The gRPC method descriptor.
          */
         Builder(String fullName, MethodDescriptor<ReqT, ResT> descriptor) {
-            int index = fullName.lastIndexOf('/');
-            String prefix = index == -1 ? "" : fullName.substring(0, index);
-            String simpleName = index == -1 ? fullName : fullName.substring(index + 1);
-
-            cmd = new ClientMethodDescriptor<>(simpleName);
-            this.descBuilder = descriptor.toBuilder().setFullMethodName(prefix + "/" + simpleName);
+            this.descBuilder = descriptor.toBuilder();
+            fullName(fullName);
         }
 
         @Override
@@ -483,8 +485,7 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
          */
         public Builder<ReqT, ResT> name(String name) {
             String prefix = extractNamePrefix(descBuilder.build().getFullMethodName());
-            String fullName = prefix + "/" + name;
-            return fullName(fullName);
+            return fullName(prefix + "/" + name);
         }
 
         /**
@@ -495,50 +496,48 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
          */
         public Builder<ReqT, ResT> fullName(String fullName) {
             descBuilder.setFullMethodName(fullName);
-            String prefix = extractNamePrefix(fullName);
-            String simpleName = fullName.substring(prefix.length() + 1);
-            cmd.name = simpleName;
+            this.name = fullName.substring(fullName.lastIndexOf('/') + 1);
             return this;
         }
 
         private Builder<ReqT, ResT> metricType(MetricType metricType) {
-            cmd.metricType = metricType;
+            this.metricType = metricType;
             return this;
         }
 
         @Override
         public <T> Builder<ReqT, ResT> addContextKey(Context.Key<T> key, T value) {
-            cmd.context.put(Objects.requireNonNull(key, "The context key cannot be null"), value);
+            this.context.put(Objects.requireNonNull(key, "The context key cannot be null"), value);
             return this;
         }
 
         @Override
         public Builder<ReqT, ResT> requestType(Class type) {
-            cmd.requestType = type;
+            this.requestType = type;
             return this;
         }
 
         @Override
         public Builder<ReqT, ResT> responseType(Class type) {
-            cmd.responseType = type;
+            this.responseType = type;
             return this;
         }
 
         @Override
         public Builder<ReqT, ResT> intercept(ClientInterceptor... interceptors) {
-            Collections.addAll(cmd.interceptors, interceptors);
+            Collections.addAll(this.interceptors, interceptors);
             return this;
         }
 
         // Internal method
         private Builder<ReqT, ResT> intercept(ArrayList<ClientInterceptor> interceptors) {
-            cmd.interceptors.addAll(interceptors);
+            this.interceptors.addAll(interceptors);
             return this;
         }
 
         // Internal method
         private Builder<ReqT, ResT> context(Map<Context.Key, Object> ctx) {
-            cmd.context.putAll(ctx);
+            this.context.putAll(ctx);
             return this;
         }
 
@@ -547,15 +546,23 @@ public final class ClientMethodDescriptor<ReqT, ResT> {
          *
          * @return A new instance of {@link ClientMethodDescriptor}.
          */
+        @SuppressWarnings("unchecked")
         public ClientMethodDescriptor<ReqT, ResT> build() {
-            if (cmd.requestType != null) {
-                descBuilder.setRequestMarshaller(MarshallerSupplier.defaultInstance().get(cmd.requestType));
+            if (this.requestType != null) {
+                descBuilder.setRequestMarshaller(MarshallerSupplier.defaultInstance().get(this.requestType));
             }
-            if (cmd.responseType != null) {
-                descBuilder.setResponseMarshaller(MarshallerSupplier.defaultInstance().get(cmd.responseType));
+            if (this.responseType != null) {
+                descBuilder.setResponseMarshaller(MarshallerSupplier.defaultInstance().get(this.responseType));
             }
-            cmd.descriptor = descBuilder.build();
-            return new ClientMethodDescriptor<>(cmd);
+
+            this.descriptor = descBuilder.build();
+            return new ClientMethodDescriptor<>(name,
+                                                descriptor,
+                                                metricType,
+                                                context,
+                                                requestType,
+                                                responseType,
+                                                interceptors);
         }
 
     }

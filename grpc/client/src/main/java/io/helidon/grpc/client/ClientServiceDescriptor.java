@@ -63,37 +63,20 @@ public class ClientServiceDescriptor {
 
     private String serviceName;
     private Map<String, ClientMethodDescriptor> methods;
-    private List<ClientInterceptor> interceptors;
+    private LinkedList<ClientInterceptor> interceptors;
     private Map<Context.Key<?>, Object> context;
     private MetricType metricType;
-    private Class<?> serviceClass;
-    private Descriptors.FileDescriptor proto;
-    private MarshallerSupplier marshallerSupplier;
 
-    private ClientServiceDescriptor() {
-        this.methods = new HashMap<>();
-        this.interceptors = new LinkedList<>();
-        this.context = new HashMap<>();
-        this.metricType = MetricType.INVALID;
-        this.marshallerSupplier = MarshallerSupplier.defaultInstance();
-    }
-
-    /**
-     * Construct a new ClientServiceDescriptor from the specified ClientServiceDescriptor. Used by
-     * the {@link ClientServiceDescriptor.Builder}.
-     *
-     * @param other The other ClientServiceDescriptor to initialize from.
-     */
-    private ClientServiceDescriptor(ClientServiceDescriptor other) {
-        this();
-        this.serviceClass = other.serviceClass;
-        this.serviceName = other.serviceName;
-        this.proto = other.proto;
-        this.marshallerSupplier = other.marshallerSupplier;
-        this.methods.putAll(other.methods);
-        this.interceptors.addAll(other.interceptors);
-        this.context.putAll(other.context);
-        this.metricType = other.metricType;
+    private ClientServiceDescriptor(String serviceName,
+                                   Map<String, ClientMethodDescriptor> methods,
+                                   LinkedList<ClientInterceptor> interceptors,
+                                   Map<Context.Key<?>, Object> context,
+                                   MetricType metricType) {
+        this.serviceName = serviceName;
+        this.methods = methods;
+        this.interceptors = interceptors;
+        this.context = context;
+        this.metricType = metricType;
     }
 
     /**
@@ -126,7 +109,7 @@ public class ClientServiceDescriptor {
      */
     public static Builder builder(String serviceName,
                                   Class serviceClass) {
-        return builder(serviceName, serviceClass, Collections.EMPTY_LIST, null);
+        return builder(serviceName, serviceClass, Collections.emptyList(), null);
     }
 
     /**
@@ -201,30 +184,6 @@ public class ClientServiceDescriptor {
      */
     public MetricType metricType() {
         return metricType;
-    }
-
-    /**
-     * Return the service class.
-     * @return The service class.
-     */
-    public Class<?> serviceClass() {
-        return serviceClass;
-    }
-
-    /**
-     * Return the protobuf file descriptor. This could be null if this ClientServiceDescriptor was built without a proto file.
-     * @return The protobuf file descriptor. This could be null if this ClientServiceDescriptor was built without a proto file.
-     */
-    public Descriptors.FileDescriptor proto() {
-        return proto;
-    }
-
-    /**
-     * Return the MarshallerSupplier. This could be null if this ClientServiceDescriptor was built with a proto file.
-     * @return The MarshallerSupplier. This could be null if this ClientServiceDescriptor was built with a proto file.
-     */
-    public MarshallerSupplier marshallerSupplier() {
-        return marshallerSupplier;
     }
 
     // ---- inner interface: Config -----------------------------------------
@@ -397,6 +356,13 @@ public class ClientServiceDescriptor {
         Config counted();
 
         /**
+         * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Gauge}.
+         *
+         * @return this {@link Config} instance for fluent call chaining
+         */
+        Config gauged();
+
+        /**
          * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Meter}.
          *
          * @return this {@link Config} instance for fluent call chaining
@@ -425,22 +391,6 @@ public class ClientServiceDescriptor {
         Config disableMetrics();
     }
 
-    // ---- inner class: Aware ----------------------------------------------
-
-    /**
-     * Allows users to specify that they would like to have access to a
-     * {@link ClientServiceDescriptor} within their {@link ClientInterceptor}
-     * implementation.
-     */
-    public interface Aware {
-        /**
-         * Set service getDescriptor.
-         *
-         * @param descriptor service getDescriptor instance
-         */
-        void setServiceDescriptor(ClientServiceDescriptor descriptor);
-    }
-
     // ---- inner class: BaseBuilder --------------------------------------------
 
     /**
@@ -448,17 +398,15 @@ public class ClientServiceDescriptor {
      */
     public static final class Builder
             implements Config, io.helidon.common.Builder<ClientServiceDescriptor> {
-
-        // This is the {@link ClientServiceDescriptor} that is currently built. This is
-        // *not* returned from the build() method but rather used to construct a new
-        // instance of ClientServiceDescriptor.
-        private ClientServiceDescriptor current = new ClientServiceDescriptor();
+        private String serviceName;
+        private LinkedList<ClientInterceptor> interceptors = new LinkedList<>();
+        private Map<Context.Key<?>, Object> context = new HashMap<>();
+        private MetricType metricType;
+        private Class<?> serviceClass;
+        private Descriptors.FileDescriptor proto;
+        private MarshallerSupplier marshallerSupplier = MarshallerSupplier.defaultInstance();
 
         private Map<String, ClientMethodDescriptor.Builder> methodBuilders = new HashMap<>();
-
-        private Builder(String serviceName, Class serviceClass) {
-            name(serviceName).serviceClass(serviceClass);
-        }
 
         /**
          * Builds the ClientService from the protoc generated classes. This is typically used
@@ -488,7 +436,6 @@ public class ClientServiceDescriptor {
             initialize(serviceName, serviceClass, methodDescriptors, schema);
         }
 
-        @SuppressWarnings("unchecked")
         private void initialize(String serviceName,
                                 Class serviceClass,
                                 Collection<MethodDescriptor<?, ?>> methodDescriptors,
@@ -519,9 +466,9 @@ public class ClientServiceDescriptor {
                 throw new IllegalArgumentException("Service getName cannot be blank");
             }
 
-            this.current.serviceName = serviceName.trim();
+            this.serviceName = serviceName.trim();
             for (Map.Entry<String, ClientMethodDescriptor.Builder> e : methodBuilders.entrySet()) {
-                e.getValue().fullName(io.grpc.MethodDescriptor.generateFullMethodName(this.current.serviceName, e.getKey()));
+                e.getValue().fullName(io.grpc.MethodDescriptor.generateFullMethodName(this.serviceName, e.getKey()));
             }
             return this;
         }
@@ -532,7 +479,7 @@ public class ClientServiceDescriptor {
          * @return This {@link io.helidon.grpc.client.ClientServiceDescriptor.Builder} instance for fluent API.
          */
         public Builder serviceClass(Class clz) {
-            this.current.serviceClass = clz;
+            this.serviceClass = clz;
             return this;
         }
 
@@ -542,13 +489,14 @@ public class ClientServiceDescriptor {
          * @param methodDescriptors The descriptors.
          * @return This {@link io.helidon.grpc.client.ClientServiceDescriptor.Builder} instance for fluent API.
          */
+        @SuppressWarnings("unchecked")
         public Builder descriptors(Collection<MethodDescriptor<?, ?>> methodDescriptors) {
-            for (io.grpc.MethodDescriptor md : methodDescriptors) {
+            for (io.grpc.MethodDescriptor<?, ?> md : methodDescriptors) {
                 String methodName = extractMethodName(md.getFullMethodName());
                 ClientMethodDescriptor.Builder cmdBuilder = ClientMethodDescriptor.builder(md);
-                cmdBuilder.fullName(this.current.serviceName + "/" + methodName);
+                cmdBuilder.fullName(this.serviceName + "/" + methodName);
 
-                if (this.current.proto != null) {
+                if (this.proto != null) {
                     Class requestType = getTypeFromMethodDescriptor(methodName, true);
                     Class responseType = getTypeFromMethodDescriptor(methodName, false);
 
@@ -569,13 +517,13 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder proto(Descriptors.FileDescriptor proto) {
-            this.current.proto = proto;
+            this.proto = proto;
             return this;
         }
 
         @Override
         public Builder marshallerSupplier(MarshallerSupplier marshallerSupplier) {
-            this.current.marshallerSupplier = marshallerSupplier;
+            this.marshallerSupplier = marshallerSupplier;
             return this;
         }
 
@@ -629,8 +577,8 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder intercept(ClientInterceptor... interceptors) {
-            Collections.addAll(this.current.interceptors, interceptors);
-            System.out.println("Added interceptor; Count: " + this.current.interceptors.size());
+            Collections.addAll(this.interceptors, interceptors);
+            System.out.println("Added interceptor; Count: " + this.interceptors.size());
             return this;
         }
 
@@ -649,7 +597,7 @@ public class ClientServiceDescriptor {
 
         @Override
         public <V> Builder addContextValue(Context.Key<V> key, V value) {
-            this.current.context.put(key, value);
+            this.context.put(key, value);
             return this;
         }
 
@@ -657,7 +605,10 @@ public class ClientServiceDescriptor {
         public Builder counted() {
             return metricType(MetricType.COUNTER);
         }
-
+        @Override
+        public Builder gauged() {
+            return metricType(MetricType.GAUGE);
+        }
         @Override
         public Builder metered() {
             return metricType(MetricType.METERED);
@@ -679,25 +630,26 @@ public class ClientServiceDescriptor {
         }
 
         private Builder metricType(MetricType metricType) {
-            this.current.metricType = metricType;
+            this.metricType = metricType;
             return this;
         }
 
         public Descriptors.FileDescriptor getProto() {
-            return current.proto;
+            return proto;
         }
 
         @Override
         public ClientServiceDescriptor build() {
             Map<String, ClientMethodDescriptor> methods = new LinkedHashMap<>();
-            this.current.methods = methods;
-
             for (Map.Entry<String, ClientMethodDescriptor.Builder> entry : methodBuilders.entrySet()) {
-                entry.getValue();
                 methods.put(entry.getKey(), entry.getValue().build());
             }
 
-            return new ClientServiceDescriptor(current);
+            return new ClientServiceDescriptor(serviceName,
+                                               methods,
+                                               interceptors,
+                                               context,
+                                               metricType);
         }
 
         // ---- helpers -----------------------------------------------------
@@ -726,7 +678,8 @@ public class ClientServiceDescriptor {
          * @return The current builder.
          */
         public <ReqT, ResT> Builder registerMethod(ClientMethodDescriptor<ReqT, ResT> cmd) {
-            methodBuilders.put(cmd.name(), cmd.toBuilder().fullName(this.current.serviceName + "/" + cmd.name()));
+            ClientMethodDescriptor.Builder bldr = cmd.toBuilder().fullName(this.serviceName + "/" + cmd.name());
+            methodBuilders.put(cmd.name(), bldr);
             return this;
         }
 
@@ -749,10 +702,10 @@ public class ClientServiceDescriptor {
                 Consumer<ClientMethodDescriptor.Config<ReqT, ResT>> configurer) {
 
             io.grpc.MethodDescriptor<ReqT, ResT> grpcDesc = io.grpc.MethodDescriptor.<ReqT, ResT>newBuilder()
-                    .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.current.serviceName, methodName))
+                    .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.serviceName, methodName))
                     .setType(methodType)
-                    .setRequestMarshaller(this.current.marshallerSupplier.get(requestType))
-                    .setResponseMarshaller(this.current.marshallerSupplier.get(responseType))
+                    .setRequestMarshaller(this.marshallerSupplier.get(requestType))
+                    .setResponseMarshaller(this.marshallerSupplier.get(responseType))
                     .build();
 
             ClientMethodDescriptor.Builder<ReqT, ResT> builder = ClientMethodDescriptor.builder(grpcDesc);
@@ -769,14 +722,14 @@ public class ClientServiceDescriptor {
             // protobuf for marshalling and that whichever marshaller is used
             // doesn't need type information (basically, that the serialized
             // stream is self-describing)
-            if (current.proto == null) {
+            if (proto == null) {
                 return Object.class;
             }
 
             // todo: add error handling here, and fail fast with a more
             // todo: meaningful exception (and message) than a NPE
             // todo: if the service or the method cannot be found
-            Descriptors.ServiceDescriptor svc = current.proto.findServiceByName(current.serviceName);
+            Descriptors.ServiceDescriptor svc = proto.findServiceByName(serviceName);
             Descriptors.MethodDescriptor mtd = svc.findMethodByName(methodName);
             Descriptors.Descriptor type = fInput ? mtd.getInputType() : mtd.getOutputType();
 
@@ -791,8 +744,8 @@ public class ClientServiceDescriptor {
             // be loaded by the same class loader that loaded the service class,
             // as the service implementation is bound to depend on them
             try {
-                return current.serviceClass != null
-                        ? current.serviceClass.getClassLoader().loadClass(className)
+                return serviceClass != null
+                        ? serviceClass.getClassLoader().loadClass(className)
                         : this.getClass().getClassLoader().loadClass(className);
             } catch (ClassNotFoundException e) {
                 throw new RuntimeException(e);
@@ -800,12 +753,12 @@ public class ClientServiceDescriptor {
         }
 
         private String getPackageName() {
-            String pkg = current.proto.getOptions().getJavaPackage();
-            return "".equals(pkg) ? current.proto.getPackage() : pkg;
+            String pkg = proto.getOptions().getJavaPackage();
+            return "".equals(pkg) ? proto.getPackage() : pkg;
         }
 
         private String getOuterClassName() {
-            DescriptorProtos.FileOptions options = current.proto.getOptions();
+            DescriptorProtos.FileOptions options = proto.getOptions();
             if (options.getJavaMultipleFiles()) {
                 // there is no outer class -- each message will have its own top-level class
                 return "";
@@ -813,7 +766,7 @@ public class ClientServiceDescriptor {
 
             String outerClass = options.getJavaOuterClassname();
             if ("".equals(outerClass)) {
-                outerClass = getOuterClassFromFileName(current.proto.getName());
+                outerClass = getOuterClassFromFileName(proto.getName());
             }
 
             // append $ in order to timed a proper binary getName for the nested message class

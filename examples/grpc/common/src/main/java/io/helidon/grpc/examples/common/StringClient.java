@@ -16,6 +16,10 @@
 
 package io.helidon.grpc.examples.common;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
+
 import io.helidon.grpc.examples.common.Strings.StringMessage;
 
 import io.grpc.Channel;
@@ -41,45 +45,60 @@ public class StringClient {
         Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408).usePlaintext().build();
 
         StringServiceGrpc.StringServiceStub stub = StringServiceGrpc.newStub(channel);
-        stub.lower(stringMessage("Convert To Lowercase"), new PrintObserver<>());
-        Thread.sleep(500L);
-        stub.upper(stringMessage("Convert to Uppercase"), new PrintObserver<>());
-        Thread.sleep(500L);
-        stub.split(stringMessage("Let's split some text"), new PrintObserver<>());
-        Thread.sleep(500L);
+        FutureObserver observerLower = new FutureObserver();
+        FutureObserver observerUpper = new FutureObserver();
+        FutureObserver observerJoin = new FutureObserver();
+        FutureObserver observerSplit = new FutureObserver();
+        FutureObserver observerEcho = new FutureObserver();
 
-        StreamObserver<StringMessage> sender = stub.join(new PrintObserver<>());
+        stub.lower(stringMessage("Convert To Lowercase"), observerLower);
+
+        stub.upper(stringMessage("Convert to Uppercase"), observerUpper);
+
+        stub.split(stringMessage("Let's split some text"), observerSplit);
+
+
+        StreamObserver<StringMessage> sender = stub.join(observerJoin);
         sender.onNext(stringMessage("Let's"));
         sender.onNext(stringMessage("join"));
         sender.onNext(stringMessage("some"));
         sender.onNext(stringMessage("text"));
         sender.onCompleted();
-        Thread.sleep(500L);
 
-        sender = stub.echo(new PrintObserver<>());
+        sender = stub.echo(observerEcho);
         sender.onNext(stringMessage("Let's"));
         sender.onNext(stringMessage("echo"));
         sender.onNext(stringMessage("some"));
         sender.onNext(stringMessage("text"));
         sender.onCompleted();
-        Thread.sleep(500L);
+
+        System.out.println(observerLower.get());
+        System.out.println(observerUpper.get());
+        System.out.println(observerSplit.get());
+        System.out.println(observerJoin.get());
+        System.out.println(observerEcho.get());
     }
 
     private static StringMessage stringMessage(String text) {
         return StringMessage.newBuilder().setText(text).build();
     }
 
-    static class PrintObserver<T> implements StreamObserver<T> {
-        public void onNext(T value) {
-            System.out.println(value);
+    static class FutureObserver
+            extends CompletableFuture<List<String>>
+            implements StreamObserver<StringMessage> {
+
+        private List<String> values = new ArrayList<>();
+
+        public void onNext(StringMessage value) {
+            values.add(value.getText());
         }
 
         public void onError(Throwable t) {
-            t.printStackTrace();
+            completeExceptionally(t);
         }
 
         public void onCompleted() {
-            System.out.println("<completed>");
+            complete(values);
         }
     }
 }

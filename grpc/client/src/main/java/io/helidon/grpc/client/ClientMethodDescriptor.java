@@ -70,9 +70,9 @@ public final class ClientMethodDescriptor {
      * @param descriptor  the underlying gRPC {@link io.grpc.MethodDescriptor.Builder}
      * @return A new instance of a {@link ClientMethodDescriptor.Builder}
      */
-    static  Builder builder(String serviceName,
-                                                    String name,
-                                                    io.grpc.MethodDescriptor.Builder descriptor) {
+    static Builder builder(String serviceName,
+                           String name,
+                           io.grpc.MethodDescriptor.Builder descriptor) {
         return new Builder(serviceName, name, descriptor);
     }
 
@@ -85,9 +85,9 @@ public final class ClientMethodDescriptor {
      * @param descriptor  the underlying gRPC {@link io.grpc.MethodDescriptor.Builder}
      * @return a new instance of a {@link ClientMethodDescriptor.Builder}
      */
-    static  ClientMethodDescriptor create(String serviceName,
-                                          String name,
-                                          io.grpc.MethodDescriptor.Builder descriptor) {
+    static ClientMethodDescriptor create(String serviceName,
+                                         String name,
+                                         io.grpc.MethodDescriptor.Builder descriptor) {
         return builder(serviceName, name, descriptor).build();
     }
 
@@ -99,7 +99,7 @@ public final class ClientMethodDescriptor {
      * @param name        the method name
      * @return a new instance of a {@link ClientMethodDescriptor.Builder}
      */
-    static  ClientMethodDescriptor.Builder unary(String serviceName, String name) {
+    static ClientMethodDescriptor.Builder unary(String serviceName, String name) {
         return builder(serviceName, name, MethodDescriptor.MethodType.UNARY);
     }
 
@@ -111,7 +111,7 @@ public final class ClientMethodDescriptor {
      * @param name        the method name
      * @return a new instance of a {@link ClientMethodDescriptor.Builder}
      */
-    static  ClientMethodDescriptor.Builder clientStreaming(String serviceName, String name) {
+    static ClientMethodDescriptor.Builder clientStreaming(String serviceName, String name) {
         return builder(serviceName, name, MethodDescriptor.MethodType.CLIENT_STREAMING);
     }
 
@@ -123,7 +123,7 @@ public final class ClientMethodDescriptor {
      * @param name        the method name
      * @return a new instance of a {@link ClientMethodDescriptor.Builder}
      */
-    static  ClientMethodDescriptor.Builder serverStreaming(String serviceName, String name) {
+    static ClientMethodDescriptor.Builder serverStreaming(String serviceName, String name) {
         return builder(serviceName, name, MethodDescriptor.MethodType.SERVER_STREAMING);
     }
 
@@ -135,7 +135,7 @@ public final class ClientMethodDescriptor {
      * @param name        the method name
      * @return a new instance of a {@link ClientMethodDescriptor.Builder}
      */
-    static  ClientMethodDescriptor.Builder bidirectional(String serviceName, String name) {
+    static ClientMethodDescriptor.Builder bidirectional(String serviceName, String name) {
         return builder(serviceName, name, MethodDescriptor.MethodType.BIDI_STREAMING);
     }
 
@@ -147,9 +147,9 @@ public final class ClientMethodDescriptor {
      * @param methodType  the gRPC method type
      * @return a new instance of a {@link ClientMethodDescriptor.Builder}
      */
-    static  ClientMethodDescriptor.Builder builder(String serviceName,
-                                                   String name,
-                                                   MethodDescriptor.MethodType methodType) {
+    static ClientMethodDescriptor.Builder builder(String serviceName,
+                                                  String name,
+                                                  MethodDescriptor.MethodType methodType) {
 
         MethodDescriptor.Builder builder = MethodDescriptor.newBuilder()
                 .setFullMethodName(serviceName + "/" + name)
@@ -172,9 +172,8 @@ public final class ClientMethodDescriptor {
     /**
      * Returns the {@link io.grpc.MethodDescriptor} of this method.
      *
-     * @param <ReqT> the request type
+     * @param <ReqT>  the request type
      * @param <RespT> the response type
-     *
      * @return The {@link io.grpc.MethodDescriptor} of this method.
      */
     @SuppressWarnings("unchecked")
@@ -249,8 +248,8 @@ public final class ClientMethodDescriptor {
          * Constructs a new Builder instance.
          *
          * @param serviceName The name of the service ths method belongs to
-         * @param name the name of this method
-         * @param descriptor The gRPC method descriptor builder
+         * @param name        the name of this method
+         * @param descriptor  The gRPC method descriptor builder
          */
         Builder(String serviceName, String name, MethodDescriptor.Builder descriptor) {
             this.name = name;

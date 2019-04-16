@@ -1,0 +1,129 @@
+///////////////////////////////////////////////////////////////////////////////
+
+    Copyright (c) 2019 Oracle and/or its affiliates. All rights reserved.
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+///////////////////////////////////////////////////////////////////////////////
+
+:javadoc-base-url-api: {javadoc-base-url}?io/helidon/grpc/server
+:pagename: grpc-client-configuration
+:description: Helidon gRPC Client Configuration
+:keywords: helidon, grpc, java, configuration
+
+= gRPC Client Configuration
+
+Configure the gRPC client using the Helidon configuration framework, either programmatically or via a configuration file.
+
+As mentioned earlier, creating a `GRPCServiceClient` involves:
+
+1. Creating a `ClientServiceDescriptor` which describes the methods in the service that this client can invoke.
+2. Creating a gRPC Channel through which the Client communicates with the server.
+
+Both of the above can be configured using the Helidon configuration framework, either programmatically
+or via a configuration file.`
+
+== Configuring the ClientServiceDescriptor
+
+=== Configuring the ClientServiceDescriptor in your code
+
+The easiest way to configure the `ClientServiceDescriptor` is in your application code.
+
+[source,java]
+----
+ClientServiceDescriptor descriptor = ClientServiceDescriptor +
+        .builder(HelloService.class)    // (1)
+        .unary("SayHello")              // (2)
+        .build();                       // (3)
+----
+
+1. Create a  bui;der for a `ClientServiceDescriptor` for the `HelloService`.
+2. Specify that the `HelloService` has a unary method named `SayHello()`. There are many other methods n this class that allow you
+to define `ClientStreaming`, `ServerStreaming` and `Bidirectional Streaming` methods.
+3. Build the `ClientServiceDescriptor`.
+
+=== Configuring the `ClientServiceDescriptor` through a configuration file
+
+**_Not yet implemented_**
+
+You can also define the above service using a configuration file.
+
+[source,hocon]
+----
+grpcclient {
+    port: 1408,
+    name: HelloService,                         // (1)
+    methods {
+        unary [                                 // (2)
+            {name: "SayHello"}                  // (3)
+        ]
+    }
+}
+----
+
+1. Specifies the name of the service.
+2. Specifies the set of unary methods.
+3. In our case, we have one unary method named "SayHello".
+
+Assuming that the above Hocon is stored in a file called "hello-service-client.conf", then in your application code,
+you can load the configuration from that file.
+
+[source,java]
+----
+ClientServiceDescriptor descriptor = ClientServiceDescriptor.from("hello-service-client.conf")
+                                                            .build()                                // (1)
+----
+
+1. Create a `ClientServiceDescriptor` for the `HelloService` whose methods are described in the
+configuration file named "hello-service-client.conf". The configuration specifies tha this client
+can access the "Unary" method named "SayHello" in the service.
+
+
+
+A slightly more complex example of the configuration file is given below:
+
+[source,hocon]
+----
+grpcclient {
+    port: 1408,
+    name: AddressBook,                          // (1)
+    methods {
+        unary [                                 // (2)
+            {                                   // (3)
+                name: "getAddressById",
+                requestType: java.lang.Integer,
+                responseType: io.helidon.grpc.example.Person
+            }
+        ],
+        serverstreaming [                       // (4)
+            {                                   // (5)
+                name: "searchByZipcode",
+                requestType: java.lang.Integer,
+                responseType: io.helidon.grpc.example.Person
+            }
+    }
+}
+----
+
+== Configuring the gRPC Channel
+
+gRPC allows various channel configurations (deadlines, retries, interceptors etc.)
+
+Please refer to gRPC documentation: https://grpc.io/grpc-java/javadoc/io/grpc/ManagedChannelBuilder.html
+
+== Configuration options
+
+TBD
+
+
+

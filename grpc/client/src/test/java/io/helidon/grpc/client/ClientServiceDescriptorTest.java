@@ -222,6 +222,7 @@ public class ClientServiceDescriptorTest {
     @Test
     public void shouldAddUnaryMethodWithConfigurer() {
         ClientInterceptor interceptor = mock(ClientInterceptor.class);
+        ClientMethodDescriptor cmd =
         ClientServiceDescriptor descriptor = ClientServiceDescriptor.builder(TreeMapService.class)
                 .unary("foo", cfg -> cfg.intercept(interceptor))
                 .build();

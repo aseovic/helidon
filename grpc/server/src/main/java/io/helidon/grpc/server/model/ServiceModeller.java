@@ -89,7 +89,7 @@ public class ServiceModeller {
      * @param instance     the target instance to call gRPC handler methods on
      * @throws java.lang.NullPointerException if the service or instance parameters are null
      */
-    private ServiceModeller(Class<?> serviceClass, Supplier<?> instance) {
+    public ServiceModeller(Class<?> serviceClass, Supplier<?> instance) {
         this.serviceClass = Objects.requireNonNull(serviceClass);
         this.annotatedServiceClass = ModelHelper.getAnnotatedResourceClass(serviceClass, RpcService.class);
         this.instance = Objects.requireNonNull(instance);

@@ -38,8 +38,7 @@ service implementation. The benefits of using Helidon gRPC client framework incl
 
 == Client Implementation Basics
 
-* The first step to create a Helidon gRPC client application is to first describe the set of methods in the gRPC service. Helidon
-gRPC Client framework (simply called the "Client framework" in the remainder of the document) provides a class called
+* The first step to create a Helidon gRPC client application is to first describe the set of methods in the gRPC service. Helidon gRPC Client framework (simply called the "Client framework" in the remainder of the document) provides a class called
 `ClientServiceDescriptor` to describe the set of methods of a service that the client may invoke.
 
 * The next step is to create a gRPC Channel to use to communicate with the server.
@@ -77,13 +76,16 @@ message StringMessage {
 ----
 
 If you run it through protoc it will generate a class (among other things) called `StringServiceGrpc`.
-Assuming that the StringService is running on port 1408, here is how you can create the Helidon gRPC Client.
+Assuming that the StringService is running on port 1408, here is how you can create the Helidon gRPC
+Client that invokes various types of gRPC methods.
+
+=== Invoking a unary method on the StringService (generated from protoc)
 
 [source,java]
 ----
 public class StringServiceClient {
 
-    public static void main(String[] args) {
+    public void invokeUnaryMethod() {
         ClientServiceDescriptor desc = ClientServiceDescriptor
                 .builder(StringService.getServiceDescriptor())                  // (1)
                 .build();
@@ -109,6 +111,156 @@ each method its type (like Unary, ServerStreaming etc.), the appropriate Marshal
 and `Channel`.
 
 4. Finally, we invoke the `Lower` method (which returns a CompletableFuture).
+
+=== Invoking a client streaming method on the StringService (generated from protoc)
+
+[source,java]
+----
+public class StringServiceClient {
+
+    public void invokeClientStreamingMethod() {
+        ClientServiceDescriptor desc = ClientServiceDescriptor
+                .builder(StringService.getServiceDescriptor())                  // (1)
+                .build();
+
+        Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408)   // (2)
+                .usePlaintext().build();
+
+        GrpcServiceClient client = GrpcServiceClient.create(channel, desc);     // (3)
+
+        String sentence = "A simple invocation of a client streaming method";
+        Collection<StringMessage> input = Arrays.stream(sentence.split(" "))    // (4)
+                  .map(w -> StringMessage.newBuilder().setText(w).build())
+                  .collect(Collectors.toList());
+
+        CompletableFuture<StringMessage> result =
+                  grpcClient.clientStreaming("Join", input);                    // (5)
+    }
+
+}
+----
+
+1. Initialize the builder by specifying the `StringService`'s proto `ServiceDescriptor`. From
+the `ServiceDescriptor` the builder detects the service name, the set of method names, and for
+each method its type (like Unary, ServerStreaming etc.), the appropriate Marshallers etc.
+
+2. We create a `Channel` to the service that is running on `localhost:1408`.
+
+3. Finally, we create our `GrpcServiceClient` by using the above mentioned `ClientServiceDescriptor`
+and `Channel`.
+
+4. We prepare the collection that contains the values to be streamed.
+
+5. We call the `clientStreaming()` and the pass the collection to be streamed from the client.
+
+Note: The above helper method is useful if the values to be streamed is fixed and small in number.
+If the number of values to be streamed is large (or unknown), then it will be better to use another
+variant of the `clientStreaming()` method that takes a `io.grpc.StreamObserver` as an argument. This
+varient can be used to stream the values to the server.
+
+=== Invoking a server streaming method on the StringService (generated from protoc)
+
+Lets invoke the "Split" method which causes the server to stream the results back. We will use
+a helper class called `TestStreamObserver` to receive the streamed results.
+
+[source,java]
+----
+public class StringServiceClient {
+
+    public static class TestStreamObserver<T>
+        implements StreamObserver<T> {
+
+        @Override
+        public void onNext(T value) {
+            System.out.println("Received : " + value);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+          // This is called when an error occurs while receiving streamed results.
+        }
+
+        @Override
+        public void onCompleted() {
+          // This is called when all the results have been streamed back.
+        }
+    }
+}
+----
+
+Now lets invoke the `Split` method.
+
+[source,java]
+----
+public class StringServiceClient {
+
+    public void invokeServerStreamingMethod() {
+        ClientServiceDescriptor desc = ClientServiceDescriptor
+                .builder(StringService.getServiceDescriptor())                  // (1)
+                .build();
+
+        Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408)   // (2)
+                .usePlaintext().build();
+
+        GrpcServiceClient client = GrpcServiceClient.create(channel, desc);     // (3)
+
+        String sentence = "A simple invocation of a client streaming method";
+        StringMessage input = StringMessage.newBuilder().setText(sentence).build(); // (4)
+
+        TestStreamObserver<StringMessage> observer = new TestStreamObserver<>();  // (5)
+        grpcClient.serverStreaming("Split", input, observer);                     // (6)
+    }
+
+}
+----
+
+1. Initialize the builder by specifying the `StringService`'s proto `ServiceDescriptor`. From
+the `ServiceDescriptor` the builder detects the service name, the set of method names, and for
+each method its type (like Unary, ServerStreaming etc.), the appropriate Marshallers etc.
+
+2. We create a `Channel` to the service that is running on `localhost:1408`.
+
+3. Finally, we create our `GrpcServiceClient` by using the above mentioned `ClientServiceDescriptor`
+and `Channel`.
+
+4. We prepare the collection that contains the values to be streamed. In our example, we create
+the `StringMessage` that needs to be split.
+
+5. We create out `TestStreamObserver` which will receive the results streamed from the server.
+
+6. We call the `clientStreaming()` passing the input and out `TestStreamObserver` as arguments.
+
+=== Invoking a bi-directional streaming method on the StringService (generated from protoc)
+
+Now lets invoke the `Echo` method in which both the client and the server have to stream
+the request and response.
+
+[source,java]
+----
+public class StringServiceClient {
+
+    public void invokeBidiStreamingMethod() {
+        ClientServiceDescriptor desc = ClientServiceDescriptor
+                .builder(StringService.getServiceDescriptor())                  // (1)
+                .build();
+
+        Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408)   // (2)
+                .usePlaintext().build();
+
+        GrpcServiceClient client = GrpcServiceClient.create(channel, desc);     // (3)
+
+        String sentence = "A simple invocation of a bi-directional streaming method";
+        Collection<StringMessage> input = Arrays.stream(sentence.split(" "))    // (4)
+                  .map(w -> StringMessage.newBuilder().setText(w).build())
+                  .collect(Collectors.toList());
+
+
+        TestStreamObserver<StringMessage> observer = new TestStreamObserver<>();  // (5)
+        grpcClient.bidiStreaming("Split", input, observer);                       // (6)
+    }
+
+}
+----
 
 == Programmatically creating ClientServiceDescriptor for StringService
 
@@ -168,17 +320,19 @@ NOTE: The `unary` method shown in the example above is just one of many helper
       link:{javadoc-base-url-api}/GrpcServiceClient.html[here].
 
 The example above adds just one Unary method to our client service. We can add other
-types of methods (like server sttreamin, client streaming etc.) as well. Also, because
+types of methods (like server streaming, client streaming etc.) as well. Also, because
 we set the request and response types, the client framework will pick the correct
 (protbuf) Marshaller for the `Lower` method. If we didn't set the request and rsponse
 types, then Java serialization will be used as a default.
 
 == Creating gRPC clients for non protobuf services
 
-If your service is not using protobuf for serialization, then the Client framework allows
-you to programmatically create clients to invoke methods on the service.
+If your service is *not* using protobuf for serialization, then the Client framework allows
+you to programmatically initialize `ClientMethodDescriptor` and create clients to invoke
+methods on the service.
 
-Lets use the HelloService
+Lets see an example of creating a client for a service that uses Java serialization.
+
 [source,java]
 ----
 public static void main(String[] args) throws Exception {
@@ -192,10 +346,126 @@ public static void main(String[] args) throws Exception {
 
     GrpcServiceClient client = GrpcServiceClient.create(channel, descriptor);                   // (4)
 
-    CompletableFuture<String> future = client.unary("SayHello");                                // (5)
-    System.out.println(future.get());                                                           // (6)
+  String sentence = "A simple invocation of a client streaming method";
+  Collection<StringMessage> input = Arrays.stream(sentence.split(" "))
+                                        .map(w -> StringMessage.newBuilder().setText(w).build())
+                                        .collect(Collectors.toList());                              // (1)
 
+  CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input);
 }
 ----
 
+1. Create a `ClientService Descriptor` for the `HelloService`.
+2. Add the "SayHello" unary method to the `ClientDescriptor`. Since  we didn't set the request or response type (like
+we did in the previous section in steps 2 and 3), Java serialization will be used for Marshalling
+and Unmarshalling the request and response values.
+3. Create a gRPC Channel that is communicates with the server that is running in localhost and on port 1408 (using plaintext).
+4. Create the `GrpcServiceClient` that uses the above `channel` and `ClientServiceDescriptor`. `GrpcClientService` represents
+a "Client" that can be used to define the set of methods described by the specified `ClientServiceDescriptor`. In our case, the
+`ClientServiceDescriptor` defines one unary method called "SayHello".
+5. Invoke the `SayHello` method which returns a `CompletableFuture<String>`.
+6. Print the result.
+
+
+So far all of our examples have been about invoking unary methods. `GrpcServiceClient` also provides `serverStreaming()`,
+`clientStreaming()` and `bidirectional()` for the other three types of gRPC calls. We will look into each of them. We will
+use the same `StringService` for these calls.
+
+== Client streaming
+
+[source,java]
+----
+String sentence = "A simple invocation of a client streaming method";
+Collection<StringMessage> input = Arrays.stream(sentence.split(" "))
+                                        .map(w -> StringMessage.newBuilder().setText(w).build())
+                                        .collect(Collectors.toList());                              // (1)
+
+CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input);                // (2)
+----
+
+1. We prepare the collection that contains the values to be streamed.
+2. We call the `clientStreaming()` and the pass the collection to be streamed from the client.
+
+Note: The above helper method is useful if the values to be streamed is fixed and small in number.
+If the number of values to be streamed is large (or unknown), then it will be better to use another
+variant of the `clientStreaming()` method that takes a `io.grpc.StreamObserver`
+
+
+== Server streaming
+
+Lets see how to register and invoke the "Split" method which requires server streaming.
+
+[source,java]
+----
+String sentence = "A simple invocation of a client streaming method";
+Collection<StringMessage> input = Arrays.stream(sentence.split(" "))
+                                        .map(w -> StringMessage.newBuilder().setText(w).build())
+                                        .collect(Collectors.toList());                              // (1)
+
+CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input);                // (2)
+----
+
+1. We prepare the collection that contains the values to be streamed.
+2. We call the `clientStreaming()` and the pass the collection to be streamed from the client.
+
+Note: The above helper method is useful if the values to be streamed is fixed and small in number.
+If the number of values to be streamed is large (or unknown), then it will be better to use another
+variant of the `clientStreaming()` method that takes a `io.grpc.StreamObserver`.
+
+
+== Bidirectional streaming
+
+Lets see how to register and invoke the "Echo" method which requires bidirectional (both client and server) streaming.
+
+[source,java]
+----
+
+String sentence = "A simple invocation of a Bidi streaming method";
+
+TestStreamObserver<StringMessage> observer = new TestStreamObserver<>();                            // (1)
+StreamObserver<StringMessage> clientStream = grpcClient.bidiStreaming("Echo", observer);            // (2)
+
+for (String w : sentence.split(" ")) {
+    clientStream.onNext(StringMessage.newBuilder().setText(w).build());                             // (3)
+}
+clientStream.onCompleted();                                                                         // (4)
+
+Collection<StringMessage> input = Arrays.stream(sentence.split(" "))
+                                        .map(w -> StringMessage.newBuilder().setText(w).build())
+                                        .collect(Collectors.toList());                              // (1)
+
+CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input);                // (2)
+----
+
+Where TestStreamObserver is:
+
+[source,java]
+----
+
+public class TestStreamObserver<T>
+    implements StreamObserver<T> {
+
+    @Override
+    public void onNext(T value) {
+        System.out.println("Received : " + value);
+    }
+
+    @Override
+    public void onError(Throwable t) {
+    }
+
+    @Override
+    public void onCompleted() {
+    }
+}
+----
+
+1. We create a TestStreamObserver which basically implements the `io.grpc.StreamObserver`. In our example,
+we simply print the received values.
+2. We call the prepare the collection that contains the values to be streamed.
+3. We call the `clientStreaming()` and the pass the collection to be streamed from the client.
+
+Note: The above helper method is useful if the values to be streamed is fixed and small in number.
+If the number of values to be streamed is large (or unknown), then it will be better to use another
+variant of the `clientStreaming()` method that takes a `io.grpc.StreamObserver`.
 

@@ -35,6 +35,11 @@ public interface MarshallerSupplier {
     String PROTO = "proto";
 
     /**
+     * The name to use to specify the default marshaller supplier.
+     */
+    String DEFAULT = "default";
+
+    /**
      * Obtain a {@link MethodDescriptor.Marshaller} for a type.
      *
      * @param clazz  the {@link Class} of the type to obtain the {@link MethodDescriptor.Marshaller} for
@@ -56,7 +61,7 @@ public interface MarshallerSupplier {
     /**
      * The default {@link MarshallerSupplier}.
      */
-    @Named(RpcMarshaller.DEFAULT)
+    @Named(MarshallerSupplier.DEFAULT)
     class DefaultMarshallerSupplier
             implements MarshallerSupplier {
 

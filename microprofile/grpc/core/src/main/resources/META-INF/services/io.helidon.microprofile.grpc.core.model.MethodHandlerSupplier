@@ -13,5 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
-
-io.helidon.microprofile.grpc.example.basic.implicit.AdditionalServices
+io.helidon.microprofile.grpc.core.model.BidirectionalMethodHandlerSupplier
+io.helidon.microprofile.grpc.core.model.ClientStreamingMethodHandlerSupplier
+io.helidon.microprofile.grpc.core.model.ServerStreamingMethodHandlerSupplier
+io.helidon.microprofile.grpc.core.model.UnaryMethodHandlerSupplier

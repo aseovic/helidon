@@ -18,8 +18,6 @@ package io.helidon.grpc.core;
 
 import java.lang.reflect.Method;
 
-import io.helidon.grpc.core.model.AnnotatedMethod;
-
 import io.grpc.Context;
 import io.grpc.Metadata;
 
@@ -44,7 +42,7 @@ public final class ContextKeys {
     /**
      * The {@link Context.Key} to use to obtain the actual underlying rpc {@link Method}.
      */
-    public static final Context.Key<AnnotatedMethod> SERVICE_METHOD = Context.key(Method.class.getName());
+    public static final Context.Key<Method> SERVICE_METHOD = Context.key(Method.class.getName());
 
     /**
      * Private constructor for utility class.

@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-io.helidon.microprofile.grpc.example.basic.implicit.AdditionalServices
+io.helidon.microprofile.grpc.server.StubMarshaller$Supplier

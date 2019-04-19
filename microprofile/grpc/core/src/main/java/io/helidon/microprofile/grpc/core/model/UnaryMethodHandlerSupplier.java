@@ -22,6 +22,8 @@ import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
+import io.helidon.grpc.core.GrpcHelper;
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.core.proto.Types;
 
 import io.grpc.MethodDescriptor;
@@ -29,9 +31,7 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 /**
- * A supplier of {@link MethodHandler}s for unary gRPC methods.
- *
- * @author Jonathan Knight
+ * A supplier of {@link io.helidon.grpc.core.MethodHandler}s for unary gRPC methods.
  */
 public class UnaryMethodHandlerSupplier
         extends AbstractMethodHandlerSupplier {
@@ -49,7 +49,7 @@ public class UnaryMethodHandlerSupplier
     }
 
     @Override
-    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(AnnotatedMethod method, Supplier<?> instance) {
+    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(String methodName, AnnotatedMethod method, Supplier<?> instance) {
         if (!isRequiredMethodType(method)) {
             throw new IllegalArgumentException("Method not annotated as a unary method: " + method);
         }
@@ -59,34 +59,34 @@ public class UnaryMethodHandlerSupplier
 
         switch (type) {
         case requestResponse:
-            handler = new RequestResponse<>(method, instance);
+            handler = new RequestResponse<>(methodName, method, instance);
             break;
         case responseOnly:
-            handler = new ResponseOnly<>(method, instance);
+            handler = new ResponseOnly<>(methodName, method, instance);
             break;
         case requestNoResponse:
-            handler = new RequestNoResponse<>(method, instance);
+            handler = new RequestNoResponse<>(methodName, method, instance);
             break;
         case noRequestNoResponse:
-            handler = new NoRequestNoResponse<>(method, instance);
+            handler = new NoRequestNoResponse<>(methodName, method, instance);
             break;
         case futureResponse:
-            handler = new FutureResponse<>(method, instance);
+            handler = new FutureResponse<>(methodName, method, instance);
             break;
         case futureResponseNoRequest:
-            handler = new FutureResponseNoRequest<>(method, instance);
+            handler = new FutureResponseNoRequest<>(methodName, method, instance);
             break;
         case unary:
-            handler = new Unary<>(method, instance);
+            handler = new Unary<>(methodName, method, instance);
             break;
         case unaryRequest:
-            handler = new UnaryNoRequest<>(method, instance);
+            handler = new UnaryNoRequest<>(methodName, method, instance);
             break;
         case unaryFuture:
-            handler = new UnaryFuture<>(method, instance);
+            handler = new UnaryFuture<>(methodName, method, instance);
             break;
         case unaryFutureNoRequest:
-            handler = new UnaryFutureNoRequest<>(method, instance);
+            handler = new UnaryFutureNoRequest<>(methodName, method, instance);
             break;
         case unknown:
         default:
@@ -265,13 +265,69 @@ public class UnaryMethodHandlerSupplier
     public abstract static class AbstractUnaryHandler<ReqT, RespT>
             extends AbstractHandler<ReqT, RespT> {
 
-        AbstractUnaryHandler(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance, MethodDescriptor.MethodType.UNARY);
+        /**
+         * The argument to use for a {@code null} request parameter.
+         */
+        static final Types.Empty EMPTY = Types.Empty.getDefaultInstance();
+
+        AbstractUnaryHandler(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance, MethodDescriptor.MethodType.UNARY);
         }
 
         @Override
         protected StreamObserver<ReqT> invoke(Method method, Object instance, StreamObserver<RespT> observer) {
             throw Status.UNIMPLEMENTED.asRuntimeException();
+        }
+
+        Object invokeUnary(Object request, UnaryClient client) {
+            try {
+                return invokeUnaryAsync(request, client).get();
+            } catch (Throwable thrown) {
+                throw GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL);
+            }
+        }
+
+        CompletableFuture<Object> invokeUnaryAsync(Object request, UnaryClient client) {
+            try {
+                return client.unary(methodName(), request);
+            } catch (Throwable thrown) {
+                CompletableFuture<Object> future = new CompletableFuture<>();
+                future.completeExceptionally(GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL));
+                return future;
+            }
+        }
+
+        void invokeUnary(Object request, StreamObserver<Object> observer, UnaryClient client) {
+            try {
+                invokeUnaryAsync(request, client)
+                        .handle((response, error) -> {
+                            if (error == null) {
+                                observer.onNext(response);
+                                observer.onCompleted();
+                            } else {
+                                observer.onError(error);
+                            }
+                            return null;
+                        });
+            } catch (Throwable thrown) {
+                observer.onError(GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL));
+            }
+        }
+
+        void invokeUnaryAsync(Object request, CompletableFuture<Object> future, UnaryClient client) {
+            try {
+                invokeUnaryAsync(request, client)
+                        .handle((response, error) -> {
+                            if (error == null) {
+                                future.complete(response);
+                            } else {
+                                future.completeExceptionally(error);
+                            }
+                            return null;
+                        });
+            } catch (Throwable thrown) {
+                future.completeExceptionally(GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL));
+            }
         }
     }
 
@@ -289,8 +345,8 @@ public class UnaryMethodHandlerSupplier
     public static class RequestResponse<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        RequestResponse(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        RequestResponse(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(method.parameterTypes()[0]);
             setResponseType(method.returnType());
         }
@@ -302,6 +358,25 @@ public class UnaryMethodHandlerSupplier
             RespT response = (RespT) method.invoke(instance, request);
             observer.onNext(response);
             observer.onCompleted();
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     RestT invoke(ReqT request);
+         * </pre>
+         * so the request is in {@code args[0]}.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the request response
+         */
+        @Override
+        public Object unary(Object[] args, UnaryClient client) {
+            return invokeUnary(args[0], client);
         }
     }
 
@@ -319,8 +394,8 @@ public class UnaryMethodHandlerSupplier
     public static class ResponseOnly<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        ResponseOnly(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        ResponseOnly(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setResponseType(method.returnType());
         }
 
@@ -331,6 +406,26 @@ public class UnaryMethodHandlerSupplier
             RespT response = (RespT) method.invoke(instance);
             observer.onNext(response);
             observer.onCompleted();
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     RestT invoke();
+         * </pre>
+         * so there is no request parameter.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the request response
+         */
+        @Override
+        public Object unary(Object[] args, UnaryClient client) {
+            // no request parameter, we cannot send null so we send Types.Empty
+            return invokeUnary(EMPTY, client);
         }
     }
 
@@ -351,8 +446,8 @@ public class UnaryMethodHandlerSupplier
     public static class RequestNoResponse<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        RequestNoResponse(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        RequestNoResponse(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(method.parameterTypes()[0]);
         }
 
@@ -361,8 +456,29 @@ public class UnaryMethodHandlerSupplier
         protected void invoke(Method method, Object instance, ReqT request, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             method.invoke(instance, request);
-            observer.onNext((RespT) Types.Empty.getDefaultInstance());
+            observer.onNext((RespT) EMPTY);
             observer.onCompleted();
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     RestT invoke(ReqT request);
+         * </pre>
+         * so the request is in {@code args[0]}.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        public Object unary(Object[] args, UnaryClient client) {
+            invokeUnary(args[0], client);
+            return null;
         }
     }
 
@@ -383,8 +499,8 @@ public class UnaryMethodHandlerSupplier
     public static class NoRequestNoResponse<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        NoRequestNoResponse(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        NoRequestNoResponse(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
         }
 
         @Override
@@ -392,8 +508,29 @@ public class UnaryMethodHandlerSupplier
         protected void invoke(Method method, Object instance, ReqT request, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             method.invoke(instance);
-            observer.onNext((RespT) Types.Empty.getDefaultInstance());
+            observer.onNext((RespT) EMPTY);
             observer.onCompleted();
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     void invoke();
+         * </pre>
+         * so there is no request parameter.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        public Object unary(Object[] args, UnaryClient client) {
+            invokeUnary(EMPTY, client);
+            return null;
         }
     }
 
@@ -417,8 +554,8 @@ public class UnaryMethodHandlerSupplier
     public static class FutureResponse<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        FutureResponse(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        FutureResponse(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(method.parameterTypes()[0]);
             setResponseType(getGenericResponseType(method.genericReturnType()));
         }
@@ -429,6 +566,26 @@ public class UnaryMethodHandlerSupplier
                 throws InvocationTargetException, IllegalAccessException {
             CompletableFuture<RespT> future = (CompletableFuture<RespT>) method.invoke(instance, request);
             future.handle((response, thrown) -> handleFuture(response, thrown, observer));
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     CompletableFuture&lt;ResT&gt; invoke(ReqT request)
+         * </pre>
+         * so the request parameter is in {@code args[0]}.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        public Object unary(Object[] args, UnaryClient client) {
+            return invokeUnaryAsync(args[0], client);
         }
     }
 
@@ -452,8 +609,8 @@ public class UnaryMethodHandlerSupplier
     public static class FutureResponseNoRequest<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        FutureResponseNoRequest(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        FutureResponseNoRequest(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setResponseType(getGenericResponseType(method.genericReturnType()));
         }
 
@@ -463,6 +620,26 @@ public class UnaryMethodHandlerSupplier
                 throws InvocationTargetException, IllegalAccessException {
             CompletableFuture<RespT> future = (CompletableFuture<RespT>) method.invoke(instance);
             future.handle((response, thrown) -> handleFuture(response, thrown, observer));
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     CompletableFuture&lt;ResT&gt; invoke()
+         * </pre>
+         * so there is no request parameter.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        public Object unary(Object[] args, UnaryClient client) {
+            return invokeUnaryAsync(EMPTY, client);
         }
     }
 
@@ -481,8 +658,8 @@ public class UnaryMethodHandlerSupplier
     public static class Unary<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        Unary(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        Unary(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(method.parameterTypes()[0]);
             setResponseType(getGenericResponseType(method.genericParameterTypes()[1]));
         }
@@ -491,6 +668,29 @@ public class UnaryMethodHandlerSupplier
         protected void invoke(Method method, Object instance, ReqT request, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             method.invoke(instance, request, observer);
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     void invoke(ReqT request, StreamObserver&lt;RespT&gt; observer)
+         * </pre>
+         * so the request parameter is in {@code args[0]} and the {@link StreamObserver}
+         * to receive the response is in {@code args[1}.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object unary(Object[] args, UnaryClient client) {
+            invokeUnary(args[0], (StreamObserver<Object>) args[1], client);
+            return null;
         }
     }
 
@@ -509,8 +709,8 @@ public class UnaryMethodHandlerSupplier
     public static class UnaryNoRequest<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        UnaryNoRequest(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        UnaryNoRequest(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
         }
 
@@ -519,6 +719,29 @@ public class UnaryMethodHandlerSupplier
                 throws InvocationTargetException, IllegalAccessException {
             method.invoke(instance, observer);
         }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     void invoke(StreamObserver&lt;RespT&gt; observer)
+         * </pre>
+         * so there is no request parameter and the {@link StreamObserver}
+         * to receive the response is in {@code args[0}.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object unary(Object[] args, UnaryClient client) {
+            invokeUnary(EMPTY, (StreamObserver<Object>) args[0], client);
+            return null;
+        }
     }
 
     // ----- UnaryFuture call handler ---------------------------------------
@@ -526,7 +749,7 @@ public class UnaryMethodHandlerSupplier
     /**
      * A unary {@link MethodHandler} that calls a handler method of the form.
      * <pre>
-     *     void invoke(ReqT request, CompletableFuture&lt;RespT&gt; observer)
+     *     void invoke(ReqT request, CompletableFuture&lt;RespT&gt; future)
      * </pre>
      * <p>
      * If the future completes normally and has a none null none {@link Void}
@@ -541,8 +764,8 @@ public class UnaryMethodHandlerSupplier
     public static class UnaryFuture<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        UnaryFuture(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        UnaryFuture(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(method.parameterTypes()[0]);
             setResponseType(getGenericResponseType(method.genericParameterTypes()[1]));
         }
@@ -554,6 +777,29 @@ public class UnaryMethodHandlerSupplier
             future.handleAsync((response, thrown) -> handleFuture(response, thrown, observer));
             method.invoke(instance, request, future);
         }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     void invoke(ReqT request, CompletableFuture&lt;RespT&gt; future)
+         * </pre>
+         * so the request parameter is in {@code args[0]} and the {@link CompletableFuture}
+         * to receive the response is in {@code args[1}.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object unary(Object[] args, UnaryClient client) {
+            invokeUnaryAsync(args[0], (CompletableFuture<Object>) args[1], client);
+            return null;
+        }
     }
 
     // ----- UnaryFutureNoRequest call handler ------------------------------
@@ -561,7 +807,7 @@ public class UnaryMethodHandlerSupplier
     /**
      * A unary {@link MethodHandler} that calls a handler method of the form.
      * <pre>
-     *     void invoke(CompletableFuture&lt;RespT&gt; observer)
+     *     void invoke(CompletableFuture&lt;RespT&gt; future)
      * </pre>
      * <p>
      * If the future completes normally and has a none null none {@link Void}
@@ -576,8 +822,8 @@ public class UnaryMethodHandlerSupplier
     public static class UnaryFutureNoRequest<ReqT, RespT>
             extends AbstractUnaryHandler<ReqT, RespT> {
 
-        UnaryFutureNoRequest(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        UnaryFutureNoRequest(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
         }
 
@@ -587,6 +833,29 @@ public class UnaryMethodHandlerSupplier
             CompletableFuture<RespT> future = new CompletableFuture<>();
             future.handleAsync((response, thrown) -> handleFuture(response, thrown, observer));
             method.invoke(instance, future);
+        }
+
+        /**
+         * Invoke the client call.
+         * <p>
+         * The call is from a method signature:
+         * <pre>
+         *     void invoke(CompletableFuture&lt;RespT&gt; future)
+         * </pre>
+         * so there is no request parameter and the {@link CompletableFuture}
+         * to receive the response is in {@code args[1}.
+         *
+         * @param args the call arguments.
+         * @param client the {@link UnaryClient} instance to forward the call to
+         *
+         * @return the method signature return is {@code void} so this method
+         *         always returns null
+         */
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object unary(Object[] args, UnaryClient client) {
+            invokeUnaryAsync(EMPTY, (CompletableFuture<Object>) args[0], client);
+            return null;
         }
     }
 }

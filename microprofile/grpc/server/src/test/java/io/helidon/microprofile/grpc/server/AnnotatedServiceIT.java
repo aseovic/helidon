@@ -58,7 +58,9 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 
-
+/**
+ * Functional tests to verify the various server side call handlers.
+ */
 public class AnnotatedServiceIT {
 
     private static GrpcServer grpcServer;

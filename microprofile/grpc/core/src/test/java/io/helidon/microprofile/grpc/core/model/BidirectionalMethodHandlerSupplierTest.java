@@ -16,6 +16,7 @@
 
 package io.helidon.microprofile.grpc.core.model;
 
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.microprofile.grpc.core.Bidirectional;
 import io.helidon.microprofile.grpc.core.ClientStreaming;
 import io.helidon.microprofile.grpc.core.RequestType;
@@ -34,13 +35,13 @@ import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * @author Jonathan Knight
- */
 public class BidirectionalMethodHandlerSupplierTest {
 
     @Test
@@ -60,7 +61,7 @@ public class BidirectionalMethodHandlerSupplierTest {
 
         when(service.bidi(any(StreamObserver.class))).thenReturn(responseObserver);
 
-        MethodHandler<Long, String> handler = supplier.get(method, () -> service);
+        MethodHandler<Long, String> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Long.class));
         assertThat(handler.getResponseType(), equalTo(String.class));
@@ -73,12 +74,36 @@ public class BidirectionalMethodHandlerSupplierTest {
     }
 
     @Test
+    public void shouldHandleClientCall() {
+        BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
+        AnnotatedMethod method = getBidiMethod();
+        StreamObserver<Long> responseObserver = mock(StreamObserver.class);
+        Service service = mock(Service.class);
+
+        when(service.bidi(any(StreamObserver.class))).thenReturn(responseObserver);
+
+        MethodHandler<Long, String> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        StreamObserver<String> observer = mock(StreamObserver.class);
+        StreamObserver<String> response = mock(StreamObserver.class);
+        MethodHandler.BidirectionalClient client = mock(MethodHandler.BidirectionalClient.class);
+
+        when(client.bidiStreaming(anyString(), any(StreamObserver.class))).thenReturn(response);
+
+        Object result = handler.bidirectional(new Object[]{observer}, client);
+
+        assertThat(result, is(sameInstance(response)));
+        verify(client).bidiStreaming(eq("foo"), same(observer));
+    }
+
+    @Test
     public void shouldSupplyBidiHandlerWithTypesFromAnnotation() {
         BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("bidiReqResp", StreamObserver.class);
         Service service = mock(Service.class);
 
-        MethodHandler<String, String> handler = supplier.get(method, () -> service);
+        MethodHandler<String, String> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Long.class));
         assertThat(handler.getResponseType(), equalTo(String.class));
@@ -96,7 +121,7 @@ public class BidirectionalMethodHandlerSupplierTest {
         BidirectionalMethodHandlerSupplier supplier = new BidirectionalMethodHandlerSupplier();
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(null, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", null, () -> service));
     }
 
     @Test
@@ -105,7 +130,7 @@ public class BidirectionalMethodHandlerSupplierTest {
         AnnotatedMethod method = getUnaryMethod();
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test
@@ -114,7 +139,7 @@ public class BidirectionalMethodHandlerSupplierTest {
         AnnotatedMethod method = getMethod("badArg", String.class);
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test
@@ -123,7 +148,7 @@ public class BidirectionalMethodHandlerSupplierTest {
         AnnotatedMethod method = getMethod("tooManyArgs", StreamObserver.class, String.class);
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test

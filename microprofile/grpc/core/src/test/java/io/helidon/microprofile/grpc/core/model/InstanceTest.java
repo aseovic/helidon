@@ -27,9 +27,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-/**
- * @author Jonathan Knight
- */
 public class InstanceTest {
 
     @Test

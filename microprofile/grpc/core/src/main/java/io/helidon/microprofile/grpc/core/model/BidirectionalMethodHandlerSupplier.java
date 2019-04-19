@@ -21,14 +21,15 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.function.Supplier;
 
+import io.helidon.grpc.core.GrpcHelper;
+import io.helidon.grpc.core.MethodHandler;
+
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 /**
- * A supplier of {@link MethodHandler}s for bi-directional streaming gRPC methods.
- *
- * @author Jonathan Knight
+ * A supplier of {@link io.helidon.grpc.core.MethodHandler}s for bi-directional streaming gRPC methods.
  */
 public class BidirectionalMethodHandlerSupplier
         extends AbstractMethodHandlerSupplier {
@@ -46,7 +47,7 @@ public class BidirectionalMethodHandlerSupplier
     }
 
     @Override
-    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(AnnotatedMethod method, Supplier<?> instance) {
+    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(String methodName, AnnotatedMethod method, Supplier<?> instance) {
         if (!isRequiredMethodType(method)) {
             throw new IllegalArgumentException("Method not annotated as a bi-directional streaming method: " + method);
         }
@@ -56,7 +57,7 @@ public class BidirectionalMethodHandlerSupplier
 
         switch (type) {
         case bidiStreaming:
-            handler = new BidiStreaming<>(method, instance);
+            handler = new BidiStreaming<>(methodName, method, instance);
             break;
         case unknown:
         default:
@@ -122,8 +123,8 @@ public class BidirectionalMethodHandlerSupplier
     public abstract static class AbstractServerStreamingHandler<ReqT, RespT>
             extends AbstractHandler<ReqT, RespT> {
 
-        AbstractServerStreamingHandler(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance, MethodDescriptor.MethodType.BIDI_STREAMING);
+        AbstractServerStreamingHandler(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance, MethodDescriptor.MethodType.BIDI_STREAMING);
         }
 
         @Override
@@ -147,8 +148,8 @@ public class BidirectionalMethodHandlerSupplier
     public static class BidiStreaming<ReqT, RespT>
             extends AbstractServerStreamingHandler<ReqT, RespT> {
 
-        BidiStreaming(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        BidiStreaming(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(getGenericResponseType(method.genericReturnType()));
             setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
         }
@@ -158,6 +159,16 @@ public class BidirectionalMethodHandlerSupplier
         protected StreamObserver<ReqT> invoke(Method method, Object instance, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             return (StreamObserver<ReqT>) method.invoke(instance, observer);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object bidirectional(Object[] args, BidirectionalClient client) {
+            try {
+                return client.bidiStreaming(methodName(), (StreamObserver<ReqT>) args[0]);
+            } catch (Throwable thrown) {
+                throw GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL);
+            }
         }
     }
 }

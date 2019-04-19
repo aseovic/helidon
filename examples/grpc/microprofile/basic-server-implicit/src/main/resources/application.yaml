@@ -14,12 +14,6 @@
 # limitations under the License.
 #
 
-app:
-  name: "Hello World Application"
-  someInt: 147
-  uri: "http://www.google.com"
-  ints: [12, 12, 32, 12, 44]
-
 grpc.port: 1408
 
 server.port: 8080

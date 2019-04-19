@@ -26,11 +26,12 @@ import java.util.Objects;
 import java.util.function.Supplier;
 
 import io.helidon.grpc.core.GrpcHelper;
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.core.SafeStreamObserver;
 import io.helidon.grpc.core.proto.Types;
-import io.helidon.microprofile.grpc.core.RpcMethod;
 import io.helidon.microprofile.grpc.core.RequestType;
 import io.helidon.microprofile.grpc.core.ResponseType;
+import io.helidon.microprofile.grpc.core.RpcMethod;
 
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
@@ -38,8 +39,6 @@ import io.grpc.stub.StreamObserver;
 
 /**
  * A base class for {@link MethodHandlerSupplier} implementations.
- *
- * @author Jonathan Knight
  */
 public abstract class AbstractMethodHandlerSupplier
         implements MethodHandlerSupplier {
@@ -87,6 +86,7 @@ public abstract class AbstractMethodHandlerSupplier
     public abstract static class AbstractHandler<ReqT, RespT>
             implements MethodHandler<ReqT, RespT> {
 
+        private final String methodName;
         private final AnnotatedMethod method;
         private final Supplier<?> instance;
         private final MethodDescriptor.MethodType methodType;
@@ -96,11 +96,16 @@ public abstract class AbstractMethodHandlerSupplier
         /**
          * Create a handler.
          *
+         * @param methodName the name of the gRPC method
          * @param method   the underlying handler method this handler should call
          * @param instance the supplier to use to obtain the object to call the method on
          * @param methodType the type of method handled by this handler
          */
-        protected AbstractHandler(AnnotatedMethod method, Supplier<?> instance, MethodDescriptor.MethodType methodType) {
+        protected AbstractHandler(String methodName,
+                                  AnnotatedMethod method,
+                                  Supplier<?> instance,
+                                  MethodDescriptor.MethodType methodType) {
+            this.methodName = methodName;
             this.method = method;
             this.instance = instance;
             this.methodType = methodType;
@@ -190,6 +195,11 @@ public abstract class AbstractMethodHandlerSupplier
             return responseType;
         }
 
+        @Override
+        public String javaMethodName() {
+            return method.declaredMethod().getName();
+        }
+
         /**
          * Set the response type to use if no {@link ResponseType} annotation
          * is present on the annotated method.
@@ -197,6 +207,15 @@ public abstract class AbstractMethodHandlerSupplier
          */
         protected void setResponseType(Class<?> responseType) {
             this.responseType = responseType;
+        }
+
+        /**
+         * Obtain the gRPC method name.
+         *
+         * @return the gRPC method name
+         */
+        protected String methodName() {
+            return methodName;
         }
 
         /**

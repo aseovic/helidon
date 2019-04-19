@@ -19,19 +19,23 @@ package io.helidon.microprofile.grpc.core.model;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 import java.util.stream.Stream;
 
+import io.helidon.grpc.core.GrpcHelper;
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.core.ResponseHelper;
+import io.helidon.grpc.core.proto.Types;
 
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 /**
- * A supplier of {@link MethodHandler}s for server streaming gRPC methods.
- *
- * @author Jonathan Knight
+ * A supplier of {@link io.helidon.grpc.core.MethodHandler}s for server streaming gRPC methods.
  */
 public class ServerStreamingMethodHandlerSupplier
         extends AbstractMethodHandlerSupplier {
@@ -49,7 +53,7 @@ public class ServerStreamingMethodHandlerSupplier
     }
 
     @Override
-    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(AnnotatedMethod method, Supplier<?> instance) {
+    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(String methodName, AnnotatedMethod method, Supplier<?> instance) {
         if (!isRequiredMethodType(method)) {
             throw new IllegalArgumentException("Method not annotated as a server streaming method: " + method);
         }
@@ -59,16 +63,16 @@ public class ServerStreamingMethodHandlerSupplier
 
         switch (type) {
         case serverStreaming:
-            handler = new ServerStreaming<>(method, instance);
+            handler = new ServerStreaming<>(methodName, method, instance);
             break;
         case serverStreamingNoRequest:
-            handler = new ServerStreamingNoRequest<>(method, instance);
+            handler = new ServerStreamingNoRequest<>(methodName, method, instance);
             break;
         case streamResponse:
-            handler = new StreamResponse<>(method, instance);
+            handler = new StreamResponse<>(methodName, method, instance);
             break;
         case streamResponseNoRequest:
-            handler = new StreamResponseNoRequest<>(method, instance);
+            handler = new StreamResponseNoRequest<>(methodName, method, instance);
             break;
         case unknown:
         default:
@@ -176,8 +180,8 @@ public class ServerStreamingMethodHandlerSupplier
     public abstract static class AbstractServerStreamingHandler<ReqT, RespT>
             extends AbstractHandler<ReqT, RespT> {
 
-        AbstractServerStreamingHandler(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance, MethodDescriptor.MethodType.SERVER_STREAMING);
+        AbstractServerStreamingHandler(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance, MethodDescriptor.MethodType.SERVER_STREAMING);
         }
 
         @Override
@@ -201,8 +205,8 @@ public class ServerStreamingMethodHandlerSupplier
     public static class ServerStreaming<ReqT, RespT>
             extends AbstractServerStreamingHandler<ReqT, RespT> {
 
-        ServerStreaming(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        ServerStreaming(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(method.parameterTypes()[0]);
             setResponseType(getGenericResponseType(method.genericParameterTypes()[1]));
         }
@@ -211,6 +215,17 @@ public class ServerStreamingMethodHandlerSupplier
         protected void invoke(Method method, Object instance, ReqT request, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             method.invoke(instance, request, observer);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object serverStreaming(Object[] args, ServerStreamingClient client) {
+            try {
+                client.serverStreaming(methodName(), args[0], (StreamObserver) args[1]);
+                return null;
+            } catch (Throwable thrown) {
+                throw GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL);
+            }
         }
     }
 
@@ -229,8 +244,8 @@ public class ServerStreamingMethodHandlerSupplier
     public static class ServerStreamingNoRequest<ReqT, RespT>
             extends AbstractServerStreamingHandler<ReqT, RespT> {
 
-        ServerStreamingNoRequest(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        ServerStreamingNoRequest(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
         }
 
@@ -238,6 +253,17 @@ public class ServerStreamingMethodHandlerSupplier
         protected void invoke(Method method, Object instance, ReqT request, StreamObserver<RespT> observer)
                 throws InvocationTargetException, IllegalAccessException {
             method.invoke(instance, observer);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object serverStreaming(Object[] args, ServerStreamingClient client) {
+            try {
+                client.serverStreaming(methodName(), Types.Empty.getDefaultInstance(), (StreamObserver) args[0]);
+                return null;
+            } catch (Throwable thrown) {
+                throw GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL);
+            }
         }
     }
 
@@ -257,8 +283,8 @@ public class ServerStreamingMethodHandlerSupplier
             extends AbstractServerStreamingHandler<ReqT, RespT>
             implements ResponseHelper {
 
-        StreamResponse(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        StreamResponse(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(method.parameterTypes()[0]);
             setResponseType(getGenericResponseType(method.genericReturnType()));
         }
@@ -269,6 +295,17 @@ public class ServerStreamingMethodHandlerSupplier
                 throws InvocationTargetException, IllegalAccessException {
             Stream<RespT> stream = (Stream<RespT>) method.invoke(instance, request);
             stream(observer, stream);
+        }
+
+        @Override
+        public Object serverStreaming(Object[] args, ServerStreamingClient client) {
+            try {
+                Observer<RespT> observer = new Observer<>();
+                client.serverStreaming(methodName(), args[0], observer);
+                return observer.future().get().stream();
+            } catch (Throwable thrown) {
+                throw GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL);
+            }
         }
     }
 
@@ -288,8 +325,8 @@ public class ServerStreamingMethodHandlerSupplier
             extends AbstractServerStreamingHandler<ReqT, RespT>
             implements ResponseHelper {
 
-        StreamResponseNoRequest(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        StreamResponseNoRequest(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setResponseType(getGenericResponseType(method.genericReturnType()));
         }
 
@@ -299,6 +336,50 @@ public class ServerStreamingMethodHandlerSupplier
                 throws InvocationTargetException, IllegalAccessException {
             Stream<RespT> stream = (Stream<RespT>) method.invoke(instance);
             stream(observer, stream);
+        }
+
+        @Override
+        public Object serverStreaming(Object[] args, ServerStreamingClient client) {
+            try {
+                Observer<RespT> observer = new Observer<>();
+                client.serverStreaming(methodName(), Types.Empty.getDefaultInstance(), observer);
+                return observer.future().get().stream();
+            } catch (Throwable thrown) {
+                throw GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL);
+            }
+        }
+    }
+
+    /**
+     * A {@link StreamObserver} that collects all of its responses into a
+     * {@link List} and then completes a {@link CompletableFuture} when the
+     * observer completes.
+     *
+     * @param <T>  the response type
+     */
+    private static class Observer<T>
+            implements StreamObserver<T> {
+
+        private CompletableFuture<List<T>> future = new CompletableFuture<>();
+        private List<T> list = new ArrayList<>();
+
+        private CompletableFuture<List<T>> future() {
+            return future;
+        }
+
+        @Override
+        public void onNext(T value) {
+            list.add(value);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            future.completeExceptionally(t);
+        }
+
+        @Override
+        public void onCompleted() {
+            future.complete(list);
         }
     }
 }

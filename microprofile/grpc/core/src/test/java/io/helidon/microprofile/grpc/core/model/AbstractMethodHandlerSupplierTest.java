@@ -44,9 +44,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
-/**
- * @author Jonathan Knight
- */
 @SuppressWarnings("unchecked")
 public class AbstractMethodHandlerSupplierTest {
 
@@ -192,7 +189,7 @@ public class AbstractMethodHandlerSupplierTest {
             extends AbstractMethodHandlerSupplier.AbstractHandler<ReqT, RespT> {
 
         public HandlerStub(AnnotatedMethod method, Supplier<?> instance, MethodDescriptor.MethodType methodType) {
-            super(method, instance, methodType);
+            super("foo", method, instance, methodType);
         }
 
         @Override
@@ -215,7 +212,7 @@ public class AbstractMethodHandlerSupplierTest {
             extends AbstractMethodHandlerSupplier.AbstractHandler<ReqT, RespT> {
 
         public BadHandlerStub(AnnotatedMethod method, Supplier<?> instance, MethodDescriptor.MethodType methodType) {
-            super(method, instance, methodType);
+            super("foo", method, instance, methodType);
         }
 
         @Override

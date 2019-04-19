@@ -16,9 +16,12 @@
 
 package io.helidon.microprofile.grpc.core.model;
 
+import java.util.List;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import io.helidon.common.CollectionsHelper;
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.core.proto.Types;
 import io.helidon.microprofile.grpc.core.Bidirectional;
 import io.helidon.microprofile.grpc.core.ClientStreaming;
@@ -32,24 +35,27 @@ import io.grpc.MethodDescriptor;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.invocation.InvocationOnMock;
+import org.mockito.stubbing.Answer;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.same;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * @author Jonathan Knight
- */
 public class ServerStreamingMethodHandlerSupplierTest {
 
     @Test
@@ -72,7 +78,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         AnnotatedMethod method = getServerStreamingMethod();
         Service service = mock(Service.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -81,6 +87,30 @@ public class ServerStreamingMethodHandlerSupplierTest {
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
         verify(service).serverStreaming(eq("foo"), any(StreamObserver.class));
+    }
+
+    /**
+     * Test handler for:
+     * <pre>
+     *     void invoke(ReqT request, StreamObserver<RespT> observer);
+     * </pre>
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldSupplyServerStreamingHandlerForClientCall() {
+        ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
+        AnnotatedMethod method = getServerStreamingMethod();
+        Service service = mock(Service.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        StreamObserver<Long> observer = mock(StreamObserver.class);
+        MethodHandler.ServerStreamingClient client = mock(MethodHandler.ServerStreamingClient.class);
+        Object result = handler.serverStreaming(new Object[] {"bar", observer}, client);
+
+        assertThat(result, is(nullValue()));
+        verify(client).serverStreaming(eq("foo"), eq("bar"), same(observer));
     }
 
     /**
@@ -96,7 +126,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         AnnotatedMethod method = getMethod("serverStreamingNoRequest", StreamObserver.class);
         Service service = mock(Service.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -105,6 +135,30 @@ public class ServerStreamingMethodHandlerSupplierTest {
         StreamObserver<Long> observer = mock(StreamObserver.class);
         handler.invoke("foo", observer);
         verify(service).serverStreamingNoRequest(any(StreamObserver.class));
+    }
+
+    /**
+     * Test handler for:
+     * <pre>
+     *     void invoke(StreamObserver<RespT> observer);
+     * </pre>
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldSupplyHandlerForMethodWithNoRequestForClientCall() {
+        ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("serverStreamingNoRequest", StreamObserver.class);
+        Service service = mock(Service.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        StreamObserver<Long> observer = mock(StreamObserver.class);
+        MethodHandler.ServerStreamingClient client = mock(MethodHandler.ServerStreamingClient.class);
+        Object result = handler.serverStreaming(new Object[] {observer}, client);
+
+        assertThat(result, is(nullValue()));
+        verify(client).serverStreaming(eq("foo"), any(), same(observer));
     }
 
     /**
@@ -123,7 +177,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
 
         when(service.streamResponse(anyString())).thenReturn(stream);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -135,6 +189,43 @@ public class ServerStreamingMethodHandlerSupplierTest {
         ArgumentCaptor<Long> captor = ArgumentCaptor.forClass(Long.class);
         verify(observer, times(2)).onNext(captor.capture());
         assertThat(captor.getAllValues(), contains(19L, 20L));
+    }
+
+    /**
+     * Test handler for:
+     * <pre>
+     *     Stream<RespT> invoke(ReqT request);
+     * </pre>
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldSupplyHandlerForMethodWithStreamResponseForClientCall() {
+        ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("streamResponse", String.class);
+        Stream<Long> stream = CollectionsHelper.listOf(19L, 20L).stream();
+        Service service = mock(Service.class);
+
+        when(service.streamResponse(anyString())).thenReturn(stream);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.ServerStreamingClient client = mock(MethodHandler.ServerStreamingClient.class);
+
+        doAnswer(invocation -> {
+            StreamObserver o = invocation.getArgument(2);
+            o.onNext("One");
+            o.onNext("Two");
+            o.onCompleted();
+            return null;
+        }).when(client).serverStreaming(anyString(), any(), any(StreamObserver.class));
+
+        Object result = handler.serverStreaming(new Object[] {"bar"}, client);
+
+        assertThat(result, is(instanceOf(Stream.class)));
+        List<String> list = (List<String>) ((Stream) result).collect(Collectors.toList());
+        assertThat(list, contains("One", "Two"));
+        verify(client).serverStreaming(eq("foo"), eq("bar"), any(StreamObserver.class));
     }
 
     /**
@@ -153,7 +244,44 @@ public class ServerStreamingMethodHandlerSupplierTest {
 
         when(service.streamResponseNoRequest()).thenReturn(stream);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.ServerStreamingClient client = mock(MethodHandler.ServerStreamingClient.class);
+
+        doAnswer(invocation -> {
+            StreamObserver o = invocation.getArgument(2);
+            o.onNext("One");
+            o.onNext("Two");
+            o.onCompleted();
+            return null;
+        }).when(client).serverStreaming(anyString(), any(), any(StreamObserver.class));
+
+        Object result = handler.serverStreaming(new Object[0], client);
+
+        assertThat(result, is(instanceOf(Stream.class)));
+        List<String> list = (List<String>) ((Stream) result).collect(Collectors.toList());
+        assertThat(list, contains("One", "Two"));
+        verify(client).serverStreaming(eq("foo"), any(), any(StreamObserver.class));
+    }
+
+    /**
+     * Test handler for:
+     * <pre>
+     *     Stream<RespT> invoke();
+     * </pre>
+     */
+    @Test
+    @SuppressWarnings("unchecked")
+    public void shouldSupplyHandlerForMethodWithStreamResponseWithNoRequestForClientCall() {
+        ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("streamResponseNoRequest");
+        Stream<Long> stream = CollectionsHelper.listOf(19L, 20L).stream();
+        Service service = mock(Service.class);
+
+        when(service.streamResponseNoRequest()).thenReturn(stream);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -167,14 +295,13 @@ public class ServerStreamingMethodHandlerSupplierTest {
         assertThat(captor.getAllValues(), contains(19L, 20L));
     }
 
-
     @Test
     public void shouldSupplyHandlerWithTypesFromAnnotation() {
         ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("reqResp", Object.class, StreamObserver.class);
         Service service = mock(Service.class);
 
-        MethodHandler<String, String> handler = supplier.get(method, () -> service);
+        MethodHandler<String, String> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Long.class));
         assertThat(handler.getResponseType(), equalTo(String.class));
@@ -192,7 +319,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         ServerStreamingMethodHandlerSupplier supplier = new ServerStreamingMethodHandlerSupplier();
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(null, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", null, () -> service));
     }
 
     @Test
@@ -201,7 +328,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         AnnotatedMethod method = getBidiMethod();
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test
@@ -218,7 +345,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         AnnotatedMethod method = getMethod("badArg", String.class, String.class);
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test
@@ -227,7 +354,7 @@ public class ServerStreamingMethodHandlerSupplierTest {
         AnnotatedMethod method = getMethod("tooManyArgs", String.class, StreamObserver.class, String.class);
         Service service = mock(Service.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test

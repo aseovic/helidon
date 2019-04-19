@@ -16,6 +16,8 @@
 
 package io.helidon.grpc.client;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -104,6 +106,15 @@ public class ClientServiceDescriptor {
      * @return a {@link Builder}
      */
     public static Builder builder(Class<?> serviceClass) {
+        try {
+            Method method = serviceClass.getMethod("getServiceDescriptor");
+            if (method.getReturnType() == io.grpc.ServiceDescriptor.class) {
+                ServiceDescriptor svcDesc = (ServiceDescriptor) method.invoke(null);
+                return builder(svcDesc);
+            }
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException itEx) {
+            // Ignored.
+        }
         return builder(serviceClass.getSimpleName(), serviceClass);
     }
 

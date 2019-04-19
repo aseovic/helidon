@@ -86,7 +86,7 @@ public class ProtoGrpcServiceClientIT {
                 .get(10, TimeUnit.SECONDS);
 
         ClientServiceDescriptor descriptor = ClientServiceDescriptor
-                .builder(StringServiceGrpc.getServiceDescriptor())
+                .builder(StringServiceGrpc.class)
                 .intercept(mediumPriorityInterceptor)
                 .intercept("Upper", highPriorityInterceptor)
                 .intercept("Lower", lowPriorityInterceptor)
@@ -154,7 +154,8 @@ public class ProtoGrpcServiceClientIT {
                 .assertValue(v -> v.getText().equals(expectedSentence));
     }
 
-    // Serverstreaming
+    // Server Streaming
+
     @Test
     public void testBlockingServerStreamingMethods() {
         String sentence = "A simple invocation of a client streaming method";
@@ -193,7 +194,6 @@ public class ProtoGrpcServiceClientIT {
     }
 
     // Bidi streaming
-
 
     @Test
     public void testInvokeBidiStreamingMethod() {
@@ -265,11 +265,5 @@ public class ProtoGrpcServiceClientIT {
     public void testServiceName() {
         assertThat(grpcClient.serviceName(), is("StringService"));
     }
-
-
-
-
-
-
 
 }

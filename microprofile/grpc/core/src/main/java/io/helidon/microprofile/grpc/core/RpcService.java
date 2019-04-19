@@ -28,8 +28,6 @@ import javax.inject.Qualifier;
 
 /**
  * An annotation used to mark a class as representing a gRPC service.
- *
- * @author Aleksandar Seovic
  */
 @Qualifier
 @Target(ElementType.TYPE)

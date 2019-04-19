@@ -28,13 +28,9 @@ import io.helidon.microprofile.grpc.core.Unary;
 
 import org.junit.jupiter.api.Test;
 
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInAnyOrder.containsInAnyOrder;
 
-/**
- * @author Jonathan Knight
- */
 public class AnnotatedMethodListTest {
 
     @Test

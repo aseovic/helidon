@@ -16,6 +16,8 @@
 
 package io.helidon.microprofile.grpc.core.model;
 
+import io.helidon.grpc.core.MethodHandler;
+
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
@@ -30,11 +32,7 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-/**
- * @author Jonathan Knight
- */
 @SuppressWarnings("unchecked")
 public class MethodHandlerTest {
 
@@ -86,6 +84,11 @@ public class MethodHandlerTest {
 
         @Override
         public Class<?> getResponseType() {
+            return null;
+        }
+
+        @Override
+        public String javaMethodName() {
             return null;
         }
     }

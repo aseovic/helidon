@@ -22,6 +22,7 @@ import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
 
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.core.ResponseHelper;
 
 import io.grpc.MethodDescriptor;
@@ -29,9 +30,7 @@ import io.grpc.Status;
 import io.grpc.stub.StreamObserver;
 
 /**
- * A supplier of {@link MethodHandler}s for client streaming gRPC methods.
- *
- * @author Jonathan Knight
+ * A supplier of {@link io.helidon.grpc.core.MethodHandler}s for client streaming gRPC methods.
  */
 public class ClientStreamingMethodHandlerSupplier
         extends AbstractMethodHandlerSupplier {
@@ -49,20 +48,21 @@ public class ClientStreamingMethodHandlerSupplier
     }
 
     @Override
-    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(AnnotatedMethod method, Supplier<?> instance) {
+    @SuppressWarnings("unchecked")
+    public <ReqT, RespT> MethodHandler<ReqT, RespT> get(String methodName, AnnotatedMethod method, Supplier<?> instance) {
         if (!isRequiredMethodType(method)) {
             throw new IllegalArgumentException("Method not annotated as a client streaming method: " + method);
         }
 
         CallType type = determineCallType(method);
-        MethodHandler<ReqT, RespT> handler;
+        MethodHandler handler;
 
         switch (type) {
         case clientStreaming:
-            handler = new ClientStreaming<>(method, instance);
+            handler = new ClientStreaming<>(methodName, method, instance);
             break;
         case futureResponse:
-            handler = new FutureResponse<>(method, instance);
+            handler = new FutureResponse<>(methodName, method, instance);
             break;
         case unknown:
         default:
@@ -138,11 +138,11 @@ public class ClientStreamingMethodHandlerSupplier
      * @param <ReqT>  the request type
      * @param <RespT> the response type
      */
-    public abstract static class AbstractServerStreamingHandler<ReqT, RespT>
+    public abstract static class AbstractClientStreamingHandler<ReqT, RespT>
             extends AbstractHandler<ReqT, RespT> {
 
-        AbstractServerStreamingHandler(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance, MethodDescriptor.MethodType.CLIENT_STREAMING);
+        AbstractClientStreamingHandler(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance, MethodDescriptor.MethodType.CLIENT_STREAMING);
         }
 
         @Override
@@ -164,10 +164,10 @@ public class ClientStreamingMethodHandlerSupplier
      * @param <RespT> the response type
      */
     public static class ClientStreaming<ReqT, RespT>
-            extends AbstractServerStreamingHandler<ReqT, RespT> {
+            extends AbstractClientStreamingHandler<ReqT, RespT> {
 
-        ClientStreaming(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        ClientStreaming(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(getGenericResponseType(method.genericReturnType()));
             setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
         }
@@ -178,6 +178,12 @@ public class ClientStreamingMethodHandlerSupplier
                 throws InvocationTargetException, IllegalAccessException {
             return (StreamObserver<ReqT>) method.invoke(instance, observer);
         }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object clientStreaming(Object[] args, ClientStreaming client) {
+            return client.clientStreaming(methodName(), (StreamObserver) args[0]);
+        }
     }
 
     // ----- FutureResponse call handler ------------------------------------
@@ -186,18 +192,18 @@ public class ClientStreamingMethodHandlerSupplier
      * A client streaming {@link MethodHandler} that
      * calls a standard client streaming method handler method of the form.
      * <pre>
-     *     StreamObserver&lt;ReqT&gt; invoke(StreamObserver&lt;RespT&gt; observer)
+     *     StreamObserver&lt;ReqT&gt; invoke(CompletableFuture&lt;RespT&gt; future)
      * </pre>
      *
      * @param <ReqT>  the request type
      * @param <RespT> the response type
      */
     public static class FutureResponse<ReqT, RespT>
-            extends AbstractServerStreamingHandler<ReqT, RespT>
+            extends AbstractClientStreamingHandler<ReqT, RespT>
             implements ResponseHelper {
 
-        FutureResponse(AnnotatedMethod method, Supplier<?> instance) {
-            super(method, instance);
+        FutureResponse(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
             setRequestType(getGenericResponseType(method.genericReturnType()));
             setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
         }
@@ -209,6 +215,45 @@ public class ClientStreamingMethodHandlerSupplier
             CompletableFuture<RespT> future = new CompletableFuture<>();
             completeAsync(observer, future);
             return (StreamObserver<ReqT>) method.invoke(instance, future);
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object clientStreaming(Object[] args, ClientStreaming client) {
+            FutureObserver<RespT> observer = new FutureObserver<>((CompletableFuture<RespT>) args[0]);
+            return client.clientStreaming(methodName(), observer);
+        }
+    }
+
+    /**
+     * A {@link StreamObserver} that completes a {@link CompletableFuture}
+     * with its received result.
+     *
+     * @param <T>  the result type
+     */
+    private static class FutureObserver<T>
+            implements StreamObserver<T> {
+
+        private CompletableFuture<T> future;
+        private T value;
+
+        private FutureObserver(CompletableFuture<T> future) {
+            this.future = future;
+        }
+
+        @Override
+        public void onNext(T value) {
+            this.value = value;
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            future.completeExceptionally(t);
+        }
+
+        @Override
+        public void onCompleted() {
+            future.complete(value);
         }
     }
 }

@@ -79,9 +79,6 @@ public class GrpcServiceClient {
             GrpcMethodStub methodStub = new GrpcMethodStub(channel, callOptions, cmd);
             PriorityClientInterceptors interceptors = new PriorityClientInterceptors(clientServiceDescriptor.interceptors());
             if (this.clientServiceDescriptor.interceptors().size() > 0) {
-                interceptors.add(this.clientServiceDescriptor.interceptors());
-            }
-            if (this.clientServiceDescriptor.interceptors().size() > 0) {
                 interceptors.add(cmd.interceptors());
             }
             if (interceptors.getInterceptors().size() > 0) {

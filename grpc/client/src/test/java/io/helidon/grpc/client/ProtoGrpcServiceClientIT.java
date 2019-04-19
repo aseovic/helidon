@@ -99,22 +99,7 @@ public class ProtoGrpcServiceClientIT {
         grpcClient = GrpcServiceClient.create(channel, descriptor);
     }
 
-    @AfterAll
-    public static void shutdownGrpcServer() {
-        grpcServer.shutdown();
-    }
-
-    @BeforeEach
-    public void resetInterceptors() {
-        lowPriorityInterceptor.reset();
-        mediumPriorityInterceptor.reset();
-        highPriorityInterceptor.reset();
-    }
-
-    @Test
-    public void testServiceName() {
-        assertThat(grpcClient.serviceName(), is("StringService"));
-    }
+    // Unary method tests
 
     @Test
     public void testBlockingUnaryMethods() {
@@ -139,12 +124,14 @@ public class ProtoGrpcServiceClientIT {
                 .assertValue(v -> v.getText().equals(inputStr.toUpperCase()));
     }
 
+    // Client streaming
+
     @Test
     public void testAsyncClientStreamingMethodWithIterable() throws Throwable {
         String expectedSentence = "A simple invocation of a client streaming method";
         Collection<StringMessage> input = Arrays.stream(expectedSentence.split(" "))
-                                                .map(w -> StringMessage.newBuilder().setText(w).build())
-                                                .collect(Collectors.toList());
+                .map(w -> StringMessage.newBuilder().setText(w).build())
+                .collect(Collectors.toList());
 
         CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input);
         assertThat(result.get().getText(), equalTo(expectedSentence));
@@ -167,6 +154,7 @@ public class ProtoGrpcServiceClientIT {
                 .assertValue(v -> v.getText().equals(expectedSentence));
     }
 
+    // Serverstreaming
     @Test
     public void testBlockingServerStreamingMethods() {
         String sentence = "A simple invocation of a client streaming method";
@@ -176,8 +164,8 @@ public class ProtoGrpcServiceClientIT {
 
         Spliterator<StringMessage> spliterator = Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED);
         String result = StreamSupport.stream(spliterator, false)
-                                            .map(StringMessage::getText)
-                                            .collect(Collectors.joining(" "));
+                .map(StringMessage::getText)
+                .collect(Collectors.joining(" "));
 
         assertThat(result, is(sentence));
     }
@@ -197,12 +185,15 @@ public class ProtoGrpcServiceClientIT {
                 .assertValueCount(expectedWords.length);
 
         String[] results = observer.values()
-                                   .stream()
-                                   .map(StringMessage::getText)
-                                   .toArray(String[]::new);
+                .stream()
+                .map(StringMessage::getText)
+                .toArray(String[]::new);
 
         assertThat(results, is(expectedWords));
     }
+
+    // Bidi streaming
+
 
     @Test
     public void testInvokeBidiStreamingMethod() {
@@ -224,12 +215,15 @@ public class ProtoGrpcServiceClientIT {
 
 
         String[] results = observer.values()
-                                   .stream()
-                                   .map(StringMessage::getText)
-                                   .toArray(String[]::new);
+                .stream()
+                .map(StringMessage::getText)
+                .toArray(String[]::new);
 
         assertThat(results, is(expectedWords));
     }
+
+
+    // Interceptor tests
 
     @Test
     public void testLowAndMediumPriorityMethodInterceptors() {
@@ -238,7 +232,7 @@ public class ProtoGrpcServiceClientIT {
                 equalTo(inputStr.toLowerCase()));
 
         assertThat(lowPriorityInterceptor.getInvocationCount(), equalTo(1));
-        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(2));
+        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(1));
         assertThat(highPriorityInterceptor.getInvocationCount(), equalTo(0));
     }
 
@@ -249,7 +243,33 @@ public class ProtoGrpcServiceClientIT {
                 equalTo(inputStr.toUpperCase()));
 
         assertThat(lowPriorityInterceptor.getInvocationCount(), equalTo(0));
-        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(2));
+        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(1));
         assertThat(highPriorityInterceptor.getInvocationCount(), equalTo(1));
     }
+
+    // ----------------------------------
+
+    @AfterAll
+    public static void shutdownGrpcServer() {
+        grpcServer.shutdown();
+    }
+
+    @BeforeEach
+    public void resetInterceptors() {
+        lowPriorityInterceptor.reset();
+        mediumPriorityInterceptor.reset();
+        highPriorityInterceptor.reset();
+    }
+
+    @Test
+    public void testServiceName() {
+        assertThat(grpcClient.serviceName(), is("StringService"));
+    }
+
+
+
+
+
+
+
 }

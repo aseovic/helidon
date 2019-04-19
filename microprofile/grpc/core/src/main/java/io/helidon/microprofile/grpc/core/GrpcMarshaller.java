@@ -27,8 +27,6 @@ import io.helidon.grpc.core.MarshallerSupplier;
 /**
  * An annotation used to annotate a type or method to specify the
  * named marshaller supplier to use for rpc method calls.
- *
- * @author Jonathan Knight
  */
 @Target({ElementType.TYPE, ElementType.METHOD})
 @Retention(RetentionPolicy.RUNTIME)

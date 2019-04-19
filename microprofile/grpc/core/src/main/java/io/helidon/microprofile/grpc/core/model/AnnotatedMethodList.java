@@ -31,8 +31,6 @@ import java.util.stream.Stream;
 /**
  * Iterable list of {@link AnnotatedMethod}s on a single class with convenience
  * getters to provide additional method information.
- *
- * @author Jonathan Knight
  */
 public class AnnotatedMethodList implements Iterable<AnnotatedMethod> {
 

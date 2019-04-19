@@ -16,51 +16,32 @@
 
 package io.helidon.microprofile.grpc.server.model;
 
-import java.lang.annotation.Annotation;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Objects;
-import java.util.ServiceLoader;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import javax.annotation.Priority;
-import javax.inject.Singleton;
-
 import io.helidon.grpc.core.ContextKeys;
-import io.helidon.grpc.core.MarshallerSupplier;
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.server.MethodDescriptor;
 import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.microprofile.grpc.core.GrpcMarshaller;
 import io.helidon.microprofile.grpc.core.RpcMethod;
-import io.helidon.microprofile.grpc.core.RpcService;
+import io.helidon.microprofile.grpc.core.model.AbstractServiceModeller;
 import io.helidon.microprofile.grpc.core.model.AnnotatedMethod;
 import io.helidon.microprofile.grpc.core.model.AnnotatedMethodList;
 import io.helidon.microprofile.grpc.core.model.Instance;
-import io.helidon.microprofile.grpc.core.model.MethodHandler;
-import io.helidon.microprofile.grpc.core.model.MethodHandlerSupplier;
 import io.helidon.microprofile.grpc.core.model.ModelHelper;
 
 /**
  * Utility class for constructing a {@link ServiceDescriptor.Builder}
- * from an annotated POJO.
+ * instances from an annotated POJOs.
  */
-public class ServiceModeller {
+public class ServiceModeller
+        extends AbstractServiceModeller {
 
     private static final Logger LOGGER = Logger.getLogger(ServiceModeller.class.getName());
-
-    private final Class<?> serviceClass;
-    private final Class<?> annotatedServiceClass;
-    private final Supplier<?> instance;
-    private final List<MethodHandlerSupplier> handlerSuppliers;
 
     /**
      * Create a new introspection modeller for a given gRPC service.
@@ -90,19 +71,7 @@ public class ServiceModeller {
      * @throws java.lang.NullPointerException if the service or instance parameters are null
      */
     public ServiceModeller(Class<?> serviceClass, Supplier<?> instance) {
-        this.serviceClass = Objects.requireNonNull(serviceClass);
-        this.annotatedServiceClass = ModelHelper.getAnnotatedResourceClass(serviceClass, RpcService.class);
-        this.instance = Objects.requireNonNull(instance);
-        this.handlerSuppliers = loadHandlerSuppliers();
-    }
-
-    /**
-     * Determine whether this modeller contains an annotated service.
-     *
-     * @return  {@code true} if this modeller contains an annotated service
-     */
-    public boolean isAnnotatedService() {
-        return annotatedServiceClass.isAnnotationPresent(RpcService.class);
+        super(serviceClass, instance);
     }
 
     /**
@@ -116,19 +85,11 @@ public class ServiceModeller {
     public ServiceDescriptor.Builder createServiceBuilder() {
         checkForNonPublicMethodIssues();
 
+        Class<?> annotatedServiceClass = annotatedServiceClass();
         AnnotatedMethodList methodList = new AnnotatedMethodList(annotatedServiceClass);
-        RpcService serviceAnnotation = annotatedServiceClass.getAnnotation(RpcService.class);
-        String name = null;
+        String name = determineServiceName(annotatedServiceClass);
 
-        if (serviceAnnotation != null) {
-            name = serviceAnnotation.name().trim();
-        }
-
-        if (name == null || name.trim().isEmpty()) {
-            name = annotatedServiceClass.getSimpleName();
-        }
-
-        ServiceDescriptor.Builder builder = ServiceDescriptor.builder(serviceClass, name)
+        ServiceDescriptor.Builder builder = ServiceDescriptor.builder(serviceClass(), name)
                 .marshallerSupplier(getMarshallerSupplier());
 
         addServiceMethods(builder, methodList);
@@ -136,43 +97,6 @@ public class ServiceModeller {
         LOGGER.log(Level.FINEST, () -> String.format("A new gRPC service was created by ServiceModeller: %s", builder));
 
         return builder;
-    }
-
-    private MarshallerSupplier getMarshallerSupplier() {
-        GrpcMarshaller annotation = annotatedServiceClass.getAnnotation(GrpcMarshaller.class);
-        return annotation == null ? MarshallerSupplier.defaultInstance() : ModelHelper.getMarshallerSupplier(annotation);
-    }
-
-    private static Supplier<?> createInstanceSupplier(Class<?> cls) {
-        if (cls.isAnnotationPresent(Singleton.class)) {
-            return Instance.singleton(cls);
-        } else {
-            return Instance.create(cls);
-        }
-    }
-
-    private void checkForNonPublicMethodIssues() {
-        AnnotatedMethodList allDeclaredMethods = new AnnotatedMethodList(getAllDeclaredMethods(serviceClass));
-
-        // log warnings for all non-public annotated methods
-        allDeclaredMethods.withMetaAnnotation(RpcMethod.class).isNotPublic()
-                .forEach(method -> LOGGER.log(Level.WARNING, () -> String.format("The gRPC method, %s, MUST be "
-                                              + "public scoped otherwise the method is ignored", method)));
-    }
-
-    private List<Method> getAllDeclaredMethods(Class<?> clazz) {
-        List<Method> result = new LinkedList<>();
-
-        AccessController.doPrivileged((PrivilegedAction<Object>) () -> {
-            Class current = clazz;
-            while (current != Object.class && current != null) {
-                result.addAll(Arrays.asList(current.getDeclaredMethods()));
-                current = current.getSuperclass();
-            }
-            return null;
-        });
-
-        return result;
     }
 
     /**
@@ -203,11 +127,12 @@ public class ServiceModeller {
     private void addServiceMethod(ServiceDescriptor.Builder builder, AnnotatedMethod method) {
         RpcMethod annotation = method.firstAnnotationOrMetaAnnotation(RpcMethod.class);
         String name = determineMethodName(method, annotation);
+        Supplier<?> instanceSupplier = instanceSupplier();
 
-        MethodHandler handler = handlerSuppliers.stream()
+        MethodHandler handler = handlerSuppliers().stream()
                 .filter(supplier -> supplier.supplies(method))
                 .findFirst()
-                .map(supplier -> supplier.get(method, instance))
+                .map(supplier -> supplier.get(name, method, instanceSupplier))
                 .orElseThrow(() -> new IllegalArgumentException("Cannot locate a method handler supplier for method " + method));
 
         Class<?> requestType = handler.getRequestType();
@@ -231,69 +156,6 @@ public class ServiceModeller {
         default:
             LOGGER.log(Level.SEVERE, () -> "Unrecognized method type " + annotation.type());
         }
-    }
-
-    /**
-     * Determine the name to use from the method.
-     * <p>
-     * If the method is annotated with {@link RpcMethod} then use the value of {@link RpcMethod#name()}
-     * unless {@link RpcMethod#name()} returns empty string, in which case use the actual method name.
-     * <p>
-     * If the method is annotated with an annotation that has the meta-annotation {@link RpcMethod} then use
-     * the value of that annotation's {@code name()} method. If that annotation does not have a {@code name()}
-     * method or the {@code name()} method return empty string then use the actual method name.
-     *
-     * @param method      the annotated method
-     * @param annotation  the method type annotation
-     * @return the value to use for the method name
-     */
-    private String determineMethodName(AnnotatedMethod method, RpcMethod annotation) {
-        Annotation actualAnnotation = method.annotationsWithMetaAnnotation(RpcMethod.class)
-                .findFirst()
-                .orElse(annotation);
-
-        String name = null;
-        try {
-            Method m = actualAnnotation.annotationType().getMethod("name");
-            name = (String) m.invoke(actualAnnotation);
-        } catch (NoSuchMethodException e) {
-            LOGGER.log(Level.WARNING, () -> String.format("Annotation %s has no name() method", actualAnnotation));
-        } catch (IllegalAccessException | InvocationTargetException e) {
-            LOGGER.log(Level.WARNING, e, () -> String.format("Error calling name() method on annotation %s", actualAnnotation));
-        }
-
-        if (name == null || name.trim().isEmpty()) {
-            name = method.method().getName();
-        }
-
-        return name;
-    }
-
-    /**
-     * Load the {@link MethodHandlerSupplier} instances using the {@link ServiceLoader}
-     * and return them in priority order.
-     * <p>
-     * Priority is determined by the value obtained from the {@link Priority} annotation on
-     * any implementation classes. Classes not annotated with {@link Priority} have a
-     * priority of zero.
-     *
-     * @return a priority ordered list of {@link MethodHandlerSupplier} instances
-     */
-    private List<MethodHandlerSupplier> loadHandlerSuppliers() {
-        List<MethodHandlerSupplier> list = new ArrayList<>();
-        for (MethodHandlerSupplier supplier : ServiceLoader.load(MethodHandlerSupplier.class)) {
-            list.add(supplier);
-        }
-
-        list.sort((left, right) -> {
-            Priority leftPriority = left.getClass().getAnnotation(Priority.class);
-            Priority rightPriority = right.getClass().getAnnotation(Priority.class);
-            int leftValue = leftPriority == null ? 0 : leftPriority.value();
-            int rightValue = rightPriority == null ? 0 : rightPriority.value();
-            return leftValue - rightValue;
-        });
-
-        return list;
     }
 
     /**

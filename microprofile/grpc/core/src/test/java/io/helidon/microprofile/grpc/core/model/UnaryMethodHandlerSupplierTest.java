@@ -18,6 +18,7 @@ package io.helidon.microprofile.grpc.core.model;
 
 import java.util.concurrent.CompletableFuture;
 
+import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.core.proto.Types;
 import io.helidon.microprofile.grpc.core.Bidirectional;
 import io.helidon.microprofile.grpc.core.ClientStreaming;
@@ -34,19 +35,20 @@ import org.junit.jupiter.api.Test;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isA;
+import static org.mockito.ArgumentMatchers.same;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * @author Jonathan Knight
- */
+
+@SuppressWarnings("unchecked")
 public class UnaryMethodHandlerSupplierTest {
 
     @Test
@@ -69,7 +71,7 @@ public class UnaryMethodHandlerSupplierTest {
         AnnotatedMethod method = getUnaryMethod();
         UnaryService service = mock(UnaryService.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -81,13 +83,38 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
+     * Test client call handler for:
+     * <pre>
+     *     void invoke(ReqT request, StreamObserver<RespT> observer);
+     * </pre>
+     */
+    @Test
+    public void shouldSupplyUnaryHandlerAndHandleClientCall() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getUnaryMethod();
+        UnaryService service = mock(UnaryService.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        StreamObserver<Object> observer = mock(StreamObserver.class);
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        handler.unary(new Object[]{"bar", observer}, client);
+        verify(client).unary(eq("foo"), eq("bar"));
+        verify(observer).onNext("done!");
+        verify(observer).onCompleted();
+    }
+
+    /**
      * Test handler for:
      * <pre>
      *     RespT invoke(ReqT request);
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldSupplyHandlerForRequestResponse() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("requestResponse", String.class);
@@ -95,7 +122,7 @@ public class UnaryMethodHandlerSupplierTest {
 
         when(service.requestResponse(anyString())).thenReturn(19L);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -107,6 +134,33 @@ public class UnaryMethodHandlerSupplierTest {
         verify(observer).onNext(19L);
     }
 
+
+    /**
+     * Test client call handler for:
+     * <pre>
+     *     RespT invoke(ReqT request);
+     * </pre>
+     */
+    @Test
+    public void shouldSupplyHandlerForRequestResponseAndHandleClientCall() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("requestResponse", String.class);
+        UnaryService service = mock(UnaryService.class);
+
+        when(service.requestResponse(anyString())).thenReturn(19L);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        Object result = handler.unary(new Object[]{"bar"}, client);
+        assertThat(result, is("done!"));
+        verify(client).unary(eq("foo"), eq("bar"));
+    }
+
     /**
      * Test handler for:
      * <pre>
@@ -114,7 +168,6 @@ public class UnaryMethodHandlerSupplierTest {
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldSupplyHandlerForResponseOnly() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("responseOnly");
@@ -122,7 +175,7 @@ public class UnaryMethodHandlerSupplierTest {
 
         when(service.responseOnly()).thenReturn(19L);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -135,19 +188,44 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
+     * Test client call handler for:
+     * <pre>
+     *     RespT invoke();
+     * </pre>
+     */
+    @Test
+    public void shouldSupplyHandlerForResponseOnlyAndHandleClientCall() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("responseOnly");
+        UnaryService service = mock(UnaryService.class);
+
+        when(service.responseOnly()).thenReturn(19L);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        Object result = handler.unary(new Object[0], client);
+        assertThat(result, is("done!"));
+        verify(client).unary(eq("foo"), eq(Types.Empty.getDefaultInstance()));
+    }
+
+    /**
      * Test handler for:
      * <pre>
      *     void invoke(ReqT request);
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldSupplyHandlerForRequestNoResponse() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("requestNoResponse", String.class);
         UnaryService service = mock(UnaryService.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Types.Empty.class));
@@ -160,19 +238,42 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
+     * Test client call handler for:
+     * <pre>
+     *     void invoke(ReqT request);
+     * </pre>
+     */
+    @Test
+    public void shouldSupplyHandlerForRequestNoResponseAndHandleClientCall() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("requestNoResponse", String.class);
+        UnaryService service = mock(UnaryService.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        Object result = handler.unary(new Object[]{"bar"}, client);
+        assertThat(result, is(nullValue()));
+        verify(client).unary(eq("foo"), eq("bar"));
+    }
+
+    /**
      * Test handler for:
      * <pre>
      *     void invoke();
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldSupplyHandlerForNoRequestNoResponse() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("noRequestNoResponse");
         UnaryService service = mock(UnaryService.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Types.Empty.class));
@@ -185,13 +286,36 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
+     * Test client call handler for:
+     * <pre>
+     *     void invoke();
+     * </pre>
+     */
+    @Test
+    public void shouldSupplyHandlerForNoRequestNoResponseAndHandleClientCall() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("noRequestNoResponse");
+        UnaryService service = mock(UnaryService.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        Object result = handler.unary(new Object[0], client);
+        assertThat(result, is(nullValue()));
+        verify(client).unary(eq("foo"), eq(Types.Empty.getDefaultInstance()));
+    }
+
+    /**
      * Test handler for:
      * <pre>
      *     CompletableFuture<RespT> invoke(ReqT request);
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldSupplyHandlerForFutureResponse() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("futureResponse", String.class);
@@ -199,7 +323,7 @@ public class UnaryMethodHandlerSupplierTest {
 
         when(service.futureResponse(anyString())).thenReturn(CompletableFuture.completedFuture(19L));
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -212,13 +336,38 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
-     * Test handler for:
+     * Test client call handler for:
      * <pre>
      *     CompletableFuture<RespT> invoke(ReqT request);
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
+    public void shouldSupplyHandlerForFutureResponseAndHandleClientCall() throws Exception {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("futureResponse", String.class);
+        UnaryService service = mock(UnaryService.class);
+
+        when(service.futureResponse(anyString())).thenReturn(CompletableFuture.completedFuture(19L));
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        CompletableFuture<Object> result = (CompletableFuture<Object>) handler.unary(new Object[]{"bar"}, client);
+        assertThat(result.get(), is("done!"));
+        verify(client).unary(eq("foo"), eq("bar"));
+    }
+
+    /**
+     * Test handler for:
+     * <pre>
+     *     CompletableFuture<RespT> invoke();
+     * </pre>
+     */
+    @Test
     public void shouldSupplyHandlerForFutureResponseNoRequest() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("futureResponseNoRequest");
@@ -226,7 +375,7 @@ public class UnaryMethodHandlerSupplierTest {
 
         when(service.futureResponseNoRequest()).thenReturn(CompletableFuture.completedFuture(19L));
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -239,19 +388,44 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
+     * Test client call handler for:
+     * <pre>
+     *     CompletableFuture<RespT> invoke();
+     * </pre>
+     */
+    @Test
+    public void shouldSupplyHandlerForFutureResponseNoRequestAndHandleClientCall() throws Exception {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("futureResponseNoRequest");
+        UnaryService service = mock(UnaryService.class);
+
+        when(service.futureResponseNoRequest()).thenReturn(CompletableFuture.completedFuture(19L));
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        CompletableFuture<Object> result = (CompletableFuture<Object>) handler.unary(new Object[0], client);
+        assertThat(result.get(), is("done!"));
+        verify(client).unary(eq("foo"), eq(Types.Empty.getDefaultInstance()));
+    }
+
+    /**
      * Test handler for:
      * <pre>
      *     void invoke(StreamObserver<RespT> observer);
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
     public void shouldSupplyHandlerForUnaryWithNoRequest() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("unaryNoRequest", StreamObserver.class);
         UnaryService service = mock(UnaryService.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -263,19 +437,44 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
-     * Test handler for:
+     * Test client call handler for:
      * <pre>
-     *     void invoke(ReqT request, CompletableFuture<RespT> observer);
+     *     void invoke(StreamObserver<RespT> observer);
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
+    public void shouldSupplyHandlerForUnaryWithNoRequestAndHandleClientCall() {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("unaryNoRequest", StreamObserver.class);
+        UnaryService service = mock(UnaryService.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        StreamObserver<Object> observer = mock(StreamObserver.class);
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        handler.unary(new Object[]{observer}, client);
+        verify(client).unary(eq("foo"), eq(Types.Empty.getDefaultInstance()));
+        verify(observer).onNext("done!");
+        verify(observer).onCompleted();
+    }
+
+    /**
+     * Test handler for:
+     * <pre>
+     *     void invoke(ReqT request, CompletableFuture<RespT> future);
+     * </pre>
+     */
+    @Test
     public void shouldSupplyHandlerForUnaryWithFuture() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("unaryFuture", String.class, CompletableFuture.class);
         UnaryService service = mock(UnaryService.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(String.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -287,19 +486,43 @@ public class UnaryMethodHandlerSupplierTest {
     }
 
     /**
-     * Test handler for:
+     * Test client call handler for:
      * <pre>
-     *     void invoke(CompletableFuture<RespT> observer);
+     *     void invoke(ReqT request, CompletableFuture<RespT> future);
      * </pre>
      */
     @Test
-    @SuppressWarnings("unchecked")
+    public void shouldSupplyHandlerForUnaryWithFutureAndHandleClientCall() throws Exception {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("unaryFuture", String.class, CompletableFuture.class);
+        UnaryService service = mock(UnaryService.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        handler.unary(new Object[]{"bar", future}, client);
+        verify(client).unary(eq("foo"), eq("bar"));
+        assertThat(future.get(), is("done!"));
+    }
+
+    /**
+     * Test handler for:
+     * <pre>
+     *     void invoke(CompletableFuture<RespT> future);
+     * </pre>
+     */
+    @Test
     public void shouldSupplyHandlerForUnaryWithFutureNoRequest() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("unaryFutureNoRequest", CompletableFuture.class);
         UnaryService service = mock(UnaryService.class);
 
-        MethodHandler<String, Long> handler = supplier.get(method, () -> service);
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Types.Empty.class));
         assertThat(handler.getResponseType(), equalTo(Long.class));
@@ -310,13 +533,38 @@ public class UnaryMethodHandlerSupplierTest {
         verify(service).unaryFutureNoRequest(any(CompletableFuture.class));
     }
 
+    /**
+     * Test client call handler for:
+     * <pre>
+     *     void invoke(CompletableFuture<RespT> future);
+     * </pre>
+     */
+    @Test
+    public void shouldSupplyHandlerForUnaryWithFutureNoRequestAndHandleClientCall() throws Exception {
+        UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("unaryFutureNoRequest", CompletableFuture.class);
+        UnaryService service = mock(UnaryService.class);
+
+        MethodHandler<String, Long> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        CompletableFuture<Object> future = new CompletableFuture<>();
+        MethodHandler.UnaryClient client = mock(MethodHandler.UnaryClient.class);
+
+        when(client.unary(anyString(), any())).thenReturn(CompletableFuture.completedFuture("done!"));
+
+        handler.unary(new Object[]{future}, client);
+        verify(client).unary(eq("foo"), eq(Types.Empty.getDefaultInstance()));
+        assertThat(future.get(), is("done!"));
+    }
+
     @Test
     public void shouldSupplyUnaryHandlerWithTypesFromAnnotation() {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("reqResp", StreamObserver.class);
         UnaryService service = mock(UnaryService.class);
 
-        MethodHandler<String, String> handler = supplier.get(method, () -> service);
+        MethodHandler<String, String> handler = supplier.get("foo", method, () -> service);
         assertThat(handler, is(notNullValue()));
         assertThat(handler.getRequestType(), equalTo(Long.class));
         assertThat(handler.getResponseType(), equalTo(String.class));
@@ -334,7 +582,7 @@ public class UnaryMethodHandlerSupplierTest {
         UnaryMethodHandlerSupplier supplier = new UnaryMethodHandlerSupplier();
         UnaryService service = mock(UnaryService.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(null, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", null, () -> service));
     }
 
     @Test
@@ -343,7 +591,7 @@ public class UnaryMethodHandlerSupplierTest {
         AnnotatedMethod method = getBidiMethod();
         UnaryService service = mock(UnaryService.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test
@@ -360,7 +608,7 @@ public class UnaryMethodHandlerSupplierTest {
         AnnotatedMethod method = getMethod("badArg", String.class, String.class);
         UnaryService service = mock(UnaryService.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test
@@ -369,7 +617,7 @@ public class UnaryMethodHandlerSupplierTest {
         AnnotatedMethod method = getMethod("tooManyArgs", StreamObserver.class, String.class);
         UnaryService service = mock(UnaryService.class);
 
-        assertThrows(IllegalArgumentException.class, () -> supplier.get(method, () -> service));
+        assertThrows(IllegalArgumentException.class, () -> supplier.get("foo", method, () -> service));
     }
 
     @Test
@@ -423,6 +671,7 @@ public class UnaryMethodHandlerSupplierTest {
      * The unary methods service implementation.
      */
     @RpcService
+    @SuppressWarnings("CdiManagedBeanInconsistencyInspection")
     public interface UnaryService {
         @Unary
         Long requestResponse(String request);

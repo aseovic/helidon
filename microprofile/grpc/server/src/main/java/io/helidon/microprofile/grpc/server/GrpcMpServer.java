@@ -232,7 +232,7 @@ public interface GrpcMpServer {
          * @param builder the gRPC routing
          */
         private void register(Object service, GrpcRouting.Builder builder) {
-            Class<?> cls = service.getClass().getSuperclass();
+            Class<?> cls = service.getClass();
             ServiceModeller modeller = new ServiceModeller(cls, () -> service);
             if (modeller.isAnnotatedService()) {
                 builder.register(modeller.createServiceBuilder().build());

@@ -56,8 +56,6 @@ import io.grpc.stub.StreamObserver;
 
 /**
  * An example server that configures services with outbound security.
- *
- * @author Jonathan Knight
  */
 public class SecureServer {
 

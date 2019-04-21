@@ -50,9 +50,7 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
 /**
- * Tests for gRPC server with metrics.
- *
- * @author Jonathan Knight
+ * Integeration tests for gRPC server with metrics.
  */
 public class MetricsIT {
 

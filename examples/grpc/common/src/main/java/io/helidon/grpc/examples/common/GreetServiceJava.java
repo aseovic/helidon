@@ -25,7 +25,7 @@ import io.helidon.grpc.server.ServiceDescriptor;
 import io.grpc.stub.StreamObserver;
 
 /**
- * @author Aleksandar Seovic
+ * A plain Java implementation of the GreetService.
  */
 public class GreetServiceJava
         implements GrpcService {

@@ -29,8 +29,6 @@ import io.grpc.ServerInterceptor;
  * GrpcRouting represents the composition of gRPC services with interceptors and routing rules.
  *
  * It is together with {@link GrpcServerConfiguration.Builder} a cornerstone of the {@link GrpcServer}.
- *
- * @author Aleksandar Seovic
  */
 public interface GrpcRouting {
 

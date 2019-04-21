@@ -43,8 +43,6 @@ import static io.helidon.grpc.core.GrpcHelper.extractMethodName;
 
 /**
  * Encapsulates all metadata necessary to create and deploy a gRPC service.
- *
- * @author Aleksandar Seovic  2019.03.18
  */
 public class ServiceDescriptor {
     /**

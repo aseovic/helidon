@@ -35,8 +35,6 @@ import static io.helidon.grpc.core.GrpcHelper.extractNamePrefix;
  *
  * @param <ReqT> request type
  * @param <ResT> response type
- *
- * @author Aleksandar Seovic  2019.03.18
  */
 public class MethodDescriptor<ReqT, ResT> {
     private final String name;

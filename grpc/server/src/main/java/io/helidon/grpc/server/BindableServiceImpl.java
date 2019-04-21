@@ -33,8 +33,6 @@ import io.grpc.stub.StreamObserver;
 /**
  * A {@link io.grpc.BindableService} implementation that creates {@link io.grpc.ServerServiceDefinition}
  * from a {@link ServiceDescriptor}.
- *
- * @author Aleksandar Seovic
  */
 class BindableServiceImpl implements BindableService {
     /**

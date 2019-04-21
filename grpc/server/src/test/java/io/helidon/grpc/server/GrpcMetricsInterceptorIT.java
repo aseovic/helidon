@@ -51,8 +51,6 @@ import static org.mockito.Mockito.when;
  * This test runs as an integration test because it causes Helidon metrics
  * to be initialised which may impact other tests that rely on metrics being
  * configured a specific way.
- *
- * @author Jonathan Knight
  */
 @SuppressWarnings("unchecked")
 public class GrpcMetricsInterceptorIT {

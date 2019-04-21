@@ -19,15 +19,11 @@ package services;
 import io.helidon.grpc.server.GrpcService;
 import io.helidon.grpc.server.ServiceDescriptor;
 import io.helidon.grpc.server.test.Echo;
-import io.helidon.grpc.server.test.StringServiceGrpc;
 
-import io.grpc.Channel;
 import io.grpc.stub.StreamObserver;
 
 /**
  * A simple test gRPC echo service.
- *
- * @author Jonathan Knight
  */
 public class EchoService
         implements GrpcService {

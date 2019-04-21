@@ -35,8 +35,6 @@ import io.helidon.webserver.WebServer;
 
 /**
  * A basic example of a Helidon gRPC server.
- *
- * @author Aleksandar Seovic
  */
 public class Server {
 

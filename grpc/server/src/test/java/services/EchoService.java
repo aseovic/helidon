@@ -24,8 +24,6 @@ import io.grpc.stub.StreamObserver;
 
 /**
  * A simple test gRPC echo service.
- *
- * @author Jonathan Knight
  */
 public class EchoService
         implements GrpcService {

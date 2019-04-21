@@ -32,8 +32,6 @@ import static io.helidon.grpc.core.GrpcHelper.extractMethodName;
 /**
  * A {@link io.grpc.ServerInterceptor} that sets values into the
  * gRPC call context.
- *
- * @author Jonathan Knight
  */
 class ContextSettingServerInterceptor
         implements PriorityServerInterceptor, ServiceDescriptor.Aware {

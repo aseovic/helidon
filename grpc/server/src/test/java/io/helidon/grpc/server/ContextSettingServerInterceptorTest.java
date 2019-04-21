@@ -32,7 +32,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 /**
- * @author Jonathan Knight
+ * {@link ContextSettingServerInterceptor} unit tests.
  */
 @SuppressWarnings("unchecked")
 public class ContextSettingServerInterceptorTest {

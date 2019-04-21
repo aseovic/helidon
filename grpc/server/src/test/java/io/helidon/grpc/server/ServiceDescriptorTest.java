@@ -53,7 +53,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
- * @author Jonathan Knight
+ * {@link ServiceDescriptor} unit tests.
  */
 public class ServiceDescriptorTest {
 

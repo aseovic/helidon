@@ -35,8 +35,6 @@ import static io.helidon.grpc.server.BindableServiceImpl.createSupplier;
 
 /**
  * A Helidon gRPC service.
- *
- * @author Aleksandar Seovic
  */
 public interface GrpcService {
 

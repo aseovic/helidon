@@ -41,9 +41,9 @@ public interface GrpcService {
     /**
      * Update service configuration.
      *
-     * @param config configuration to update
+     * @param rules configuration to update
      */
-    void update(ServiceDescriptor.Config config);
+    void update(ServiceDescriptor.Rules rules);
 
     /**
      * Obtain the name of this service.

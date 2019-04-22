@@ -202,7 +202,7 @@ public class ServiceDescriptorTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldAddBidirectionalMethodWithConfigurer() {
-        Consumer<MethodDescriptor.Config<String, String>> configurer = mock(Consumer.class);
+        Consumer<MethodDescriptor.Rules<String, String>> configurer = mock(Consumer.class);
 
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .bidirectional("methodOne", this::dummyBiDi, configurer)
@@ -255,7 +255,7 @@ public class ServiceDescriptorTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldAddClientStreamingMethodWithConfigurer() {
-        Consumer<MethodDescriptor.Config<String, String>> configurer = mock(Consumer.class);
+        Consumer<MethodDescriptor.Rules<String, String>> configurer = mock(Consumer.class);
 
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .clientStreaming("methodOne", this::dummyClientStreaming, configurer)
@@ -308,7 +308,7 @@ public class ServiceDescriptorTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldAddServerStreamingMethodWithConfigurer() {
-        Consumer<MethodDescriptor.Config<String, String>> configurer = mock(Consumer.class);
+        Consumer<MethodDescriptor.Rules<String, String>> configurer = mock(Consumer.class);
 
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .serverStreaming("methodOne", this::dummyServerStreaming, configurer)
@@ -361,7 +361,7 @@ public class ServiceDescriptorTest {
     @Test
     @SuppressWarnings("unchecked")
     public void shouldAddUnaryMethodWithConfigurer() {
-        Consumer<MethodDescriptor.Config<String, String>> configurer = mock(Consumer.class);
+        Consumer<MethodDescriptor.Rules<String, String>> configurer = mock(Consumer.class);
 
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .unary("methodOne", this::dummyServerStreaming, configurer)

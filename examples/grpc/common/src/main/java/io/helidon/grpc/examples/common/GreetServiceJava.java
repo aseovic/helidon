@@ -44,10 +44,9 @@ public class GreetServiceJava
     }
 
     @Override
-    public void update(ServiceDescriptor.Config config) {
-        config
-                .unary("Greet", this::greet)
-                .unary("SetGreeting", this::setGreeting);
+    public void update(ServiceDescriptor.Rules rules) {
+        rules.unary("Greet", this::greet)
+             .unary("SetGreeting", this::setGreeting);
     }
 
     // ---- service methods -------------------------------------------------

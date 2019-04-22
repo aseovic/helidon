@@ -127,7 +127,7 @@ public interface GrpcRouting {
          *                   for the registered service
          * @return this builder to allow fluent method chaining
          */
-        public Builder register(GrpcService service, Consumer<ServiceDescriptor.Config> configurer) {
+        public Builder register(GrpcService service, Consumer<ServiceDescriptor.Rules> configurer) {
             return register(ServiceDescriptor.builder(service), configurer);
         }
 
@@ -149,7 +149,7 @@ public interface GrpcRouting {
          *                   for the registered service
          * @return this builder to allow fluent method chaining
          */
-        public Builder register(BindableService service, Consumer<ServiceDescriptor.Config> configurer) {
+        public Builder register(BindableService service, Consumer<ServiceDescriptor.Rules> configurer) {
             return register(ServiceDescriptor.builder(service), configurer);
         }
 
@@ -177,7 +177,7 @@ public interface GrpcRouting {
 
         @SuppressWarnings("unchecked")
         private Builder register(ServiceDescriptor.Builder builder,
-                                 Consumer<ServiceDescriptor.Config> configurer) {
+                                 Consumer<ServiceDescriptor.Rules> configurer) {
             if (configurer != null) {
                 configurer.accept(builder);
             }
@@ -194,7 +194,7 @@ public interface GrpcRouting {
         private boolean isServiceDescriptorConfigConsumer(ServerInterceptor interceptor) {
             if (interceptor instanceof Consumer) {
                 try {
-                    interceptor.getClass().getMethod("accept", ServiceDescriptor.Config.class);
+                    interceptor.getClass().getMethod("accept", ServiceDescriptor.Rules.class);
                     return true;
                 } catch (NoSuchMethodException e) {
                     return false;

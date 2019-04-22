@@ -75,8 +75,8 @@ either service or the method level:
     public static class MyService implements GrpcService {
 
         @Override
-        public void update(ServiceDescriptor.Config config) {
-            config
+        public void update(ServiceDescriptor.Rules rules) {
+            rules
                 .metered()                                              // <2>
                 .unary("MyMethod", this::myMethod, cfg -> cfg.timed())  // <3>
         }

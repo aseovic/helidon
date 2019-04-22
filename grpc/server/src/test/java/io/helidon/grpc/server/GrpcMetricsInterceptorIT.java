@@ -196,7 +196,7 @@ public class GrpcMetricsInterceptorIT {
     public void shouldUseMethodOverrideToSetCounterMetric() {
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .metered()
-                .unary("barOverrideCount", this::dummyUnary, MethodDescriptor.Config::counted)
+                .unary("barOverrideCount", this::dummyUnary, MethodDescriptor.Rules::counted)
                 .build();
 
         MethodDescriptor methodDescriptor = descriptor.method("barOverrideCount");
@@ -218,7 +218,7 @@ public class GrpcMetricsInterceptorIT {
     public void shouldUseMethodOverrideToSetHistogramMetric() {
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .metered()
-                .unary("barOverrideHistogram", this::dummyUnary, MethodDescriptor.Config::histogram)
+                .unary("barOverrideHistogram", this::dummyUnary, MethodDescriptor.Rules::histogram)
                 .build();
 
         MethodDescriptor methodDescriptor = descriptor.method("barOverrideHistogram");
@@ -240,7 +240,7 @@ public class GrpcMetricsInterceptorIT {
     public void shouldUseMethodOverrideToSetMeterMetric() {
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .metered()
-                .unary("barOverrideMeter", this::dummyUnary, MethodDescriptor.Config::metered)
+                .unary("barOverrideMeter", this::dummyUnary, MethodDescriptor.Rules::metered)
                 .build();
 
         MethodDescriptor methodDescriptor = descriptor.method("barOverrideMeter");
@@ -262,7 +262,7 @@ public class GrpcMetricsInterceptorIT {
     public void shouldUseMethodOverrideToSetTimerMetric() {
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .metered()
-                .unary("barOverrideTimer", this::dummyUnary, MethodDescriptor.Config::timed)
+                .unary("barOverrideTimer", this::dummyUnary, MethodDescriptor.Rules::timed)
                 .build();
 
         MethodDescriptor methodDescriptor = descriptor.method("barOverrideTimer");
@@ -284,7 +284,7 @@ public class GrpcMetricsInterceptorIT {
     public void shouldUseMethodOverrideToDisableMetrics() {
         ServiceDescriptor descriptor = ServiceDescriptor.builder(createMockService())
                 .metered()
-                .unary("barOverrideOff", this::dummyUnary, MethodDescriptor.Config::disableMetrics)
+                .unary("barOverrideOff", this::dummyUnary, MethodDescriptor.Rules::disableMetrics)
                 .build();
 
         MethodDescriptor methodDescriptor = descriptor.method("barOverrideOff");

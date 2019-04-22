@@ -53,6 +53,8 @@ class ContextSettingServerInterceptor
         MethodDescriptor methodDescriptor = serviceDescriptor.method(methodName);
         Map<Context.Key<?>, Object> contextMap = new HashMap<>();
 
+        // apply context keys from the service followed by the method
+        // so that the method can override any service keys
         contextMap.putAll(serviceDescriptor.context());
         contextMap.putAll(methodDescriptor.context());
         contextMap.put(ServiceDescriptor.SERVICE_DESCRIPTOR_KEY, serviceDescriptor);
@@ -75,5 +77,18 @@ class ContextSettingServerInterceptor
     @Override
     public void setServiceDescriptor(ServiceDescriptor descriptor) {
         this.serviceDescriptor = descriptor;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        return o != null && getClass() == o.getClass();
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
     }
 }

@@ -17,13 +17,14 @@
 package io.helidon.grpc.server;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Consumer;
+import java.util.Objects;
 
 import io.helidon.grpc.core.MarshallerSupplier;
 
@@ -37,7 +38,6 @@ import io.grpc.ServerMethodDefinition;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.stub.ServerCalls;
 import org.eclipse.microprofile.health.HealthCheck;
-import org.eclipse.microprofile.metrics.MetricType;
 
 import static io.helidon.grpc.core.GrpcHelper.extractMethodName;
 
@@ -55,20 +55,17 @@ public class ServiceDescriptor {
     private final Map<String, MethodDescriptor> methods;
     private final List<ServerInterceptor> interceptors;
     private final Map<Context.Key<?>, Object> context;
-    private final MetricType metricType;
     private final HealthCheck healthCheck;
 
     private ServiceDescriptor(String name,
                               Map<String, MethodDescriptor> methods,
                               List<ServerInterceptor> interceptors,
                               Map<Context.Key<?>, Object> context,
-                              MetricType metricType,
                               HealthCheck healthCheck) {
-        this.name = name;
+        this.name = Objects.requireNonNull(name);
         this.methods = methods;
         this.interceptors = new ArrayList<>(interceptors);
         this.context = Collections.unmodifiableMap(context);
-        this.metricType = metricType;
         this.healthCheck = healthCheck;
     }
 
@@ -115,14 +112,6 @@ public class ServiceDescriptor {
     }
 
     /**
-     * Return the type of metric that should be collected for this service.
-     * @return metric type
-     */
-    public MetricType metricType() {
-        return metricType;
-    }
-
-    /**
      * Return a {@link org.eclipse.microprofile.health.HealthCheck} for this service.
      * @return a health check
      */
@@ -137,6 +126,23 @@ public class ServiceDescriptor {
     @Override
     public String toString() {
         return "ServiceDescriptor(name='" + name + '\'' + ')';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        ServiceDescriptor that = (ServiceDescriptor) o;
+        return name.equals(that.name);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(name);
     }
 
     /**
@@ -248,7 +254,7 @@ public class ServiceDescriptor {
          */
         <ReqT, ResT> Rules unary(String name,
                                  ServerCalls.UnaryMethod<ReqT, ResT> method,
-                                 Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
+                                 MethodDescriptor.Configurer<ReqT, ResT> configurer);
 
         /**
          * Register server streaming method for the service.
@@ -273,7 +279,7 @@ public class ServiceDescriptor {
          */
         <ReqT, ResT> Rules serverStreaming(String name,
                                            ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
-                                           Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
+                                           MethodDescriptor.Configurer<ReqT, ResT> configurer);
 
         /**
          * Register client streaming method for the service.
@@ -298,7 +304,7 @@ public class ServiceDescriptor {
          */
         <ReqT, ResT> Rules clientStreaming(String name,
                                            ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
-                                           Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
+                                           MethodDescriptor.Configurer<ReqT, ResT> configurer);
 
         /**
          * Register bi-directional streaming method for the service.
@@ -323,7 +329,7 @@ public class ServiceDescriptor {
          */
         <ReqT, ResT> Rules bidirectional(String name,
                                          ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
-                                         Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
+                                         MethodDescriptor.Configurer<ReqT, ResT> configurer);
 
         /**
          * Register the service {@link HealthCheck}.
@@ -332,41 +338,22 @@ public class ServiceDescriptor {
          * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
         Rules healthCheck(HealthCheck healthCheck);
+    }
 
-        /**
-         * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Counter}.
-         *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules counted();
+    // ---- inner class: Configurer -----------------------------------------
 
+    /**
+     * An interface implemented by classs that can configure
+     * a {@link ServiceDescriptor.Rules}.
+     */
+    @FunctionalInterface
+    public interface Configurer {
         /**
-         * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Meter}.
+         * Apply extra configuration to a {@link ServiceDescriptor.Rules}.
          *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
+         * @param rules the {@link ServiceDescriptor.Rules} to configure
          */
-        Rules metered();
-
-        /**
-         * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Histogram}.
-         *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules histogram();
-
-        /**
-         * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Timer}.
-         *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules timed();
-
-        /**
-         * Explicitly disable metrics collection for this service.
-         *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules disableMetrics();
+        void configure(Rules rules);
     }
 
     // ---- inner class: Aware ----------------------------------------------
@@ -398,7 +385,6 @@ public class ServiceDescriptor {
         private Map<String, MethodDescriptor.Builder> methodBuilders = new LinkedHashMap<>();
         private List<ServerInterceptor> interceptors = new ArrayList<>();
         private Map<Context.Key<?>, Object> context = new HashMap<>();
-        private MetricType metricType;
         private HealthCheck healthCheck;
 
         Builder(GrpcService service) {
@@ -469,7 +455,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder unary(String name,
                                           ServerCalls.UnaryMethod<ReqT, ResT> method,
-                                          Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
+                                          MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.UNARY,
                                                             ServerCalls.asyncUnaryCall(method),
@@ -485,7 +471,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder serverStreaming(String name,
                                                     ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
-                                                    Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
+                                                    MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING,
                                                             ServerCalls.asyncServerStreamingCall(method),
@@ -501,7 +487,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder clientStreaming(String name,
                                                     ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
-                                                    Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
+                                                    MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING,
                                                             ServerCalls.asyncClientStreamingCall(method),
@@ -517,7 +503,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder bidirectional(String name,
                                                   ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
-                                                  Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
+                                                  MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,
                                                             ServerCalls.asyncBidiStreamingCall(method),
@@ -528,6 +514,13 @@ public class ServiceDescriptor {
         @Override
         public Builder intercept(ServerInterceptor... interceptors) {
             Collections.addAll(this.interceptors, interceptors);
+
+            // If any interceptors implement ServiceDescriptor.Configurer allow them to apply further configuration
+            Arrays.stream(interceptors)
+                    .filter(interceptor -> ServiceDescriptor.Configurer.class.isAssignableFrom(interceptor.getClass()))
+                    .map(ServiceDescriptor.Configurer.class::cast)
+                    .forEach(interceptor -> interceptor.configure(this));
+
             return this;
         }
 
@@ -557,36 +550,6 @@ public class ServiceDescriptor {
         }
 
         @Override
-        public Builder counted() {
-            return metricType(MetricType.COUNTER);
-        }
-
-        @Override
-        public Builder metered() {
-            return metricType(MetricType.METERED);
-        }
-
-        @Override
-        public Builder histogram() {
-            return metricType(MetricType.HISTOGRAM);
-        }
-
-        @Override
-        public Builder timed() {
-            return metricType(MetricType.TIMER);
-        }
-
-        @Override
-        public Builder disableMetrics() {
-            return metricType(MetricType.INVALID);
-        }
-
-        private Builder metricType(MetricType metricType) {
-            this.metricType = metricType;
-            return this;
-        }
-
-        @Override
         public ServiceDescriptor build() {
             Map<String, MethodDescriptor> methods = new LinkedHashMap<>();
 
@@ -594,7 +557,7 @@ public class ServiceDescriptor {
                 methods.put(entry.getKey(), entry.getValue().build());
             }
 
-            return new ServiceDescriptor(name, methods, interceptors, context, metricType, healthCheck);
+            return new ServiceDescriptor(name, methods, interceptors, context, healthCheck);
         }
 
         @Override
@@ -609,7 +572,7 @@ public class ServiceDescriptor {
                 String methodName,
                 io.grpc.MethodDescriptor.MethodType methodType,
                 ServerCallHandler<ReqT, ResT> callHandler,
-                Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
+                MethodDescriptor.Configurer<ReqT, ResT> configurer) {
             Class<ReqT> requestType = (Class<ReqT>) getTypeFromMethodDescriptor(methodName, true);
             Class<ResT> responseType = (Class<ResT>) getTypeFromMethodDescriptor(methodName, false);
 
@@ -623,7 +586,7 @@ public class ServiceDescriptor {
 
             MethodDescriptor.Builder<ReqT, ResT> builder = MethodDescriptor.builder(methodName, grpcDesc, callHandler);
             if (configurer != null) {
-                configurer.accept(builder);
+                configurer.configure(builder);
             }
 
             return builder;

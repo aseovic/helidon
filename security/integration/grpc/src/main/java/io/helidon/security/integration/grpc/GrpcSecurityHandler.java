@@ -76,7 +76,7 @@ import static io.helidon.security.AuditEvent.AuditParam.plain;
 // we need to have all fields optional and this is cleaner than checking for null
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public class GrpcSecurityHandler
-        implements PriorityServerInterceptor, Consumer<ServiceDescriptor.Rules> {
+        implements PriorityServerInterceptor, ServiceDescriptor.Configurer {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurityHandler.class.getName());
     private static final String KEY_ROLES_ALLOWED = "roles-allowed";
     private static final String KEY_AUTHENTICATOR = "authenticator";
@@ -299,7 +299,7 @@ public class GrpcSecurityHandler
      * @param rules  the {@link io.helidon.grpc.server.ServiceDescriptor.Rules} to modify
      */
     @Override
-    public void accept(ServiceDescriptor.Rules rules) {
+    public void configure(ServiceDescriptor.Rules rules) {
         rules.addContextValue(GrpcSecurity.GRPC_SECURITY_HANDLER, this);
     }
 

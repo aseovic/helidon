@@ -25,7 +25,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Consumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -102,7 +101,7 @@ import io.opentracing.contrib.grpc.OpenTracingContextKey;
 // we need to have all fields optional and this is cleaner than checking for null
 @SuppressWarnings("OptionalUsedAsFieldOrParameterType")
 public final class GrpcSecurity
-        implements PriorityServerInterceptor, Consumer<ServiceDescriptor.Rules> {
+        implements PriorityServerInterceptor, ServiceDescriptor.Configurer {
     private static final Logger LOGGER = Logger.getLogger(GrpcSecurity.class.getName());
 
     /**
@@ -378,7 +377,7 @@ public final class GrpcSecurity
      * @param rules  the {@link ServiceDescriptor.Rules} to modify
      */
     @Override
-    public void accept(ServiceDescriptor.Rules rules) {
+    public void configure(ServiceDescriptor.Rules rules) {
         config.ifPresent(grpcConfig -> modifyServiceDescriptorConfig(rules, grpcConfig));
     }
 

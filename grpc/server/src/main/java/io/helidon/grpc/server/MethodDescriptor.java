@@ -17,6 +17,7 @@
 package io.helidon.grpc.server;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -26,7 +27,6 @@ import java.util.Objects;
 import io.grpc.Context;
 import io.grpc.ServerCallHandler;
 import io.grpc.ServerInterceptor;
-import org.eclipse.microprofile.metrics.MetricType;
 
 import static io.helidon.grpc.core.GrpcHelper.extractNamePrefix;
 
@@ -40,20 +40,17 @@ public class MethodDescriptor<ReqT, ResT> {
     private final String name;
     private final io.grpc.MethodDescriptor<ReqT, ResT> descriptor;
     private final ServerCallHandler<ReqT, ResT> callHandler;
-    private final MetricType metricType;
     private final Map<Context.Key, Object> context;
     private final List<ServerInterceptor> interceptors;
 
     private MethodDescriptor(String name,
                      io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                      ServerCallHandler<ReqT, ResT> callHandler,
-                     MetricType metricType,
                      Map<Context.Key, Object> context,
                      List<ServerInterceptor> interceptors) {
         this.name = name;
         this.descriptor = descriptor;
         this.callHandler = callHandler;
-        this.metricType = metricType;
         this.context = context;
         this.interceptors = new ArrayList<>(interceptors);
     }
@@ -80,14 +77,6 @@ public class MethodDescriptor<ReqT, ResT> {
      */
     public ServerCallHandler<ReqT, ResT> callHandler() {
         return callHandler;
-    }
-
-    /**
-     * Return the type of metric that should be collected for this method.
-     * @return metric type
-     */
-    public MetricType metricType() {
-        return metricType;
     }
 
     /**
@@ -122,6 +111,14 @@ public class MethodDescriptor<ReqT, ResT> {
         return builder(name, descriptor, callHandler).build();
     }
 
+    @Override
+    public String toString() {
+        String fullName = descriptor == null ? null : descriptor.getFullMethodName();
+        return "MethodDescriptor("
+                + "name='" + name + '\''
+                + "fullName='" + fullName + "\')";
+    }
+
     /**
      * Method configuration API.
      *
@@ -129,41 +126,6 @@ public class MethodDescriptor<ReqT, ResT> {
      * @param <ResT> response type
      */
     public interface Rules<ReqT, ResT> {
-        /**
-         * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Counter}.
-         *
-         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> counted();
-
-        /**
-         * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Meter}.
-         *
-         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> metered();
-
-        /**
-         * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Histogram}.
-         *
-         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> histogram();
-
-        /**
-         * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Timer}.
-         *
-         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> timed();
-
-        /**
-         * Explicitly disable metrics collection for this service.
-         *
-         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> disableMetrics();
-
         /**
          * Add a {@link Context.Key} and value to be added to the call {@link io.grpc.Context}
          * when this method is invoked.
@@ -177,7 +139,7 @@ public class MethodDescriptor<ReqT, ResT> {
          * @throws java.lang.NullPointerException if the key parameter is null
          */
 
-        <T> Rules<ReqT, ResT> addContextKey(Context.Key<T> key, T value);
+        <T> Rules<ReqT, ResT> addContextValue(Context.Key<T> key, T value);
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
@@ -187,6 +149,23 @@ public class MethodDescriptor<ReqT, ResT> {
          * @return this {@link ServiceDescriptor.Rules} instance for fluent call chaining
          */
         Rules<ReqT, ResT> intercept(ServerInterceptor... interceptors);
+    }
+
+    /**
+     * An interface implemented by classes that can configure
+     * a {@link MethodDescriptor.Rules}.
+     *
+     * @param <ReqT> request type
+     * @param <ResT> response type
+     */
+    @FunctionalInterface
+    public interface Configurer<ReqT, ResT> {
+        /**
+         * Apply extra configuration to a {@link MethodDescriptor.Rules}.
+         *
+         * @param rules the {@link MethodDescriptor.Rules} to configure
+         */
+        void configure(MethodDescriptor.Rules<ReqT, ResT> rules);
     }
 
     /**
@@ -204,8 +183,6 @@ public class MethodDescriptor<ReqT, ResT> {
 
         private final Map<Context.Key, Object> context = new HashMap<>();
 
-        private MetricType metricType;
-
         Builder(String name,
                 io.grpc.MethodDescriptor<ReqT, ResT> descriptor,
                 ServerCallHandler<ReqT, ResT> callHandler) {
@@ -219,57 +196,34 @@ public class MethodDescriptor<ReqT, ResT> {
                     .setFullMethodName(prefix + "/" + name);
         }
 
-        @Override
-        public Builder<ReqT, ResT> counted() {
-            return metricType(MetricType.COUNTER);
-        }
-
-        @Override
-        public Builder<ReqT, ResT> metered() {
-            return metricType(MetricType.METERED);
-        }
-
-        @Override
-        public Builder<ReqT, ResT> histogram() {
-            return metricType(MetricType.HISTOGRAM);
-        }
-
-        @Override
-        public Builder<ReqT, ResT> timed() {
-            return metricType(MetricType.TIMER);
-        }
-
-        @Override
-        public Builder<ReqT, ResT> disableMetrics() {
-            return metricType(MetricType.INVALID);
-        }
-
         Builder<ReqT, ResT> fullname(String name) {
             descriptor.setFullMethodName(name);
             return this;
         }
 
-        private Builder<ReqT, ResT> metricType(MetricType metricType) {
-            this.metricType = metricType;
-            return this;
-        }
-
         @Override
-        public <T> Builder<ReqT, ResT> addContextKey(Context.Key<T> key, T value) {
+        public <T> Builder<ReqT, ResT> addContextValue(Context.Key<T> key, T value) {
             context.put(Objects.requireNonNull(key, "The context key cannot be null"), value);
             return this;
         }
 
         @Override
+        @SuppressWarnings("unchecked")
         public Builder<ReqT, ResT> intercept(ServerInterceptor... interceptors) {
             Collections.addAll(this.interceptors, interceptors);
+
+            // If any interceptors implement MethodDescriptor.Configurer allow them to apply further configuration
+            Arrays.stream(interceptors)
+                    .filter(interceptor -> MethodDescriptor.Configurer.class.isAssignableFrom(interceptor.getClass()))
+                    .map(MethodDescriptor.Configurer.class::cast)
+                    .forEach(interceptor -> interceptor.configure(this));
+
             return this;
         }
 
         @Override
         public MethodDescriptor<ReqT, ResT> build() {
-            return new MethodDescriptor<>(name, descriptor.build(), callHandler, metricType,
-                                          context, interceptors);
+            return new MethodDescriptor<>(name, descriptor.build(), callHandler, context, interceptors);
         }
     }
 }

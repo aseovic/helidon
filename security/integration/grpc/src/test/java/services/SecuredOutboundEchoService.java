@@ -47,8 +47,8 @@ public class SecuredOutboundEchoService
     }
 
     @Override
-    public void update(ServiceDescriptor.Config config) {
-        config.name("EchoService")
+    public void update(ServiceDescriptor.Rules rules) {
+        rules.name("EchoService")
                 .proto(Echo.getDescriptor())
                 .unary("Echo", this::echo);
     }

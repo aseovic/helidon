@@ -128,41 +128,41 @@ public class MethodDescriptor<ReqT, ResT> {
      * @param <ReqT> request type
      * @param <ResT> response type
      */
-    public interface Config<ReqT, ResT> {
+    public interface Rules<ReqT, ResT> {
         /**
          * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Counter}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
          */
-        Config<ReqT, ResT> counted();
+        Rules<ReqT, ResT> counted();
 
         /**
          * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Meter}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
          */
-        Config<ReqT, ResT> metered();
+        Rules<ReqT, ResT> metered();
 
         /**
          * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Histogram}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
          */
-        Config<ReqT, ResT> histogram();
+        Rules<ReqT, ResT> histogram();
 
         /**
          * Collect metrics for this method using {@link org.eclipse.microprofile.metrics.Timer}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
          */
-        Config<ReqT, ResT> timed();
+        Rules<ReqT, ResT> timed();
 
         /**
          * Explicitly disable metrics collection for this service.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
          */
-        Config<ReqT, ResT> disableMetrics();
+        Rules<ReqT, ResT> disableMetrics();
 
         /**
          * Add a {@link Context.Key} and value to be added to the call {@link io.grpc.Context}
@@ -172,21 +172,21 @@ public class MethodDescriptor<ReqT, ResT> {
          * @param value  the value to map to the {@link Context.Key}
          * @param <T>    the type of the {@link Context.Key} and value
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link MethodDescriptor.Rules} instance for fluent call chaining
          *
          * @throws java.lang.NullPointerException if the key parameter is null
          */
 
-        <T> Config<ReqT, ResT>  addContextKey(Context.Key<T> key, T value);
+        <T> Rules<ReqT, ResT> addContextKey(Context.Key<T> key, T value);
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
          *
          * @param interceptors the interceptor(s) to register
          *
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Config} instance for fluent call chaining
+         * @return this {@link ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config<ReqT, ResT> intercept(ServerInterceptor... interceptors);
+        Rules<ReqT, ResT> intercept(ServerInterceptor... interceptors);
     }
 
     /**
@@ -195,7 +195,7 @@ public class MethodDescriptor<ReqT, ResT> {
      * @param <ReqT> request type
      * @param <ResT> response type
      */
-    static final class Builder<ReqT, ResT> implements Config<ReqT, ResT>, io.helidon.common.Builder<MethodDescriptor<ReqT, ResT>> {
+    static final class Builder<ReqT, ResT> implements Rules<ReqT, ResT>, io.helidon.common.Builder<MethodDescriptor<ReqT, ResT>> {
         private final String name;
         private final io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;

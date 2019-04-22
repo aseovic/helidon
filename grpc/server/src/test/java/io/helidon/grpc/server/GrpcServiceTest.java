@@ -514,7 +514,7 @@ public class GrpcServiceTest {
     private class GrpcServiceStub
             implements GrpcService {
         @Override
-        public void update(ServiceDescriptor.Config config) {
+        public void update(ServiceDescriptor.Rules rules) {
         }
     }
 }

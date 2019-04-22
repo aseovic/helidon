@@ -160,18 +160,18 @@ public class ServiceDescriptor {
     // ---- inner interface: Config -----------------------------------------
 
     /**
-     * Fluent configuration interface for the {@link io.helidon.grpc.server.ServiceDescriptor}.
+     * Fluent configuration interface for the {@link ServiceDescriptor}.
      */
-    public interface Config {
+    public interface Rules {
         /**
          * Set the name for the service.
          *
          * @param name the service name
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          * @throws java.lang.NullPointerException if the name is null
          * @throws java.lang.IllegalArgumentException if the name is a blank String
          */
-        Config name(String name);
+        Rules name(String name);
 
         /**
          * Obtain the name fo the service this configuration configures.
@@ -183,25 +183,25 @@ public class ServiceDescriptor {
          * Register the proto for the service.
          *
          * @param proto the service proto
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config proto(Descriptors.FileDescriptor proto);
+        Rules proto(Descriptors.FileDescriptor proto);
 
         /**
          * Register the {@link MarshallerSupplier} for the service.
          *
          * @param marshallerSupplier the {@link MarshallerSupplier} for the service
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config marshallerSupplier(MarshallerSupplier marshallerSupplier);
+        Rules marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the service.
          *
          * @param interceptors the interceptor(s) to register
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config intercept(ServerInterceptor... interceptors);
+        Rules intercept(ServerInterceptor... interceptors);
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for a named method of the service.
@@ -209,11 +209,11 @@ public class ServiceDescriptor {
          * @param methodName   the name of the method to intercept
          * @param interceptors the interceptor(s) to register
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          *
          * @throws IllegalArgumentException if no method exists for the specified name
          */
-        Config intercept(String methodName, ServerInterceptor... interceptors);
+        Rules intercept(String methodName, ServerInterceptor... interceptors);
 
         /**
          * Add value to the {@link io.grpc.Context} for the service.
@@ -221,9 +221,9 @@ public class ServiceDescriptor {
          * @param key   the key for the context value
          * @param value the value to add
          * @param <V>   the type of the value
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <V> Config addContextValue(Context.Key<V> key, V value);
+        <V> Rules addContextValue(Context.Key<V> key, V value);
 
         /**
          * Register unary method for the service.
@@ -232,9 +232,9 @@ public class ServiceDescriptor {
          * @param method the unary method to register
          * @param <ReqT> the method request type
          * @param <ResT> the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config unary(String name, ServerCalls.UnaryMethod<ReqT, ResT> method);
+        <ReqT, ResT> Rules unary(String name, ServerCalls.UnaryMethod<ReqT, ResT> method);
 
         /**
          * Register unary method for the service.
@@ -244,11 +244,11 @@ public class ServiceDescriptor {
          * @param configurer the method configurer
          * @param <ReqT>     the method request type
          * @param <ResT>     the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config unary(String name,
-                                  ServerCalls.UnaryMethod<ReqT, ResT> method,
-                                  Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer);
+        <ReqT, ResT> Rules unary(String name,
+                                 ServerCalls.UnaryMethod<ReqT, ResT> method,
+                                 Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
 
         /**
          * Register server streaming method for the service.
@@ -257,9 +257,9 @@ public class ServiceDescriptor {
          * @param method the server streaming method to register
          * @param <ReqT> the method request type
          * @param <ResT> the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config serverStreaming(String name, ServerCalls.ServerStreamingMethod<ReqT, ResT> method);
+        <ReqT, ResT> Rules serverStreaming(String name, ServerCalls.ServerStreamingMethod<ReqT, ResT> method);
 
         /**
          * Register server streaming method for the service.
@@ -269,11 +269,11 @@ public class ServiceDescriptor {
          * @param configurer the method configurer
          * @param <ReqT>     the method request type
          * @param <ResT>     the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config serverStreaming(String name,
-                                            ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
-                                            Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer);
+        <ReqT, ResT> Rules serverStreaming(String name,
+                                           ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
+                                           Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
 
         /**
          * Register client streaming method for the service.
@@ -282,9 +282,9 @@ public class ServiceDescriptor {
          * @param method the client streaming method to register
          * @param <ReqT> the method request type
          * @param <ResT> the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config clientStreaming(String name, ServerCalls.ClientStreamingMethod<ReqT, ResT> method);
+        <ReqT, ResT> Rules clientStreaming(String name, ServerCalls.ClientStreamingMethod<ReqT, ResT> method);
 
         /**
          * Register client streaming method for the service.
@@ -294,11 +294,11 @@ public class ServiceDescriptor {
          * @param configurer the method configurer
          * @param <ReqT>     the method request type
          * @param <ResT>     the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config clientStreaming(String name,
-                                            ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
-                                            Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer);
+        <ReqT, ResT> Rules clientStreaming(String name,
+                                           ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
+                                           Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
 
         /**
          * Register bi-directional streaming method for the service.
@@ -307,9 +307,9 @@ public class ServiceDescriptor {
          * @param method the bi-directional streaming method to register
          * @param <ReqT> the method request type
          * @param <ResT> the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config bidirectional(String name, ServerCalls.BidiStreamingMethod<ReqT, ResT> method);
+        <ReqT, ResT> Rules bidirectional(String name, ServerCalls.BidiStreamingMethod<ReqT, ResT> method);
 
         /**
          * Register bi-directional streaming method for the service.
@@ -319,54 +319,54 @@ public class ServiceDescriptor {
          * @param configurer the method configurer
          * @param <ReqT>     the method request type
          * @param <ResT>     the method response type
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        <ReqT, ResT> Config bidirectional(String name,
-                                          ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
-                                          Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer);
+        <ReqT, ResT> Rules bidirectional(String name,
+                                         ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
+                                         Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer);
 
         /**
          * Register the service {@link HealthCheck}.
          *
          * @param healthCheck the service {@link HealthCheck}
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config healthCheck(HealthCheck healthCheck);
+        Rules healthCheck(HealthCheck healthCheck);
 
         /**
          * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Counter}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config counted();
+        Rules counted();
 
         /**
          * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Meter}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config metered();
+        Rules metered();
 
         /**
          * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Histogram}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config histogram();
+        Rules histogram();
 
         /**
          * Collect metrics for this service using {@link org.eclipse.microprofile.metrics.Timer}.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config timed();
+        Rules timed();
 
         /**
          * Explicitly disable metrics collection for this service.
          *
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
          */
-        Config disableMetrics();
+        Rules disableMetrics();
     }
 
     // ---- inner class: Aware ----------------------------------------------
@@ -389,7 +389,7 @@ public class ServiceDescriptor {
     /**
      * A {@link ServiceDescriptor} builder.
      */
-    public static final class Builder implements Config, io.helidon.common.Builder<ServiceDescriptor> {
+    public static final class Builder implements Rules, io.helidon.common.Builder<ServiceDescriptor> {
         private final Class<?> serviceClass;
 
         private String name;
@@ -469,7 +469,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder unary(String name,
                                           ServerCalls.UnaryMethod<ReqT, ResT> method,
-                                          Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+                                          Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.UNARY,
                                                             ServerCalls.asyncUnaryCall(method),
@@ -485,7 +485,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder serverStreaming(String name,
                                                     ServerCalls.ServerStreamingMethod<ReqT, ResT> method,
-                                                    Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+                                                    Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.SERVER_STREAMING,
                                                             ServerCalls.asyncServerStreamingCall(method),
@@ -501,7 +501,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder clientStreaming(String name,
                                                     ServerCalls.ClientStreamingMethod<ReqT, ResT> method,
-                                                    Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+                                                    Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.CLIENT_STREAMING,
                                                             ServerCalls.asyncClientStreamingCall(method),
@@ -517,7 +517,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder bidirectional(String name,
                                                   ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
-                                                  Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+                                                  Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,
                                                             ServerCalls.asyncBidiStreamingCall(method),
@@ -609,7 +609,7 @@ public class ServiceDescriptor {
                 String methodName,
                 io.grpc.MethodDescriptor.MethodType methodType,
                 ServerCallHandler<ReqT, ResT> callHandler,
-                Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+                Consumer<MethodDescriptor.Rules<ReqT, ResT>> configurer) {
             Class<ReqT> requestType = (Class<ReqT>) getTypeFromMethodDescriptor(methodName, true);
             Class<ResT> responseType = (Class<ResT>) getTypeFromMethodDescriptor(methodName, false);
 

@@ -166,8 +166,8 @@ public class SecureServer {
         }
 
         @Override
-        public void update(ServiceDescriptor.Config config) {
-            config.proto(Greet.getDescriptor())
+        public void update(ServiceDescriptor.Rules rules) {
+            rules.proto(Greet.getDescriptor())
                     .unary("Greet", this::greet)
                     .unary("SetGreeting", this::setGreeting);
         }

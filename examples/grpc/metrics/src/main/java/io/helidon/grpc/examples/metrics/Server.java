@@ -14,19 +14,18 @@
  * limitations under the License.
  */
 
-package io.helidon.grpc.examples.basics;
+package io.helidon.grpc.examples.metrics;
 
 import java.util.logging.LogManager;
 
 import io.helidon.config.Config;
 import io.helidon.grpc.examples.common.GreetService;
-import io.helidon.grpc.examples.common.GreetServiceJava;
 import io.helidon.grpc.examples.common.StringService;
+import io.helidon.grpc.metrics.GrpcMetrics;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
-import io.helidon.health.HealthSupport;
-import io.helidon.health.checks.HealthChecks;
+import io.helidon.metrics.MetricsSupport;
 import io.helidon.webserver.Routing;
 import io.helidon.webserver.ServerConfiguration;
 import io.helidon.webserver.WebServer;
@@ -58,7 +57,18 @@ public class Server {
         GrpcServerConfiguration serverConfig =
                 GrpcServerConfiguration.builder(config.get("grpc")).build();
 
-        GrpcServer grpcServer = GrpcServer.create(serverConfig, createRouting(config));
+        GrpcRouting grpcRouting = GrpcRouting.builder()
+                        .intercept(GrpcMetrics.counted()) // global metrics - all service methods counted
+                        .register(new GreetService(config))  // GreetService uses global metrics so all methods are counted
+                        .register(new StringService(), rules -> {
+                            // service level metrics - StringService overrides global so that its methods are timed
+                            rules.intercept(GrpcMetrics.timed())
+                                 // method level metrics - overrides service and global
+                                 .intercept("Upper", GrpcMetrics.histogram());
+                        })
+                        .build();
+
+        GrpcServer grpcServer = GrpcServer.create(serverConfig, grpcRouting);
 
         // Try to start the server. If successful, print some info and arrange to
         // print a message at shutdown. If unsuccessful, print the exception.
@@ -73,15 +83,9 @@ public class Server {
                     return null;
                 });
 
-        // add support for standard and gRPC health checks
-        HealthSupport health = HealthSupport.builder()
-                .add(HealthChecks.healthChecks())
-                .add(grpcServer.healthChecks())
-                .build();
-
-        // start web server with metrics and health endpoints
+        // start web server with the metrics endpoints
         Routing routing = Routing.builder()
-                .register(health)
+                .register(MetricsSupport.create())
                 .build();
 
         ServerConfiguration webServerConfig = ServerConfiguration.builder(config.get("webserver")).build();
@@ -97,16 +101,5 @@ public class Server {
                     t.printStackTrace(System.err);
                     return null;
                 });
-    }
-
-    private static GrpcRouting createRouting(Config config) {
-        GreetService greetService = new GreetService(config);
-        GreetServiceJava greetServiceJava = new GreetServiceJava(config);
-
-        return GrpcRouting.builder()
-                .register(greetService)
-                .register(greetServiceJava)
-                .register(new StringService())
-                .build();
     }
 }

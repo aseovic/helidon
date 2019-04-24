@@ -14,21 +14,16 @@
  * limitations under the License.
  */
 
-package io.helidon.microprofile.grpc.server;
+package io.helidon.microprofile.grpc.server.spi;
 
 /**
- * A generic Microprofile gRPC runtime exception.
+ * Microprofile service to extend features of the gRPC server.
  */
-public class GrpcMpException extends RuntimeException {
-    GrpcMpException(String message) {
-        super(message);
-    }
-
-    GrpcMpException(Throwable cause) {
-        super(cause);
-    }
-
-    GrpcMpException(String message, Throwable cause) {
-        super(message, cause);
-    }
+public interface GrpcMpExtension {
+    /**
+     * Allow the service to add configuration through the context.
+     *
+     * @param context context to obtain configuration objects
+     */
+    void configure(GrpcMpContext context);
 }

@@ -14,4 +14,4 @@
 # limitations under the License.
 #
 
-io.helidon.microprofile.grpc.server.GrpcServerCdiExtension
+io.helidon.microprofile.grpc.server.GrpcServerCdiExtensionIT$ExtensionTwo

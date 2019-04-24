@@ -16,7 +16,10 @@
 
 package io.helidon.microprofile.grpc.core.model;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Stream;
 
 import io.helidon.grpc.core.MethodHandler;
 import io.helidon.microprofile.grpc.core.Bidirectional;
@@ -32,6 +35,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.instanceOf;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.sameInstance;
@@ -78,7 +82,7 @@ public class ClientStreamingMethodHandlerSupplierTest {
     }
 
     @Test
-    public void shouldHandleClientCall() throws Exception {
+    public void shouldHandleClientCall() {
         ClientStreamingMethodHandlerSupplier supplier = new ClientStreamingMethodHandlerSupplier();
         AnnotatedMethod method = getClientStreamingMethod();
         StreamObserver<Long> responseObserver = mock(StreamObserver.class);
@@ -187,6 +191,74 @@ public class ClientStreamingMethodHandlerSupplierTest {
     }
 
     @Test
+    public void shouldHandleClientCallForIterable() throws Exception {
+        ClientStreamingMethodHandlerSupplier supplier = new ClientStreamingMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("iterable", Iterable.class);
+        StreamObserver<Long> responseObserver = mock(StreamObserver.class);
+        Service service = mock(Service.class);
+
+        when(service.future(any(CompletableFuture.class))).thenReturn(responseObserver);
+
+        MethodHandler<Long, String> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        List<String> list = Arrays.asList("A", "B", "C");
+        StreamObserver<String> response = mock(StreamObserver.class);
+        MethodHandler.ClientStreaming client = mock(MethodHandler.ClientStreaming.class);
+
+        when(client.clientStreaming(anyString(), any(StreamObserver.class))).thenReturn(response);
+
+        Object result = handler.clientStreaming(new Object[]{list}, client);
+
+        assertThat(result, is(instanceOf(CompletableFuture.class)));
+
+        ArgumentCaptor<StreamObserver> captor = ArgumentCaptor.forClass(StreamObserver.class);
+        verify(client).clientStreaming(eq("foo"), captor.capture());
+
+        StreamObserver observer = captor.getValue();
+        observer.onNext("bar");
+        observer.onCompleted();
+
+        CompletableFuture<Object> future = (CompletableFuture<Object>) result;
+        assertThat(future.isDone(), is(true));
+        assertThat(future.get(), is("bar"));
+    }
+
+    @Test
+    public void shouldHandleClientCallForStream() throws Exception {
+        ClientStreamingMethodHandlerSupplier supplier = new ClientStreamingMethodHandlerSupplier();
+        AnnotatedMethod method = getMethod("stream", Stream.class);
+        StreamObserver<Long> responseObserver = mock(StreamObserver.class);
+        Service service = mock(Service.class);
+
+        when(service.future(any(CompletableFuture.class))).thenReturn(responseObserver);
+
+        MethodHandler<Long, String> handler = supplier.get("foo", method, () -> service);
+        assertThat(handler, is(notNullValue()));
+
+        Stream<String> stream = Stream.of("A", "B", "C");
+        StreamObserver<String> response = mock(StreamObserver.class);
+        MethodHandler.ClientStreaming client = mock(MethodHandler.ClientStreaming.class);
+
+        when(client.clientStreaming(anyString(), any(StreamObserver.class))).thenReturn(response);
+
+        Object result = handler.clientStreaming(new Object[]{stream}, client);
+
+        assertThat(result, is(instanceOf(CompletableFuture.class)));
+
+        ArgumentCaptor<StreamObserver> captor = ArgumentCaptor.forClass(StreamObserver.class);
+        verify(client).clientStreaming(eq("foo"), captor.capture());
+
+        StreamObserver observer = captor.getValue();
+        observer.onNext("bar");
+        observer.onCompleted();
+
+        CompletableFuture<Object> future = (CompletableFuture<Object>) result;
+        assertThat(future.isDone(), is(true));
+        assertThat(future.get(), is("bar"));
+    }
+
+    @Test
     public void shouldSupplyClientStreamingHandlerWithTypesFromAnnotation() {
         ClientStreamingMethodHandlerSupplier supplier = new ClientStreamingMethodHandlerSupplier();
         AnnotatedMethod method = getMethod("reqResp", StreamObserver.class);
@@ -291,10 +363,16 @@ public class ClientStreamingMethodHandlerSupplierTest {
      */
     public interface Service {
         @ClientStreaming
-        StreamObserver<Long> clientStreaming(StreamObserver<String> request);
+        StreamObserver<Long> clientStreaming(StreamObserver<String> observer);
 
         @ClientStreaming
-        StreamObserver<Long> future(CompletableFuture<String> request);
+        StreamObserver<Long> future(CompletableFuture<String> future);
+
+        @ClientStreaming
+        CompletableFuture<Long> iterable(Iterable<String> requests);
+
+        @ClientStreaming
+        CompletableFuture<Long> stream(Stream<String> requests);
 
         @ClientStreaming
         @RequestType(Long.class)

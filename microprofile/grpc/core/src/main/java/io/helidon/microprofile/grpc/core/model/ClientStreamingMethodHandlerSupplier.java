@@ -18,9 +18,9 @@ package io.helidon.microprofile.grpc.core.model;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
 
 import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.core.ResponseHelper;
@@ -64,6 +64,12 @@ public class ClientStreamingMethodHandlerSupplier
         case futureResponse:
             handler = new FutureResponse<>(methodName, method, instance);
             break;
+        case clientStreamingIterable:
+            handler = new ClientStreamingIterable(methodName, method, instance);
+            break;
+        case clientStreamingStream:
+            handler = new ClientStreamingStream(methodName, method, instance);
+            break;
         case unknown:
         default:
             throw new IllegalArgumentException("Not a supported client streaming method signature: " + method);
@@ -72,19 +78,32 @@ public class ClientStreamingMethodHandlerSupplier
     }
 
     private CallType determineCallType(AnnotatedMethod method) {
-        Type returnType = method.returnType();
+        Class<?> returnType = method.returnType();
+        Class<?>[] parameterTypes = method.parameterTypes();
+        int paramCount = parameterTypes.length;
         CallType callType;
 
-        Type[] parameterTypes = method.parameterTypes();
-        int paramCount = parameterTypes.length;
-
         if (paramCount == 1) {
-            if (StreamObserver.class.equals(parameterTypes[0])
+            if (StreamObserver.class.isAssignableFrom(parameterTypes[0])
                 && StreamObserver.class.equals(returnType)) {
                 // Assume that the first parameter is the response observer value
                 // and the return is the request observer
                 // Signature is StreamObserver<Reqt> invoke(StreamObserver<RespT>)
                 callType = CallType.clientStreaming;
+            } else if (Iterable.class.isAssignableFrom(parameterTypes[0])
+                && CompletableFuture.class.equals(returnType)) {
+                // ** This is a client side only handler **
+                // Assume that the first parameter is the requests to stream
+                // and the return is the response
+                // Signature is <RespT> invoke(Iterable<ReqT>)
+                callType = CallType.clientStreamingIterable;
+            } else if (Stream.class.isAssignableFrom(parameterTypes[0])
+                && CompletableFuture.class.isAssignableFrom(returnType)) {
+                // ** This is a client side only handler **
+                // Assume that the first parameter is the requests to stream
+                // and the return is the response
+                // Signature is <RespT> invoke(Stream<ReqT>)
+                callType = CallType.clientStreamingStream;
             } else if (CompletableFuture.class.equals(parameterTypes[0])
                 && StreamObserver.class.equals(returnType)) {
                 // Assume that the first parameter is the response CompletableFuture value
@@ -118,7 +137,21 @@ public class ClientStreamingMethodHandlerSupplier
          */
         clientStreaming,
         /**
-         * An standard client streaming call.
+         * An client side only client streaming call with an iterable request.
+         * <pre>
+         *     RespT invoke(Iterable&lt;ReqT&gt; requests)
+         * </pre>
+         */
+        clientStreamingIterable,
+        /**
+         * An client side only client streaming call with an stream request.
+         * <pre>
+         *     RespT invoke(Stream&lt;ReqT&gt; requests)
+         * </pre>
+         */
+        clientStreamingStream,
+        /**
+         * An standard client streaming call with an async response.
          * <pre>
          *     StreamObserver&lt;ReqT&gt; invoke(CompletableFuture&lt;RespT&gt; future)
          * </pre>
@@ -224,6 +257,111 @@ public class ClientStreamingMethodHandlerSupplier
             return client.clientStreaming(methodName(), observer);
         }
     }
+
+    // ----- ClientStreamingIterable call handler ---------------------------
+
+    /**
+     * A client side only client streaming {@link MethodHandler} that
+     * streams requests from an iterable.
+     * <pre>
+     *     CompletableFuture&lt;RespT&gt; invoke(Iterable&lt;ReqT&gt; observer)
+     * </pre>
+     *
+     * @param <ReqT>  the request type
+     * @param <RespT> the response type
+     */
+    public static class ClientStreamingIterable<ReqT, RespT>
+            extends AbstractClientStreamingHandler<ReqT, RespT> {
+
+        ClientStreamingIterable(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
+            setRequestType(getGenericResponseType(method.genericReturnType()));
+            setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
+        }
+
+        @Override
+        public boolean clientOnly() {
+            return true;
+        }
+
+        @Override
+        protected StreamObserver<ReqT> invoke(Method method, Object instance, StreamObserver<RespT> observer)
+                throws InvocationTargetException, IllegalAccessException {
+            throw Status.UNIMPLEMENTED.asRuntimeException();
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object clientStreaming(Object[] args, ClientStreaming client) {
+            try {
+                CompletableFuture<Object> future = new CompletableFuture<>();
+                StreamObserver<Object> responseObserver = new FutureObserver<>(future);
+                Iterable<Object> iterable = (Iterable<Object>) args[0];
+                StreamObserver<Object> requestObserver = client.clientStreaming(methodName(), responseObserver);
+
+                for (Object value : iterable) {
+                    requestObserver.onNext(value);
+                }
+
+                requestObserver.onCompleted();
+                return future;
+            } catch (Throwable thrown) {
+                throw Status.INTERNAL.withCause(thrown).asRuntimeException();
+            }
+        }
+    }
+
+
+    // ----- ClientStreamingIterable call handler ---------------------------
+
+    /**
+     * A client side only client streaming {@link MethodHandler} that
+     * streams requests from a stream.
+     * <pre>
+     *     CompletableFuture&lt;RespT&gt; invoke(Stream&lt;ReqT&gt; observer)
+     * </pre>
+     *
+     * @param <ReqT>  the request type
+     * @param <RespT> the response type
+     */
+    public static class ClientStreamingStream<ReqT, RespT>
+            extends AbstractClientStreamingHandler<ReqT, RespT> {
+
+        ClientStreamingStream(String methodName, AnnotatedMethod method, Supplier<?> instance) {
+            super(methodName, method, instance);
+            setRequestType(getGenericResponseType(method.genericReturnType()));
+            setResponseType(getGenericResponseType(method.genericParameterTypes()[0]));
+        }
+
+        @Override
+        public boolean clientOnly() {
+            return true;
+        }
+
+        @Override
+        protected StreamObserver<ReqT> invoke(Method method, Object instance, StreamObserver<RespT> observer)
+                throws InvocationTargetException, IllegalAccessException {
+            throw Status.UNIMPLEMENTED.asRuntimeException();
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public Object clientStreaming(Object[] args, ClientStreaming client) {
+            try {
+                CompletableFuture<Object> future = new CompletableFuture<>();
+                StreamObserver<Object> responseObserver = new FutureObserver<>(future);
+                StreamObserver<Object> requestObserver = client.clientStreaming(methodName(), responseObserver);
+                Stream<Object> stream = (Stream<Object>) args[0];
+
+                stream.forEach(requestObserver::onNext);
+                requestObserver.onCompleted();
+                return future;
+            } catch (Throwable thrown) {
+                throw Status.INTERNAL.withCause(thrown).asRuntimeException();
+            }
+        }
+    }
+
 
     /**
      * A {@link StreamObserver} that completes a {@link CompletableFuture}

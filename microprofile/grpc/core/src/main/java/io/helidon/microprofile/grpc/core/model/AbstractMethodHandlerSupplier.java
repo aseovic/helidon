@@ -16,11 +16,8 @@
 
 package io.helidon.microprofile.grpc.core.model;
 
-import java.lang.reflect.Array;
-import java.lang.reflect.GenericArrayType;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.util.Objects;
 import java.util.function.Supplier;
@@ -259,33 +256,7 @@ public abstract class AbstractMethodHandlerSupplier
             if (type instanceof Class) {
                 return Object.class;
             } else {
-                return getGenericType(type);
-            }
-        }
-
-        private Class<?> getGenericType(Type type) {
-            if (type instanceof Class) {
-                return (Class) type;
-            } else if (type instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) type;
-                if (parameterizedType.getRawType() instanceof Class) {
-                    return (Class) parameterizedType.getActualTypeArguments()[0];
-                }
-            } else if (type instanceof GenericArrayType) {
-                GenericArrayType array = (GenericArrayType) type;
-                final Class<?> componentRawType = getGenericType(array.getGenericComponentType());
-                return getArrayClass(componentRawType);
-            }
-            throw new IllegalArgumentException("Type parameter " + type.toString() + " not a class or "
-                    + "parameterized type whose raw type is a class");
-        }
-
-        private static Class getArrayClass(Class c) {
-            try {
-                Object o = Array.newInstance(c, 0);
-                return o.getClass();
-            } catch (Exception e) {
-                throw new IllegalArgumentException(e);
+                return ModelHelper.getGenericType(type);
             }
         }
     }

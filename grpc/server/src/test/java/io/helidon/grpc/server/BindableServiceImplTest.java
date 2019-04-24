@@ -19,6 +19,8 @@ package io.helidon.grpc.server;
 import java.util.List;
 
 import io.helidon.common.CollectionsHelper;
+import io.helidon.grpc.core.InterceptorPriorities;
+import io.helidon.grpc.core.PriorityBag;
 
 import io.grpc.ForwardingServerCallListener;
 import io.grpc.Metadata;
@@ -55,7 +57,8 @@ public class BindableServiceImplTest {
         ServerInterceptor interceptorFive = spy(new InterceptorStub());
         ServerInterceptor interceptorSix = spy(new InterceptorStub());
 
-        List<ServerInterceptor> global = CollectionsHelper.listOf(interceptorOne, interceptorTwo, interceptorThree);
+        PriorityBag<ServerInterceptor> global = new PriorityBag<>(InterceptorPriorities.USER);
+        global.addAll(CollectionsHelper.listOf(interceptorOne, interceptorTwo, interceptorThree));
 
         ServiceDescriptor descriptor = ServiceDescriptor.builder(new Service())
                 .intercept(interceptorTwo)

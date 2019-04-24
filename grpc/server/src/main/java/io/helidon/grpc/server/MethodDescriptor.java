@@ -16,7 +16,6 @@
 
 package io.helidon.grpc.server;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
@@ -158,16 +157,6 @@ public class MethodDescriptor<ReqT, ResT> {
         Rules<ReqT, ResT> intercept(ServerInterceptor... interceptors);
 
         /**
-         * Register the {@link MarshallerSupplier} for the method.
-         * <p>
-         * If not set the default {@link MarshallerSupplier} from the service will be used.
-         *
-         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
-
-        /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
          * <p>
          * The added interceptors will be applied using the specified priority.
@@ -177,6 +166,16 @@ public class MethodDescriptor<ReqT, ResT> {
          * @return this builder to allow fluent method chaining
          */
         Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors);
+
+        /**
+         * Register the {@link MarshallerSupplier} for the method.
+         * <p>
+         * If not set the default {@link MarshallerSupplier} from the service will be used.
+         *
+         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
+         */
+        Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
          * Set the request type.
@@ -210,7 +209,6 @@ public class MethodDescriptor<ReqT, ResT> {
          */
         <Rnew> Rules<ReqT, Rnew> responseType(Class<Rnew> responseType);
     }
-    }
 
     /**
      * An interface implemented by classes that can configure
@@ -235,7 +233,8 @@ public class MethodDescriptor<ReqT, ResT> {
      * @param <ReqT> request type
      * @param <ResT> response type
      */
-    static final class Builder<ReqT, ResT> implements Rules<ReqT, ResT>, io.helidon.common.Builder<MethodDescriptor<ReqT, ResT>> {
+    static final class Builder<ReqT, ResT>
+            implements Rules<ReqT, ResT>, io.helidon.common.Builder<MethodDescriptor<ReqT, ResT>> {
         private final String name;
         private final io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;
@@ -294,13 +293,7 @@ public class MethodDescriptor<ReqT, ResT> {
         }
 
         @Override
-        public Builder<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors) {
-            this.interceptors.addAll(Arrays.asList(interceptors), priority);
-            return this;
-        }
-
-        @Override
-        public Builder<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors) {
+        public Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors) {
             this.interceptors.addAll(Arrays.asList(interceptors), priority);
             return this;
         }

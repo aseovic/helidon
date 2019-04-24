@@ -194,31 +194,31 @@ public final class ClientMethodDescriptor {
     /**
      * ClientMethod configuration API.
      */
-    public interface Config {
+    public interface Rules {
 
         /**
          * Sets the type of parameter of this method.
          *
          * @param type The type of parameter of this method.
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config requestType(Class type);
+        Rules requestType(Class type);
 
         /**
          * Sets the type of parameter of this method.
          *
          * @param type The type of parameter of this method.
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config responseType(Class type);
+        Rules responseType(Class type);
 
         /**
          * Register one or more {@link ClientInterceptor interceptors} for the method.
          *
          * @param interceptors the interceptor(s) to register
-         * @return this {@link io.helidon.grpc.client.ClientMethodDescriptor.Config} instance for fluent call chaining
+         * @return this {@link io.helidon.grpc.client.ClientMethodDescriptor.Rules} instance for fluent call chaining
          */
-        Config intercept(ClientInterceptor... interceptors);
+        Rules intercept(ClientInterceptor... interceptors);
 
         /**
          * Register the {@link MarshallerSupplier} for the method.
@@ -226,16 +226,16 @@ public final class ClientMethodDescriptor {
          * If not set the default {@link MarshallerSupplier} from the service will be used.
          *
          * @param marshallerSupplier the {@link MarshallerSupplier} for the service
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config marshallerSupplier(MarshallerSupplier marshallerSupplier);
+        Rules marshallerSupplier(MarshallerSupplier marshallerSupplier);
     }
 
     /**
      * {@link MethodDescriptor} builder implementation.
      */
     public static class Builder
-            implements Config, io.helidon.common.Builder<ClientMethodDescriptor> {
+            implements Rules, io.helidon.common.Builder<ClientMethodDescriptor> {
 
         private String name;
         private io.grpc.MethodDescriptor.Builder descriptor;

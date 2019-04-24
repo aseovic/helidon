@@ -201,7 +201,7 @@ as the metric name.
 ----
 GrpcRouting routing = GrpcRouting.builder()
         .intercept(GrpcMetrics.counted()
-                .nameFunction((svc, method, metric) -> svc.name() + '.' + method + '.' + type) // <1>
+                .nameFunction((svc, method, type) -> svc.name() + '.' + method + '.' + type) // <1>
 ----
 In the above example the `NamingFunction` creates a name by concatenating the service name, the method
 name and the metric type. So for a service "Foo", method "Bar" the above example would produce a name

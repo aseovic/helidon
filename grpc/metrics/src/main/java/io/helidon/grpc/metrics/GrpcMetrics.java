@@ -458,13 +458,7 @@ public class GrpcMetrics
          * @return  the metrics metadata
          */
         org.eclipse.microprofile.metrics.Metadata metadata(ServiceDescriptor service, String method) {
-            String name;
-            if (nameFunction.isPresent()) {
-                name = nameFunction.get().createName(service, method, type);
-            } else {
-                name = (service.name() + "." + method).replaceAll("/", ".");
-            }
-
+            String name = nameFunction.orElse(this::defaultName).createName(service, method, type);
             org.eclipse.microprofile.metrics.Metadata metadata = new org.eclipse.microprofile.metrics.Metadata(name, type);
 
             this.tags.ifPresent(metadata::setTags);
@@ -472,6 +466,10 @@ public class GrpcMetrics
             this.units.ifPresent(metadata::setUnit);
 
             return metadata;
+        }
+
+        private String defaultName(ServiceDescriptor service, String methodName, MetricType metricType) {
+            return (service.name() + "." + methodName).replaceAll("/", ".");
         }
 
         private MetricsRules tags(Map<String, String> tags) {

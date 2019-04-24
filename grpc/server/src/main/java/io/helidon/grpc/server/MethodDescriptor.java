@@ -210,6 +210,16 @@ public class MethodDescriptor<ReqT, ResT> {
         Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors);
 
         /**
+         * Register the {@link MarshallerSupplier} for the method.
+         * <p>
+         * If not set the default {@link MarshallerSupplier} from the service will be used.
+         *
+         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
+         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
+         */
+        Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
+
+        /**
          * Set the request type.
          * <p>
          * Setting the request type is optional as it is used to obtain the

@@ -192,18 +192,8 @@ For example:
 ----
 GrpcRouting routing = GrpcRouting.builder()
         .intercept(GrpcMetrics.counted()
-                .nameFunction((svc, method, metric) -> "Foo") // <1>
+                .nameFunction((svc, method, metric) -> "grpc." + service.name() + '.' + method) // <1>
 ----
-In the above example the `NamingFunction` is just a lambda that returns "Foo" which will be used
-as the metric name.
-
-[source,java]
-----
-GrpcRouting routing = GrpcRouting.builder()
-        .intercept(GrpcMetrics.counted()
-                .nameFunction((svc, method, type) -> svc.name() + '.' + method + '.' + type) // <1>
-----
-In the above example the `NamingFunction` creates a name by concatenating the service name, the method
-name and the metric type. So for a service "Foo", method "Bar" the above example would produce a name
-"Foo.Bar.counted".
-
+<1> the `NamingFunction` is just a lambda that returns the concatenated service name and method name
+with the prefix `grpc.` So for a service "Foo", method "bar" the above example would produce a name
+"grpc.Foo.bar".

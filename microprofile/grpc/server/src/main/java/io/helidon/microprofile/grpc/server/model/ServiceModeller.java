@@ -141,16 +141,16 @@ public class ServiceModeller
 
         switch (annotation.type()) {
         case UNARY:
-            builder.unary(name, handler, configurer::accept);
+            builder.unary(name, handler, configurer);
             break;
         case CLIENT_STREAMING:
-            builder.clientStreaming(name, handler, configurer::accept);
+            builder.clientStreaming(name, handler, configurer);
             break;
         case SERVER_STREAMING:
-            builder.serverStreaming(name, handler, configurer::accept);
+            builder.serverStreaming(name, handler, configurer);
             break;
         case BIDI_STREAMING:
-            builder.bidirectional(name, handler, configurer::accept);
+            builder.bidirectional(name, handler, configurer);
             break;
         case UNKNOWN:
         default:
@@ -159,12 +159,12 @@ public class ServiceModeller
     }
 
     /**
-     * A {@link Consumer} of {@link MethodDescriptor.Config} that
+     * A {@link Consumer} of {@link MethodDescriptor.Rules} that
      * applies configuration changes based on annotations present
      * on the gRPC method.
      */
     private static class AnnotatedMethodConfigurer
-            implements Consumer<MethodDescriptor.Config<?, ?>> {
+            implements MethodDescriptor.Configurer {
 
         private final AnnotatedMethod method;
         private final Class<?> requestType;
@@ -177,13 +177,13 @@ public class ServiceModeller
         }
 
         @Override
-        public void accept(MethodDescriptor.Config<?, ?> config) {
-            config.addContextKey(ContextKeys.SERVICE_METHOD, method.declaredMethod())
+        public void configure(MethodDescriptor.Rules rules) {
+            rules.addContextValue(ContextKeys.SERVICE_METHOD, method.declaredMethod())
                   .requestType(requestType)
                   .responseType(responseType);
 
             if (method.isAnnotationPresent(GrpcMarshaller.class)) {
-                config.marshallerSupplier(ModelHelper.getMarshallerSupplier(method.getAnnotation(GrpcMarshaller.class)));
+                rules.marshallerSupplier(ModelHelper.getMarshallerSupplier(method.getAnnotation(GrpcMarshaller.class)));
             }
         }
     }

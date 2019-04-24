@@ -61,6 +61,15 @@ public interface MethodHandler<ReqT, RespT>
      */
     String javaMethodName();
 
+    /**
+     * Determine whether this is a client side only handler.
+     *
+     * @return  {@code true} if this handler can only be used on the client
+     */
+    default boolean clientOnly() {
+        return false;
+    }
+
     @Override
     default void invoke(ReqT request, StreamObserver<RespT> observer) {
         observer.onError(Status.UNIMPLEMENTED.asException());

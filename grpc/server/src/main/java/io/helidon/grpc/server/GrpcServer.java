@@ -16,6 +16,7 @@
 
 package io.helidon.grpc.server;
 
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
@@ -75,6 +76,14 @@ public interface GrpcServer {
      * @return an array of {@link HealthCheck} instances for this server
      */
     HealthCheck[] healthChecks();
+
+    /**
+     * Obtain the deployed services.
+     *
+     * @return an immutable {@link Map} of deployed {@link ServiceDescriptor}s
+     *         keyed by service name
+     */
+    Map<String, ServiceDescriptor> services();
 
     /**
      * Returns {@code true} if the server is currently running. A running server

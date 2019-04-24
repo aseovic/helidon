@@ -110,6 +110,11 @@ public class GrpcServerImpl implements GrpcServer {
      */
     private Map<String, ServerServiceDefinition> mapServices = new ConcurrentHashMap<>();
 
+    /**
+     * The map of service names to {@link io.helidon.grpc.server.ServiceDescriptor ServiceDescriptors}.
+     */
+    private Map<String, ServiceDescriptor> services = new ConcurrentHashMap<>();
+
     // ---- constructors ----------------------------------------------------
 
     /**
@@ -227,6 +232,11 @@ public class GrpcServerImpl implements GrpcServer {
         return healthService.healthChecks().toArray(new HealthCheck[0]);
     }
 
+    @Override
+    public Map<String, ServiceDescriptor> services() {
+        return Collections.unmodifiableMap(services);
+    }
+
     // ---- helper methods --------------------------------------------------
 
     private NettyServerBuilder configureNetty(NettyServerBuilder builder) {
@@ -267,6 +277,7 @@ public class GrpcServerImpl implements GrpcServer {
         ServerServiceDefinition ssd = service.bindService();
         String serviceName = ssd.getServiceDescriptor().getName();
 
+        services.put(serviceDescriptor.name(), serviceDescriptor);
         handlerRegistry.addService(ssd);
         mapServices.put(service.getClass().getName(), ssd);
         healthService.add(serviceName, serviceDescriptor.healthCheck());

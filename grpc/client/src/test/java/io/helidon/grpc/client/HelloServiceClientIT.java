@@ -89,18 +89,6 @@ public class HelloServiceClientIT {
         System.out.println(future.get());
     }
 
-    @Test
-    public void testCreateAndInvokeAsyncUnarySayHelloMethod() throws Exception {
-        ClientServiceDescriptor descriptor = ClientServiceDescriptor.builder(HelloService.class)
-                .unary("SayHello")
-                .build();
-
-        GrpcServiceClient client = GrpcServiceClient.create(channel, descriptor);
-
-        CompletableFuture<String> future = client.unary("SayHello");
-        System.out.println(future.get());
-    }
-
     public static class EchoService implements GrpcService {
 
         @Override

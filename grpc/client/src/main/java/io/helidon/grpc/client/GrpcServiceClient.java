@@ -137,27 +137,6 @@ public class GrpcServiceClient {
     }
 
     /**
-     * Invoke a unary method that doesn't take any request parameter.
-     * @param methodName Method name
-     * @param <RespT> The type of response.
-     * @return The response.
-     */
-    public <RespT> CompletableFuture<RespT> unary(String methodName) {
-        //TODO: Check if the following is OK.
-        return unary(methodName, "");
-    }
-
-    /**
-     * Invoke a unary method that doesn't take any request parameter.
-     * @param methodName Method name
-     * @param <RespT> The type of response.
-     * @return The response.
-     */
-    public <RespT> CompletableFuture<RespT> blockingUnary(String methodName) {
-        return blockingUnary(methodName, "");
-    }
-
-    /**
      * Invoke the specified unary method.
      *
      * @param methodName the method name to be invoked

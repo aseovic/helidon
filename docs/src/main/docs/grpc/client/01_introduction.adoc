@@ -23,18 +23,18 @@
 = gRPC Client Introduction
 
 Helidon gRPC Client provides a framework for creating link:http://grpc.io/[gRPC] client applications. The client framework
-allows a uniform way to access gRPC services that use either Protobuf or some custom serialization format.
+allows a uniform way to access gRPC services that use either Protobuf or some custom serialization format. It also allows access to gRPC services that use either Java serialization, Protobuf or a custom serialization format.
 
-The class `GRPCServiceClient` acts as the client object for accessing a gRPC service. Creating a `GrpcServiceClient` involves:
+The class `GrpcServiceClient` acts as the client object for accessing a gRPC service. Creating a `GrpcServiceClient` involves:
 
 1. Creating a `ClientServiceDescriptor` which describes the methods in the service that this client can invoke.
-2. Creating a gRPC `Channel` through which the Client communicates with the server.
+2. Creating a gRPC `Channel` through which the client communicates with the server.
 
-In later sections in this document, you will see how to customize both `ClientServiceDescriptor` and the Channel.
+In later sections in this document, you will see how to customize both `ClientServiceDescriptor` and the `Channel`.
 
 == Quick Start
 
-First, create and run a minimalist _HelloService_ gRPC server application as described in the https://github.com/aseovic/helidon/blob/master/docs/src/main/docs/grpc/01_introduction.adoc[gRPC Server] documentation.
+First, create and run a minimalist `HelloService` gRPC server application as described in the https://github.com/aseovic/helidon/blob/master/docs/src/main/docs/grpc/01_introduction.adoc[gRPC Server] documentation.
 
 Assuming that the server is running on port 1408, create a client as follows:
 
@@ -57,11 +57,11 @@ public static void main(String[] args) throws Exception {
 }
 ----
 
-1. Create a `ClientService Descriptor` for the `HelloService`.
+1. Create a `ClientServiceDescriptor` for the `HelloService`.
 2. Add the "SayHello" unary method to the `ClientDescriptor`. This method, by default, uses Java serialization for Marshalling
 and Unmarshalling the request and response values.
-3. Create a gRPC Channel that is communicates with the server that is running in localhost and on port 1408 (using plaintext).
-4. Create the `GrpcServiceClient` that uses the above `channel` and `ClientServiceDescriptor`. `GrpcClientService` represents
+3. Create a gRPC `Channel` that is communicates with the server that is running in localhost and on port 1408 (using plaintext).
+4. Create the `GrpcServiceClient` that uses the above `Channel` and `ClientServiceDescriptor`. `GrpcClientService` represents
 a "Client" that can be used to define the set of methods described by the specified `ClientServiceDescriptor`. In our case, the
 `ClientServiceDescriptor` defines one unary method called "SayHello".
 5. Invoke the `SayHello` method which returns a `CompletableFuture<String>`.

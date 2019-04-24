@@ -50,7 +50,7 @@ taken if the service was *not* built from protobuf files or if the protoc genera
 available to the client.
 ** The third option is to load the method descriptions from a `ClientConfiguration` file. (Not yet implemented).
 
-* The next step is to create a gRPC Channel to use to communicate with the server.
+* The next step is to create a gRPC `Channel` to use to communicate with the server.
 
 * Finally, you create an instance of `GrpcServiceClient` passing the `ClientMethodDescriptor` and the `Channel` instances.
 

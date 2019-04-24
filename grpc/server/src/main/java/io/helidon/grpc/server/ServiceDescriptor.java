@@ -560,7 +560,7 @@ public class ServiceDescriptor {
         @Override
         public <ReqT, ResT> Builder bidirectional(String name,
                                                   ServerCalls.BidiStreamingMethod<ReqT, ResT> method,
-                                                  Consumer<MethodDescriptor.Config<ReqT, ResT>> configurer) {
+                                                  MethodDescriptor.Configurer<ReqT, ResT> configurer) {
 
             methodBuilders.put(name, createMethodDescriptor(name,
                                                             io.grpc.MethodDescriptor.MethodType.BIDI_STREAMING,

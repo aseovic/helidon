@@ -14,14 +14,13 @@
  * limitations under the License.
  */
 
-package io.helidon.microprofile.grpc.server;
+package io.helidon.microprofile.grpc.core;
 
 import javax.enterprise.event.Observes;
 import javax.enterprise.inject.spi.AnnotatedType;
 import javax.enterprise.inject.spi.Extension;
 import javax.enterprise.inject.spi.ProcessAnnotatedType;
 
-import io.helidon.microprofile.grpc.core.RpcService;
 import io.helidon.microprofile.grpc.core.model.ModelHelper;
 
 /**

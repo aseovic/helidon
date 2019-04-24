@@ -17,11 +17,8 @@
 package io.helidon.microprofile.grpc.server;
 
 import java.util.Map;
-import java.util.function.Supplier;
 
 import javax.enterprise.context.ApplicationScoped;
-import javax.enterprise.context.NormalScope;
-import javax.enterprise.context.RequestScoped;
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.spi.BeanManager;
 import javax.inject.Inject;
@@ -214,7 +211,7 @@ public class GrpcServerCdiExtensionIT {
             implements GrpcService {
 
         @Override
-        public void update(ServiceDescriptor.Config rules) {
+        public void update(ServiceDescriptor.Rules rules) {
             rules.unary("unary", this::unary);
         }
 

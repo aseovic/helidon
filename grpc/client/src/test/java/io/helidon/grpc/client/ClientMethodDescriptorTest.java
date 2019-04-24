@@ -62,7 +62,6 @@ public class ClientMethodDescriptorTest {
 
         assertThat(descriptor, is(notNullValue()));
         assertThat(descriptor.name(), is("foo"));
-        assertThat(descriptor.metricType(), nullValue());
         assertThat(descriptor.interceptors(), is(emptyIterable()));
 
         MethodDescriptor expected = grpcDescriptor.build();
@@ -111,81 +110,6 @@ public class ClientMethodDescriptorTest {
         io.grpc.MethodDescriptor methodDescriptor = descriptor.descriptor();
         assertThat(methodDescriptor.getFullMethodName(), is("FooService/foo"));
         assertThat(methodDescriptor.getType(), is(MethodDescriptor.MethodType.UNARY));
-    }
-
-    @Test
-    public void shouldBuildMethodDescriptorWithCounterMetric() {
-        ClientMethodDescriptor descriptor = ClientMethodDescriptor
-                .unary("FooService", "foo")
-                .counted()
-                .build();
-
-        assertThat(descriptor.metricType(), is(MetricType.COUNTER));
-    }
-
-    @Test
-    public void shouldBuildMethodDescriptorWithHistogramMetric() {
-        ClientMethodDescriptor descriptor = ClientMethodDescriptor
-                .unary("FooService", "foo")
-                .histogram()
-                .build();
-
-        assertThat(descriptor.metricType(), is(MetricType.HISTOGRAM));
-    }
-
-    @Test
-    public void shouldBuildMethodDescriptorWithMeterMetric() {
-        ClientMethodDescriptor descriptor = ClientMethodDescriptor
-                .unary("FooService", "foo")
-                .metered()
-                .build();
-
-        assertThat(descriptor.metricType(), is(MetricType.METERED));
-    }
-
-    @Test
-    public void shouldBuildMethodDescriptorWithTimerMetric() {
-        ClientMethodDescriptor descriptor = ClientMethodDescriptor
-                .unary("FooService", "foo")
-                .timed()
-                .build();
-
-        assertThat(descriptor.metricType(), is(MetricType.TIMER));
-    }
-
-    @Test
-    public void shouldBuildMethodDescriptorWithDisabledMetric() {
-        ClientMethodDescriptor descriptor = ClientMethodDescriptor
-                .unary("FooService", "foo")
-                .disableMetrics()
-                .build();
-
-        assertThat(descriptor.metricType(), is(MetricType.INVALID));
-    }
-
-    @Test
-    public void shouldAddOneInterceptor() {
-        ClientInterceptor interceptor = mock(ClientInterceptor.class);
-        ClientMethodDescriptor descriptor = ClientMethodDescriptor
-                .unary("FooService", "foo")
-                .intercept(interceptor)
-                .build();
-
-        assertThat(descriptor.interceptors(), contains(interceptor));
-    }
-
-    @Test
-    public void shouldAddMultipleInterceptors() {
-        ClientInterceptor interceptor1 = mock(ClientInterceptor.class);
-        ClientInterceptor interceptor2 = mock(ClientInterceptor.class);
-        ClientInterceptor interceptor3 = mock(ClientInterceptor.class);
-        ClientMethodDescriptor descriptor = ClientMethodDescriptor
-                .unary("FooService", "foo")
-                .intercept(interceptor1, interceptor2)
-                .intercept(interceptor3)
-                .build();
-
-        assertThat(descriptor.interceptors(), contains(interceptor1, interceptor2, interceptor3));
     }
 
     @Test

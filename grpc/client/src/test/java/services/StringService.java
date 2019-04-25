@@ -33,10 +33,10 @@ import io.grpc.stub.StreamObserver;
 public class StringService
         implements GrpcService {
     @Override
-    public void update(ServiceDescriptor.Config config) {
+    public void update(ServiceDescriptor.Rules rules) {
 
         Object obj = StringServiceGrpc.getServiceDescriptor().getSchemaDescriptor();
-        config.proto(((io.grpc.protobuf.ProtoFileDescriptorSupplier) obj).getFileDescriptor())
+        rules.proto(((io.grpc.protobuf.ProtoFileDescriptorSupplier) obj).getFileDescriptor())
                 .unary("Upper", this::upper)
                 .unary("Lower", this::lower)
                 .serverStreaming("Split", this::split)

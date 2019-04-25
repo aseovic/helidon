@@ -24,14 +24,12 @@ import io.grpc.ClientInterceptor;
 import io.grpc.MethodDescriptor;
 import io.grpc.ServerMethodDefinition;
 import io.grpc.ServiceDescriptor;
-import org.eclipse.microprofile.metrics.MetricType;
 import org.junit.jupiter.api.Test;
 import services.TreeMapService;
 
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
-import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.hamcrest.collection.IsEmptyIterable.emptyIterable;

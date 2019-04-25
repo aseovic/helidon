@@ -38,8 +38,6 @@ import static io.helidon.grpc.core.GrpcHelper.extractMethodName;
 
 /**
  * Encapsulates all details about a client side gRPC service.
- *
- * @author Mahesh Kannan
  */
 public class ClientServiceDescriptor {
 

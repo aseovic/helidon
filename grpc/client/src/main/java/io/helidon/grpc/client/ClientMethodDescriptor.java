@@ -33,8 +33,6 @@ import io.grpc.MethodDescriptor;
  * An instance of ClientMethodDescriptor can be created either from an existing {@link io.grpc.MethodDescriptor} or
  * from one of the factory methods {@link #bidirectional(String, String)}, {@link #clientStreaming(String, String)},
  * {@link #serverStreaming(String, String)} or {@link #unary(String, String)}.
- *
- * @author Mahesh Kannan
  */
 public final class ClientMethodDescriptor {
 

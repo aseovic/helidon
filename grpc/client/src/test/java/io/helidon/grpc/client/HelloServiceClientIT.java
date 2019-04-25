@@ -92,8 +92,8 @@ public class HelloServiceClientIT {
     public static class EchoService implements GrpcService {
 
         @Override
-        public void update(ServiceDescriptor.Config config) {
-            config.unary("Echo", this::echo); // (1)
+        public void update(ServiceDescriptor.Rules rules) {
+            rules.unary("Echo", this::echo);
         }
 
         /**
@@ -102,16 +102,16 @@ public class HelloServiceClientIT {
          * @param request   the echo request containing the message to echo
          * @param observer  the response observer
          */
-        public void echo(String request, StreamObserver<String> observer) {  // (2)
-            complete(observer, request);  // (3)
+        public void echo(String request, StreamObserver<String> observer) {
+            complete(observer, request);
         }
     }
 
     public static class HelloService implements GrpcService {
 
         @Override
-        public void update(ServiceDescriptor.Config config) {
-            config.unary("SayHello", this::sayHello); // (1)
+        public void update(ServiceDescriptor.Rules rules) {
+            rules.unary("SayHello", this::sayHello);
         }
 
         /**
@@ -120,8 +120,8 @@ public class HelloServiceClientIT {
          * @param request   the echo request containing the message to echo
          * @param observer  the response observer
          */
-        public void sayHello(String request, StreamObserver<String> observer) {  // (2)
-            complete(observer, "Hello, World!!");  // (3)
+        public void sayHello(String request, StreamObserver<String> observer) {
+            complete(observer, "Hello, World!!");
         }
     }
 

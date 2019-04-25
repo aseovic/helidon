@@ -16,27 +16,24 @@
 
 package io.helidon.grpc.examples.common;
 
+import java.net.URI;
+import java.util.concurrent.CompletableFuture;
+
 import io.grpc.Channel;
-import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannelBuilder;
+
 import io.helidon.grpc.client.ClientRequestAttribute;
 import io.helidon.grpc.client.ClientServiceDescriptor;
 import io.helidon.grpc.client.ClientTracingInterceptor;
 import io.helidon.grpc.client.GrpcServiceClient;
-import io.helidon.grpc.examples.common.Greet.GreetRequest;
-import io.helidon.grpc.examples.common.Greet.SetGreetingRequest;
 import io.helidon.tracing.TracerBuilder;
-import io.opentracing.Tracer;
 
-import java.net.URI;
+import io.opentracing.Tracer;
 
 /**
  * A client for the {@link GreetServiceJava} implemented with Helidon gRPC client API.
- *
- * @author Bin Chen
  */
-public class GreetJavaClient
-    {
+public class GreetJavaClient {
     private GreetJavaClient() { }
 
     /**
@@ -66,9 +63,13 @@ public class GreetJavaClient
 
         GrpcServiceClient grpcClient = GrpcServiceClient.create(channel, descriptor);
 
-        System.out.println(grpcClient.unary("Greet", "Aleks").get());
-        System.out.println(grpcClient.unary("SetGreeting", "Ciao").get());
-        System.out.println(grpcClient.unary("Greet", "Aleks").get());
-        Thread.sleep(5000);
+        CompletableFuture<String> future = grpcClient.unary("Greet", "Aleks");
+        System.out.println(future.get());
+
+        future = grpcClient.unary("SetGreeting", "Ciao");
+        System.out.println(future.get());
+
+        future = grpcClient.unary("Greet", "Aleks");
+        System.out.println(future.get());
     }
 }

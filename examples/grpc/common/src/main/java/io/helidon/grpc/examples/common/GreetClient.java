@@ -17,27 +17,28 @@
 package io.helidon.grpc.examples.common;
 
 import java.net.URI;
-
-import io.helidon.grpc.client.ClientRequestAttribute;
-import io.helidon.grpc.client.ClientTracingInterceptor;
-import io.helidon.grpc.examples.common.Greet.GreetRequest;
-import io.helidon.grpc.examples.common.Greet.SetGreetingRequest;
-import io.helidon.tracing.TracerBuilder;
+import java.util.concurrent.CompletableFuture;
 
 import io.grpc.Channel;
-import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannelBuilder;
+
+import io.helidon.grpc.client.ClientRequestAttribute;
+import io.helidon.grpc.client.ClientServiceDescriptor;
+import io.helidon.grpc.client.ClientTracingInterceptor;
+import io.helidon.grpc.client.GrpcServiceClient;
+import io.helidon.grpc.examples.common.Greet.GreetRequest;
+import io.helidon.grpc.examples.common.Greet.GreetResponse;
+import io.helidon.grpc.examples.common.Greet.SetGreetingRequest;
+import io.helidon.grpc.examples.common.Greet.SetGreetingResponse;
+import io.helidon.tracing.TracerBuilder;
+
 import io.opentracing.Tracer;
 
 /**
- * A client for the {@link GreetService}.
- *
- * @author Aleksandar Seovic
+ * A client for the {@link GreetService} implemented with Helidon gRPC client API.
  */
 public class GreetClient {
-
-    private GreetClient() {
-    }
+    private GreetClient() { }
 
     /**
      *  The program entry point.
@@ -46,21 +47,47 @@ public class GreetClient {
      * @throws Exception  if an error occurs
      */
     public static void main(String[] args) throws Exception {
-        Tracer tracer = (Tracer) TracerBuilder.create("Client")
+        Tracer tracer = TracerBuilder.create("Client")
                 .collectorUri(URI.create("http://localhost:9411/api/v2/spans"))
                 .build();
 
         ClientTracingInterceptor tracingInterceptor = ClientTracingInterceptor.builder(tracer)
                 .withVerbosity().withTracedAttributes(ClientRequestAttribute.ALL_CALL_OPTIONS).build();
 
-        Channel channel = ClientInterceptors
-                .intercept(ManagedChannelBuilder.forAddress("localhost", 1408).usePlaintext().build(), tracingInterceptor);
+        ClientServiceDescriptor descriptor = ClientServiceDescriptor
+                .builder(GreetServiceGrpc.getServiceDescriptor())
+                .intercept(tracingInterceptor)
+                .build();
 
-        GreetServiceGrpc.GreetServiceBlockingStub greetSvc = GreetServiceGrpc.newBlockingStub(channel);
-        System.out.println(greetSvc.greet(GreetRequest.newBuilder().setName("Aleks").build()));
-        System.out.println(greetSvc.setGreeting(SetGreetingRequest.newBuilder().setGreeting("Ciao").build()));
-        System.out.println(greetSvc.greet(GreetRequest.newBuilder().setName("Aleks").build()));
+        Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408)
+                .usePlaintext()
+                .build();
 
-        Thread.sleep(5000);
+        GrpcServiceClient grpcClient = GrpcServiceClient.create(channel, descriptor);
+
+        // blocking unary
+        GreetResponse respGreet = grpcClient
+                .blockingUnary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(respGreet);
+
+        SetGreetingResponse respSetGreet = grpcClient
+                .blockingUnary("SetGreeting", SetGreetingRequest.newBuilder().setGreeting("Ciao").build());
+        System.out.println(respSetGreet);
+
+        respGreet = grpcClient.blockingUnary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(respGreet);
+
+        // asynchronous unary
+        CompletableFuture<GreetResponse> futureGreet = grpcClient
+                .unary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(futureGreet.get());
+
+        CompletableFuture<SetGreetingResponse> futureSetGreet = grpcClient
+                .unary("SetGreeting", SetGreetingRequest.newBuilder().setGreeting("Ciao").build());
+        System.out.println(futureSetGreet.get());
+
+        futureGreet = grpcClient
+                .unary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(futureGreet.get());
     }
 }

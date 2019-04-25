@@ -19,17 +19,17 @@ package io.helidon.grpc.examples.basics;
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.health.v1.HealthCheckRequest;
+import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
 
+import io.helidon.grpc.client.ClientServiceDescriptor;
+import io.helidon.grpc.client.GrpcServiceClient;
+
 /**
- * A simple gRPC health check client.
- *
- * @author Aleksandar Seovic
+ * A gRPC health check client implemented with Helidon gRPC client API.
  */
 public class HealthClient {
-
-    private HealthClient() {
-    }
+    private HealthClient() { }
 
     /**
      * The program entry point.
@@ -39,10 +39,22 @@ public class HealthClient {
      * @throws Exception  if an error occurs
      */
     public static void main(String[] args) {
-        Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408).usePlaintext().build();
+        ClientServiceDescriptor descriptor = ClientServiceDescriptor
+                .builder(HealthGrpc.getServiceDescriptor())
+                .build();
 
-        HealthGrpc.HealthBlockingStub health = HealthGrpc.newBlockingStub(channel);
-        System.out.println(health.check(HealthCheckRequest.newBuilder().setService("GreetService").build()));
-        System.out.println(health.check(HealthCheckRequest.newBuilder().setService("FooService").build()));
+        Channel channel = ManagedChannelBuilder.forAddress("localhost", 1408)
+                .usePlaintext()
+                .build();
+
+        GrpcServiceClient grpcClient = GrpcServiceClient.create(channel, descriptor);
+
+        HealthCheckResponse response = grpcClient.blockingUnary("Check",
+                HealthCheckRequest.newBuilder().setService("GreetService").build());
+        System.out.println(response);
+
+        response = grpcClient.blockingUnary("Check",
+                HealthCheckRequest.newBuilder().setService("FooService").build());
+        System.out.println(response);
     }
 }

@@ -26,14 +26,19 @@ import io.helidon.grpc.client.ClientRequestAttribute;
 import io.helidon.grpc.client.ClientServiceDescriptor;
 import io.helidon.grpc.client.ClientTracingInterceptor;
 import io.helidon.grpc.client.GrpcServiceClient;
+import io.helidon.grpc.examples.common.Greet.GreetRequest;
+import io.helidon.grpc.examples.common.Greet.GreetResponse;
+import io.helidon.grpc.examples.common.Greet.SetGreetingRequest;
+import io.helidon.grpc.examples.common.Greet.SetGreetingResponse;
 import io.helidon.tracing.TracerBuilder;
+
 import io.opentracing.Tracer;
 
 /**
- * A client for the {@link GreetServiceJava} implemented with Helidon gRPC client API.
+ * A client for the {@link GreetService} implemented with Helidon gRPC client API.
  */
-public class GreetJavaClient {
-    private GreetJavaClient() { }
+public class GreetClient {
+    private GreetClient() { }
 
     /**
      *  The program entry point.
@@ -50,9 +55,7 @@ public class GreetJavaClient {
                 .withVerbosity().withTracedAttributes(ClientRequestAttribute.ALL_CALL_OPTIONS).build();
 
         ClientServiceDescriptor descriptor = ClientServiceDescriptor
-                .builder("GreetServiceJava", GreetServiceJava.class)
-                .unary("Greet")
-                .unary("SetGreeting")
+                .builder(GreetServiceGrpc.getServiceDescriptor())
                 .intercept(tracingInterceptor)
                 .build();
 
@@ -62,13 +65,29 @@ public class GreetJavaClient {
 
         GrpcServiceClient grpcClient = GrpcServiceClient.create(channel, descriptor);
 
-        CompletableFuture<String> future = grpcClient.unary("Greet", "Aleks");
-        System.out.println(future.get());
+        // blocking unary
+        GreetResponse respGreet = grpcClient
+                .blockingUnary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(respGreet);
 
-        future = grpcClient.unary("SetGreeting", "Ciao");
-        System.out.println(future.get());
+        SetGreetingResponse respSetGreet = grpcClient
+                .blockingUnary("SetGreeting", SetGreetingRequest.newBuilder().setGreeting("Ciao").build());
+        System.out.println(respSetGreet);
 
-        future = grpcClient.unary("Greet", "Aleks");
-        System.out.println(future.get());
+        respGreet = grpcClient.blockingUnary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(respGreet);
+
+        // asynchronous unary
+        CompletableFuture<GreetResponse> futureGreet = grpcClient
+                .unary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(futureGreet.get());
+
+        CompletableFuture<SetGreetingResponse> futureSetGreet = grpcClient
+                .unary("SetGreeting", SetGreetingRequest.newBuilder().setGreeting("Ciao").build());
+        System.out.println(futureSetGreet.get());
+
+        futureGreet = grpcClient
+                .unary("Greet", GreetRequest.newBuilder().setName("Aleks").build());
+        System.out.println(futureGreet.get());
     }
 }

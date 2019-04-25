@@ -31,9 +31,6 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsEmptyIterable.emptyIterable;
 
-/**
- * @author Mahesh Kannan
- */
 public class ClientMethodDescriptorTest {
 
     private io.grpc.MethodDescriptor.Builder grpcDescriptor;

@@ -169,12 +169,12 @@ public class ClientServiceDescriptor {
         return "ClientServiceDescriptor(name='" + serviceName + "')";
     }
 
-    // ---- inner interface: Config -----------------------------------------
+    // ---- inner interface: Rules -----------------------------------------
 
     /**
      * Fluent configuration interface for the {@link ClientServiceDescriptor}.
      */
-    public interface Config {
+    public interface Rules {
         /**
          * Obtain the name fo the service this configuration configures.
          *
@@ -186,113 +186,113 @@ public class ClientServiceDescriptor {
          * Set the name for the service.
          *
          * @param name the name of service
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          * @throws NullPointerException     if the getName is null
          * @throws IllegalArgumentException if the getName is a blank String
          */
-        Config name(String name);
+        Rules name(String name);
 
         /**
          * Register the proto file for the service.
          *
          * @param proto the service proto
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config proto(Descriptors.FileDescriptor proto);
+        Rules proto(Descriptors.FileDescriptor proto);
 
         /**
          * Register the {@link MarshallerSupplier} for the service.
          *
          * @param marshallerSupplier the {@link MarshallerSupplier} for the service
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config marshallerSupplier(MarshallerSupplier marshallerSupplier);
+        Rules marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
          * Register one or more {@link ClientInterceptor interceptors} for the service.
          *
          * @param interceptors the interceptor(s) to register
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config intercept(ClientInterceptor... interceptors);
+        Rules intercept(ClientInterceptor... interceptors);
 
         /**
          * Register one or more {@link ClientInterceptor interceptors} for a named method of the service.
          *
          * @param methodName   the getName of the method to intercept
          * @param interceptors the interceptor(s) to register
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          * @throws IllegalArgumentException if no method exists for the specified getName
          */
-        Config intercept(String methodName, ClientInterceptor... interceptors);
+        Rules intercept(String methodName, ClientInterceptor... interceptors);
 
         /**
          * Register unary method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config unary(String name);
+        Rules unary(String name);
 
         /**
          * Register unary method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config unary(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules unary(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
         /**
          * Register server streaming method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config serverStreaming(String name);
+        Rules serverStreaming(String name);
 
         /**
          * Register server streaming method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config serverStreaming(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules serverStreaming(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
         /**
          * Register client streaming method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config clientStreaming(String name);
+        Rules clientStreaming(String name);
 
         /**
          * Register client streaming method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config clientStreaming(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules clientStreaming(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
         /**
          * Register bi-directional streaming method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config bidirectional(String name);
+        Rules bidirectional(String name);
 
         /**
          * Register bi-directional streaming method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config bidirectional(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules bidirectional(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
     }
 
@@ -302,7 +302,7 @@ public class ClientServiceDescriptor {
      * A {@link ClientServiceDescriptor} builder.
      */
     public static final class Builder
-            implements Config, io.helidon.common.Builder<ClientServiceDescriptor> {
+            implements Rules, io.helidon.common.Builder<ClientServiceDescriptor> {
         private String name;
         private LinkedList<ClientInterceptor> interceptors = new LinkedList<>();
         private Class<?> serviceClass;
@@ -387,7 +387,7 @@ public class ClientServiceDescriptor {
         }
 
         @Override
-        public Builder unary(String name, Consumer<ClientMethodDescriptor.Config> configurer) {
+        public Builder unary(String name, Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.UNARY, configurer));
             return this;
         }
@@ -399,7 +399,7 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder serverStreaming(String name,
-                                                    Consumer<ClientMethodDescriptor.Config> configurer) {
+                                                    Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.SERVER_STREAMING, configurer));
             return this;
         }
@@ -411,7 +411,7 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder clientStreaming(String name,
-                                                    Consumer<ClientMethodDescriptor.Config> configurer) {
+                                                    Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.CLIENT_STREAMING, configurer));
             return this;
         }
@@ -423,7 +423,7 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder bidirectional(String name,
-                                                  Consumer<ClientMethodDescriptor.Config> configurer) {
+                                                  Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.BIDI_STREAMING, configurer));
             return this;
         }
@@ -462,7 +462,7 @@ public class ClientServiceDescriptor {
         private ClientMethodDescriptor.Builder createMethodDescriptor(
                 String methodName,
                 MethodType methodType,
-                Consumer<ClientMethodDescriptor.Config> configurer) {
+                Consumer<ClientMethodDescriptor.Rules> configurer) {
 
             io.grpc.MethodDescriptor.Builder<?, ?> grpcDesc = io.grpc.MethodDescriptor.newBuilder()
                     .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.name, methodName))

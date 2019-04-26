@@ -25,10 +25,10 @@
 
 Configure the gRPC client using the Helidon configuration framework, either programmatically or via a configuration file.
 
-As mentioned earlier, creating a `GRPCServiceClient` involves:
+As mentioned earlier, creating a `GrpcServiceClient` involves:
 
 1. Creating a `ClientServiceDescriptor` which describes the methods in the service that this client can invoke.
-2. Creating a gRPC Channel through which the Client communicates with the server.
+2. Creating a gRPC `Channel` through which the client communicates with the server.
 
 == Configuring the ClientServiceDescriptor
 
@@ -45,12 +45,15 @@ ClientServiceDescriptor descriptor = ClientServiceDescriptor +
 ----
 
 1. Create a  builder for a `ClientServiceDescriptor` for the `HelloService`.
-2. Specify that the `HelloService` has a unary method named `SayHello()`. There are many other methods n this class that allow you
-to define `ClientStreaming`, `ServerStreaming` and `Bidirectional Streaming` methods.
+2. Specify that the `HelloService` has a unary method named `SayHello`. There are many other methods in this class that allow you
+to define `ClientStreaming`, `ServerStreaming` and `Bidirectional` methods.
 3. Build the `ClientServiceDescriptor`.
 
 == Configuring the gRPC Channel
 
 gRPC allows various channel configurations (deadlines, retries, interceptors etc.)
 
-Please refer to gRPC documentation: https://grpc.io/grpc-java/javadoc/io/grpc/ManagedChannelBuilder.html
+Please refer to gRPC documentation: https://grpc.io/grpc-java/javadoc/io/grpc/ManagedChannelBuilder.html.
+
+
+

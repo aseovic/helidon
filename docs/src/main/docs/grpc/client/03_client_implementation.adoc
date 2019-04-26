@@ -198,7 +198,7 @@ In order to simplify the task of invoking Client Streaming methods, Helidon Clie
 a couple of methods to invoke gRPC Client Streaming methods. The first variant takes an `Iterable` as
 argument which in turn is converted into a `io.grpc.StreamObserver`. The second variant takes a
 `io.grpc.StreamObserver` as argument. The first variant can be used if the number of values to be
-streamed in small and known apriori.
+streamed in small and known a priori.
 
 [source,java]
 ----

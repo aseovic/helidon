@@ -60,8 +60,8 @@ public static void main(String[] args) throws Exception {
 ----
 
 1. Create a `ClientServiceDescriptor` for the `HelloService`.
-2. Add the `SayHello` unary method to the `ClientDescriptor`. This method, by default, uses Java serialization for marshalling
-and unmarshalling the request and response values.
+2. Add the `SayHello` unary method to the `ClientServiceDescriptor`. This method, by default, uses Java serialization for
+marshalling and unmarshalling the request and response values.
 3. Create a gRPC `Channel` that is communicates with the server that is running in localhost and on port 1408 (using plaintext).
 4. Create the `GrpcServiceClient` that uses the above `Channel` and `ClientServiceDescriptor`. `GrpcClientService` represents
 a client that can be used to define the set of methods described by the specified `ClientServiceDescriptor`. In our case, the

@@ -86,7 +86,7 @@ public class ProtoGrpcServiceClientIT {
                 .get(10, TimeUnit.SECONDS);
 
         ClientServiceDescriptor descriptor = ClientServiceDescriptor
-                .builder(StringServiceGrpc.class)
+                .builder(StringServiceGrpc.getServiceDescriptor())
                 .intercept(mediumPriorityInterceptor)
                 .intercept("Upper", highPriorityInterceptor)
                 .intercept("Lower", lowPriorityInterceptor)
@@ -99,7 +99,22 @@ public class ProtoGrpcServiceClientIT {
         grpcClient = GrpcServiceClient.create(channel, descriptor);
     }
 
-    // Unary method tests
+    @AfterAll
+    public static void shutdownGrpcServer() {
+        grpcServer.shutdown();
+    }
+
+    @BeforeEach
+    public void resetInterceptors() {
+        lowPriorityInterceptor.reset();
+        mediumPriorityInterceptor.reset();
+        highPriorityInterceptor.reset();
+    }
+
+    @Test
+    public void testServiceName() {
+        assertThat(grpcClient.serviceName(), is("StringService"));
+    }
 
     @Test
     public void testBlockingUnaryMethods() {
@@ -123,8 +138,6 @@ public class ProtoGrpcServiceClientIT {
                 .assertNoErrors()
                 .assertValue(v -> v.getText().equals(inputStr.toUpperCase()));
     }
-
-    // Client streaming
 
     @Test
     public void testAsyncClientStreamingMethodWithIterable() throws Throwable {
@@ -153,8 +166,6 @@ public class ProtoGrpcServiceClientIT {
                 .assertNoErrors()
                 .assertValue(v -> v.getText().equals(expectedSentence));
     }
-
-    // Server Streaming
 
     @Test
     public void testBlockingServerStreamingMethods() {
@@ -193,8 +204,6 @@ public class ProtoGrpcServiceClientIT {
         assertThat(results, is(expectedWords));
     }
 
-    // Bidi streaming
-
     @Test
     public void testInvokeBidiStreamingMethod() {
         String sentence = "A simple invocation of a Bidi streaming method";
@@ -222,9 +231,6 @@ public class ProtoGrpcServiceClientIT {
         assertThat(results, is(expectedWords));
     }
 
-
-    // Interceptor tests
-
     @Test
     public void testLowAndMediumPriorityMethodInterceptors() {
         assertThat(
@@ -246,24 +252,4 @@ public class ProtoGrpcServiceClientIT {
         assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(1));
         assertThat(highPriorityInterceptor.getInvocationCount(), equalTo(1));
     }
-
-    // ----------------------------------
-
-    @AfterAll
-    public static void shutdownGrpcServer() {
-        grpcServer.shutdown();
-    }
-
-    @BeforeEach
-    public void resetInterceptors() {
-        lowPriorityInterceptor.reset();
-        mediumPriorityInterceptor.reset();
-        highPriorityInterceptor.reset();
-    }
-
-    @Test
-    public void testServiceName() {
-        assertThat(grpcClient.serviceName(), is("StringService"));
-    }
-
 }

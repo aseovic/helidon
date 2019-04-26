@@ -51,7 +51,7 @@ public static void main(String[] args) throws Exception {
 
     GrpcServiceClient client = GrpcServiceClient.create(channel, descriptor);                   // (4)
 
-    CompletableFuture<String> future = client.unary("SayHello");                                // (5)
+    CompletableFuture<String> future = client.unary("SayHello", "Helidon gRPC!!");                                // (5)
     System.out.println(future.get());                                                           // (6)
 
 }

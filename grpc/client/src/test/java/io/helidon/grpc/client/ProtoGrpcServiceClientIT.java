@@ -151,6 +151,17 @@ public class ProtoGrpcServiceClientIT {
     }
 
     @Test
+    public void testAsyncClientStreamingMethodWithStream() throws Throwable {
+        String expectedSentence = "A simple invocation of a client streaming method";
+        Collection<StringMessage> input = Arrays.stream(expectedSentence.split(" "))
+                .map(w -> StringMessage.newBuilder().setText(w).build())
+                .collect(Collectors.toList());
+
+        CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input.stream());
+        assertThat(result.get().getText(), equalTo(expectedSentence));
+    }
+
+    @Test
     public void testAsyncClientStreamingMethod() {
         TestStreamObserver<StringMessage> observer = new TestStreamObserver<>();
         StreamObserver<StringMessage> clientStream = grpcClient.clientStreaming("Join", observer);

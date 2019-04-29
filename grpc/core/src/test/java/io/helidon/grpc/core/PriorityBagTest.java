@@ -112,7 +112,7 @@ public class PriorityBagTest {
         bagTwo.add("H", 4);
 
         bagOne.merge(bagTwo);
-        
+
         assertThat(bagOne, contains("A", "E", "B", "C", "D", "F", "G", "H"));
     }
 

@@ -145,11 +145,6 @@ public class MethodDescriptor<ReqT, ResT> {
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
-         * <p>
-         * If the added interceptors are annotated with the {@link javax.annotation.Priority}
-         * annotation then that value will be used to assign a priority to use when applying
-         * the interceptor otherwise a priority of {@link InterceptorPriorities#USER} will
-         * be used.
          *
          * @param interceptors one or more {@link ServerInterceptor}s to register
          * @return this builder to allow fluent method chaining

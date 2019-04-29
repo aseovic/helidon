@@ -33,8 +33,6 @@ import javax.annotation.Priority;
  * were added to the bag.
  *
  * @param <T> the type of elements in the bag
- *
- * @author Jonathan Knight
  */
 public class PriorityBag<T> implements Iterable<T> {
 

@@ -145,11 +145,6 @@ public class MethodDescriptor<ReqT, ResT> {
 
         /**
          * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
-         * <p>
-         * If the added interceptors are annotated with the {@link javax.annotation.Priority}
-         * annotation then that value will be used to assign a priority to use when applying
-         * the interceptor otherwise a priority of {@link InterceptorPriorities#USER} will
-         * be used.
          *
          * @param interceptors one or more {@link ServerInterceptor}s to register
          * @return this builder to allow fluent method chaining
@@ -239,7 +234,7 @@ public class MethodDescriptor<ReqT, ResT> {
         private final io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor;
         private final ServerCallHandler<ReqT, ResT> callHandler;
 
-        private PriorityBag<ServerInterceptor> interceptors = new PriorityBag<>(InterceptorPriorities.USER);
+        private final PriorityBag<ServerInterceptor> interceptors = new PriorityBag<>(InterceptorPriorities.USER);
 
         private final Map<Context.Key, Object> context = new HashMap<>();
 
@@ -289,12 +284,14 @@ public class MethodDescriptor<ReqT, ResT> {
         @Override
         public Builder<ReqT, ResT> intercept(ServerInterceptor... interceptors) {
             this.interceptors.addAll(Arrays.asList(interceptors));
+            processInterceptors(interceptors);
             return this;
         }
 
         @Override
         public Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors) {
             this.interceptors.addAll(Arrays.asList(interceptors), priority);
+            processInterceptors(interceptors);
             return this;
         }
 
@@ -334,6 +331,15 @@ public class MethodDescriptor<ReqT, ResT> {
                                           callHandler,
                                           context,
                                           interceptors);
+        }
+
+        @SuppressWarnings("unchecked")
+        private void processInterceptors(ServerInterceptor... interceptors) {
+            // If any interceptors implement MethodDescriptor.Configurer allow them to apply further configuration
+            Arrays.stream(interceptors)
+                    .filter(interceptor -> MethodDescriptor.Configurer.class.isAssignableFrom(interceptor.getClass()))
+                    .map(MethodDescriptor.Configurer.class::cast)
+                    .forEach(interceptor -> interceptor.configure(this));
         }
     }
 }

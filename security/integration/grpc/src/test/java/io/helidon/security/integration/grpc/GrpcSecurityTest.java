@@ -26,7 +26,6 @@ import java.util.Map;
 
 import io.helidon.config.Config;
 import io.helidon.config.ConfigSources;
-import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.server.test.EchoServiceGrpc;
 import io.helidon.security.EndpointConfig;
 import io.helidon.security.Security;

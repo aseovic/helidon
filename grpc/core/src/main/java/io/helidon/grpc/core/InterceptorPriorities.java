@@ -19,8 +19,6 @@ package io.helidon.grpc.core;
 /**
  * Constants that represent a priority ordering that interceptors registered with
  * a gRPC service or method will be applied.
- *
- * @author Jonathan Knight
  */
 public class InterceptorPriorities {
     /**

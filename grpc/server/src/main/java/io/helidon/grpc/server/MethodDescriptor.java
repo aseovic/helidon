@@ -173,48 +173,6 @@ public class MethodDescriptor<ReqT, ResT> {
         Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
-         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
-         * <p>
-         * The added interceptors will be applied using the specified priority.
-         *
-         * @param priority     the priority to assign to the interceptors
-         * @param interceptors one or more {@link ServerInterceptor}s to register
-         * @return this builder to allow fluent method chaining
-         */
-        Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors);
-
-        /**
-         * Register the {@link MarshallerSupplier} for the method.
-         * <p>
-         * If not set the default {@link MarshallerSupplier} from the service will be used.
-         *
-         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
-
-        /**
-         * Register one or more {@link io.grpc.ServerInterceptor interceptors} for the method.
-         * <p>
-         * The added interceptors will be applied using the specified priority.
-         *
-         * @param priority     the priority to assign to the interceptors
-         * @param interceptors one or more {@link ServerInterceptor}s to register
-         * @return this builder to allow fluent method chaining
-         */
-        Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors);
-
-        /**
-         * Register the {@link MarshallerSupplier} for the method.
-         * <p>
-         * If not set the default {@link MarshallerSupplier} from the service will be used.
-         *
-         * @param marshallerSupplier the {@link MarshallerSupplier} for the service
-         * @return this {@link io.helidon.grpc.server.ServiceDescriptor.Rules} instance for fluent call chaining
-         */
-        Rules<ReqT, ResT> marshallerSupplier(MarshallerSupplier marshallerSupplier);
-
-        /**
          * Set the request type.
          * <p>
          * Setting the request type is optional as it is used to obtain the
@@ -292,7 +250,6 @@ public class MethodDescriptor<ReqT, ResT> {
                 io.grpc.MethodDescriptor.Builder<ReqT, ResT> descriptor,
                 ServerCallHandler<ReqT, ResT> callHandler) {
 
-        Builder(String name, io.grpc.MethodDescriptor<ReqT, ResT> descriptor, ServerCallHandler<ReqT, ResT> callHandler) {
             this.name = name;
             this.callHandler = callHandler;
             this.descriptor = descriptor.setFullMethodName(serviceName + "/" + name);
@@ -335,55 +292,6 @@ public class MethodDescriptor<ReqT, ResT> {
         public Rules<ReqT, ResT> intercept(int priority, ServerInterceptor... interceptors) {
             this.interceptors.addAll(Arrays.asList(interceptors), priority);
             processInterceptors(interceptors);
-            return this;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <Rnew> Builder<Rnew, ResT> requestType(Class<Rnew> requestType) {
-            this.requestType = requestType;
-            return (Builder<Rnew, ResT>) this;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public <Rnew> Builder<ReqT, Rnew> responseType(Class<Rnew> responseType) {
-            this.responseType = responseType;
-            return (Builder<ReqT, Rnew>) this;
-        }
-
-        @Override
-        @SuppressWarnings("unchecked")
-        public MethodDescriptor<ReqT, ResT> build() {
-            MarshallerSupplier supplier = this.marshallerSupplier;
-
-            if (supplier == null) {
-                supplier = defaultMarshallerSupplier;
-            }
-
-            if (requestType != null) {
-                descriptor.setRequestMarshaller((io.grpc.MethodDescriptor.Marshaller<ReqT>) supplier.get(requestType));
-            }
-
-            if (responseType != null) {
-                descriptor.setResponseMarshaller((io.grpc.MethodDescriptor.Marshaller<ResT>) supplier.get(responseType));
-            }
-
-            return new MethodDescriptor<>(name,
-                                          descriptor.build(),
-                                          callHandler,
-                                          context,
-                                          interceptors);
-        }
-
-        @SuppressWarnings("unchecked")
-        private void processInterceptors(ServerInterceptor... interceptors) {
-            // If any interceptors implement MethodDescriptor.Configurer allow them to apply further configuration
-            Arrays.stream(interceptors)
-                    .filter(interceptor -> MethodDescriptor.Configurer.class.isAssignableFrom(interceptor.getClass()))
-                    .map(MethodDescriptor.Configurer.class::cast)
-                    .forEach(interceptor -> interceptor.configure(this));
-
             return this;
         }
 

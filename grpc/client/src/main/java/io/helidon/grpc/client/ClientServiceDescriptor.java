@@ -16,16 +16,19 @@
 
 package io.helidon.grpc.client;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
-import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.function.Consumer;
 
+import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.core.MarshallerSupplier;
+import io.helidon.grpc.core.PriorityBag;
 
 import com.google.protobuf.DescriptorProtos;
 import com.google.protobuf.Descriptors;
@@ -43,11 +46,11 @@ public class ClientServiceDescriptor {
 
     private String serviceName;
     private Map<String, ClientMethodDescriptor> methods;
-    private LinkedList<ClientInterceptor> interceptors;
+    private PriorityBag<ClientInterceptor> interceptors;
 
     private ClientServiceDescriptor(String serviceName,
                                     Map<String, ClientMethodDescriptor> methods,
-                                    LinkedList<ClientInterceptor> interceptors) {
+                                    PriorityBag<ClientInterceptor> interceptors) {
         this.serviceName = serviceName;
         this.methods = methods;
         this.interceptors = interceptors;
@@ -102,6 +105,15 @@ public class ClientServiceDescriptor {
      * @return a {@link Builder}
      */
     public static Builder builder(Class<?> serviceClass) {
+        try {
+            Method method = serviceClass.getMethod("getServiceDescriptor");
+            if (method.getReturnType() == io.grpc.ServiceDescriptor.class) {
+                ServiceDescriptor svcDesc = (ServiceDescriptor) method.invoke(null);
+                return builder(svcDesc);
+            }
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException itEx) {
+            // Ignored.
+        }
         return builder(serviceClass.getSimpleName(), serviceClass);
     }
 
@@ -149,7 +161,7 @@ public class ClientServiceDescriptor {
      *
      * @return service interceptors
      */
-    public List<ClientInterceptor> interceptors() {
+    public PriorityBag<ClientInterceptor> interceptors() {
         return interceptors;
     }
 
@@ -158,12 +170,12 @@ public class ClientServiceDescriptor {
         return "ClientServiceDescriptor(name='" + serviceName + "')";
     }
 
-    // ---- inner interface: Config -----------------------------------------
+    // ---- inner interface: Rules -----------------------------------------
 
     /**
      * Fluent configuration interface for the {@link ClientServiceDescriptor}.
      */
-    public interface Config {
+    public interface Rules {
         /**
          * Obtain the name fo the service this configuration configures.
          *
@@ -175,113 +187,139 @@ public class ClientServiceDescriptor {
          * Set the name for the service.
          *
          * @param name the name of service
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          * @throws NullPointerException     if the getName is null
          * @throws IllegalArgumentException if the getName is a blank String
          */
-        Config name(String name);
+        Rules name(String name);
 
         /**
          * Register the proto file for the service.
          *
          * @param proto the service proto
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config proto(Descriptors.FileDescriptor proto);
+        Rules proto(Descriptors.FileDescriptor proto);
 
         /**
          * Register the {@link MarshallerSupplier} for the service.
          *
          * @param marshallerSupplier the {@link MarshallerSupplier} for the service
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config marshallerSupplier(MarshallerSupplier marshallerSupplier);
+        Rules marshallerSupplier(MarshallerSupplier marshallerSupplier);
 
         /**
          * Register one or more {@link ClientInterceptor interceptors} for the service.
          *
          * @param interceptors the interceptor(s) to register
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config intercept(ClientInterceptor... interceptors);
+        Rules intercept(ClientInterceptor... interceptors);
+
+        /**
+         * Add one or more {@link ClientInterceptor} instances that will intercept calls
+         * to this service.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param priority     the priority to assign to the interceptors
+         * @param interceptors one or more {@link ClientInterceptor}s to add
+         * @return this builder to allow fluent method chaining
+         */
+        Rules intercept(int priority, ClientInterceptor... interceptors);
 
         /**
          * Register one or more {@link ClientInterceptor interceptors} for a named method of the service.
          *
          * @param methodName   the getName of the method to intercept
          * @param interceptors the interceptor(s) to register
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          * @throws IllegalArgumentException if no method exists for the specified getName
          */
-        Config intercept(String methodName, ClientInterceptor... interceptors);
+        Rules intercept(String methodName, ClientInterceptor... interceptors);
+
+        /**
+         * Register one or more {@link io.grpc.ClientInterceptor interceptors} for a named method of the service.
+         * <p>
+         * The added interceptors will be applied using the specified priority.
+         *
+         * @param methodName   the name of the method to intercept
+         * @param priority     the priority to assign to the interceptors
+         * @param interceptors the interceptor(s) to register
+         * @return this {@link Rules} instance for fluent call chaining
+         *
+         * @throws IllegalArgumentException if no method exists for the specified name
+         */
+        Rules intercept(String methodName, int priority, ClientInterceptor... interceptors);
 
         /**
          * Register unary method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config unary(String name);
+        Rules unary(String name);
 
         /**
          * Register unary method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config unary(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules unary(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
         /**
          * Register server streaming method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config serverStreaming(String name);
+        Rules serverStreaming(String name);
 
         /**
          * Register server streaming method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config serverStreaming(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules serverStreaming(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
         /**
          * Register client streaming method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config clientStreaming(String name);
+        Rules clientStreaming(String name);
 
         /**
          * Register client streaming method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config clientStreaming(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules clientStreaming(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
         /**
          * Register bi-directional streaming method for the service.
          *
          * @param name The getName of the method
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config bidirectional(String name);
+        Rules bidirectional(String name);
 
         /**
          * Register bi-directional streaming method for the service.
          *
          * @param name       the getName of the method
          * @param configurer the method configurer
-         * @return this {@link Config} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
-        Config bidirectional(String name, Consumer<ClientMethodDescriptor.Config> configurer);
+        Rules bidirectional(String name, Consumer<ClientMethodDescriptor.Rules> configurer);
 
     }
 
@@ -291,9 +329,9 @@ public class ClientServiceDescriptor {
      * A {@link ClientServiceDescriptor} builder.
      */
     public static final class Builder
-            implements Config, io.helidon.common.Builder<ClientServiceDescriptor> {
+            implements Rules, io.helidon.common.Builder<ClientServiceDescriptor> {
         private String name;
-        private LinkedList<ClientInterceptor> interceptors = new LinkedList<>();
+        private PriorityBag<ClientInterceptor> interceptors = new PriorityBag<>(InterceptorPriorities.USER);
         private Class<?> serviceClass;
         private Descriptors.FileDescriptor proto;
         private MarshallerSupplier marshallerSupplier = MarshallerSupplier.defaultInstance();
@@ -376,7 +414,7 @@ public class ClientServiceDescriptor {
         }
 
         @Override
-        public Builder unary(String name, Consumer<ClientMethodDescriptor.Config> configurer) {
+        public Builder unary(String name, Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.UNARY, configurer));
             return this;
         }
@@ -388,7 +426,7 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder serverStreaming(String name,
-                                                    Consumer<ClientMethodDescriptor.Config> configurer) {
+                                                    Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.SERVER_STREAMING, configurer));
             return this;
         }
@@ -400,7 +438,7 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder clientStreaming(String name,
-                                                    Consumer<ClientMethodDescriptor.Config> configurer) {
+                                                    Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.CLIENT_STREAMING, configurer));
             return this;
         }
@@ -412,14 +450,20 @@ public class ClientServiceDescriptor {
 
         @Override
         public Builder bidirectional(String name,
-                                                  Consumer<ClientMethodDescriptor.Config> configurer) {
+                                                  Consumer<ClientMethodDescriptor.Rules> configurer) {
             methodBuilders.put(name, createMethodDescriptor(name, MethodType.BIDI_STREAMING, configurer));
             return this;
         }
 
         @Override
         public Builder intercept(ClientInterceptor... interceptors) {
-            Collections.addAll(this.interceptors, interceptors);
+            this.interceptors.addAll(Arrays.asList(interceptors));
+            return this;
+        }
+
+        @Override
+        public Rules intercept(int priority, ClientInterceptor... interceptors) {
+            this.interceptors.addAll(Arrays.asList(interceptors), priority);
             return this;
         }
 
@@ -432,6 +476,19 @@ public class ClientServiceDescriptor {
             }
 
             method.intercept(interceptors);
+
+            return this;
+        }
+
+        @Override
+        public Rules intercept(String methodName, int priority, ClientInterceptor... interceptors) {
+            ClientMethodDescriptor.Builder method = methodBuilders.get(methodName);
+
+            if (method == null) {
+                throw new IllegalArgumentException("No method exists with getName '" + methodName + "'");
+            }
+
+            method.intercept(priority, interceptors);
 
             return this;
         }
@@ -451,7 +508,7 @@ public class ClientServiceDescriptor {
         private ClientMethodDescriptor.Builder createMethodDescriptor(
                 String methodName,
                 MethodType methodType,
-                Consumer<ClientMethodDescriptor.Config> configurer) {
+                Consumer<ClientMethodDescriptor.Rules> configurer) {
 
             io.grpc.MethodDescriptor.Builder<?, ?> grpcDesc = io.grpc.MethodDescriptor.newBuilder()
                     .setFullMethodName(io.grpc.MethodDescriptor.generateFullMethodName(this.name, methodName))

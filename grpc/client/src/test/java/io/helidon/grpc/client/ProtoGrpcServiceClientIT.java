@@ -28,13 +28,22 @@ import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
+import javax.annotation.Priority;
+
 import io.helidon.grpc.client.test.StringServiceGrpc;
+import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
 
 import io.grpc.Channel;
 import io.grpc.ManagedChannelBuilder;
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.ManagedChannelBuilder;
+import io.grpc.MethodDescriptor;
 import io.grpc.stub.StreamObserver;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
@@ -43,9 +52,6 @@ import org.junit.jupiter.api.Test;
 import services.StringService;
 import services.TreeMapService;
 
-import static io.helidon.grpc.client.GrpcClientTestUtil.HighPriorityInterceptor;
-import static io.helidon.grpc.client.GrpcClientTestUtil.LowPriorityInterceptor;
-import static io.helidon.grpc.client.GrpcClientTestUtil.MediumPriorityInterceptor;
 import static io.helidon.grpc.client.test.Strings.StringMessage;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
@@ -143,10 +149,21 @@ public class ProtoGrpcServiceClientIT {
     public void testAsyncClientStreamingMethodWithIterable() throws Throwable {
         String expectedSentence = "A simple invocation of a client streaming method";
         Collection<StringMessage> input = Arrays.stream(expectedSentence.split(" "))
-                                                .map(w -> StringMessage.newBuilder().setText(w).build())
-                                                .collect(Collectors.toList());
+                .map(w -> StringMessage.newBuilder().setText(w).build())
+                .collect(Collectors.toList());
 
         CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input);
+        assertThat(result.get().getText(), equalTo(expectedSentence));
+    }
+
+    @Test
+    public void testAsyncClientStreamingMethodWithStream() throws Throwable {
+        String expectedSentence = "A simple invocation of a client streaming method";
+        Collection<StringMessage> input = Arrays.stream(expectedSentence.split(" "))
+                .map(w -> StringMessage.newBuilder().setText(w).build())
+                .collect(Collectors.toList());
+
+        CompletableFuture<StringMessage> result = grpcClient.clientStreaming("Join", input.stream());
         assertThat(result.get().getText(), equalTo(expectedSentence));
     }
 
@@ -176,8 +193,8 @@ public class ProtoGrpcServiceClientIT {
 
         Spliterator<StringMessage> spliterator = Spliterators.spliteratorUnknownSize(iterator, Spliterator.ORDERED);
         String result = StreamSupport.stream(spliterator, false)
-                                            .map(StringMessage::getText)
-                                            .collect(Collectors.joining(" "));
+                .map(StringMessage::getText)
+                .collect(Collectors.joining(" "));
 
         assertThat(result, is(sentence));
     }
@@ -197,9 +214,9 @@ public class ProtoGrpcServiceClientIT {
                 .assertValueCount(expectedWords.length);
 
         String[] results = observer.values()
-                                   .stream()
-                                   .map(StringMessage::getText)
-                                   .toArray(String[]::new);
+                .stream()
+                .map(StringMessage::getText)
+                .toArray(String[]::new);
 
         assertThat(results, is(expectedWords));
     }
@@ -224,9 +241,9 @@ public class ProtoGrpcServiceClientIT {
 
 
         String[] results = observer.values()
-                                   .stream()
-                                   .map(StringMessage::getText)
-                                   .toArray(String[]::new);
+                .stream()
+                .map(StringMessage::getText)
+                .toArray(String[]::new);
 
         assertThat(results, is(expectedWords));
     }
@@ -238,7 +255,7 @@ public class ProtoGrpcServiceClientIT {
                 equalTo(inputStr.toLowerCase()));
 
         assertThat(lowPriorityInterceptor.getInvocationCount(), equalTo(1));
-        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(2));
+        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(1));
         assertThat(highPriorityInterceptor.getInvocationCount(), equalTo(0));
     }
 
@@ -249,7 +266,58 @@ public class ProtoGrpcServiceClientIT {
                 equalTo(inputStr.toUpperCase()));
 
         assertThat(lowPriorityInterceptor.getInvocationCount(), equalTo(0));
-        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(2));
+        assertThat(mediumPriorityInterceptor.getInvocationCount(), equalTo(1));
         assertThat(highPriorityInterceptor.getInvocationCount(), equalTo(1));
+    }
+
+
+    /**
+     * A base {@link ClientInterceptor}.
+     */
+    abstract static class BaseInterceptor
+            implements ClientInterceptor {
+
+        private int invocationCount;
+
+        @Override
+        public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method,
+                                                                   CallOptions callOptions,
+                                                                   Channel next) {
+            invocationCount++;
+            return next.newCall(method, callOptions);
+        }
+
+        int getInvocationCount() {
+            return invocationCount;
+        }
+
+        void reset() {
+            this.invocationCount = 0;
+        }
+
+    }
+
+    /**
+     * A high priority {@link ClientInterceptor}.
+     */
+    @Priority(InterceptorPriorities.USER)
+    static class HighPriorityInterceptor
+            extends BaseInterceptor {
+    }
+
+    /**
+     * A medium priority {@link ClientInterceptor}.
+     */
+    @Priority(InterceptorPriorities.USER + 1000)
+    static class MediumPriorityInterceptor
+            extends BaseInterceptor {
+    }
+
+    /**
+     * A low priority {@link ClientInterceptor}.
+     */
+    @Priority(InterceptorPriorities.USER + 2000)
+    static class LowPriorityInterceptor
+            extends BaseInterceptor {
     }
 }

@@ -38,7 +38,6 @@ import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
 import io.helidon.grpc.server.GrpcService;
-import io.helidon.microprofile.grpc.core.InProcessChannel;
 import io.helidon.microprofile.grpc.core.RpcService;
 import io.helidon.microprofile.grpc.server.model.ServiceModeller;
 import io.helidon.microprofile.grpc.server.spi.GrpcMpContext;
@@ -46,7 +45,6 @@ import io.helidon.microprofile.grpc.server.spi.GrpcMpExtension;
 
 import io.grpc.BindableService;
 import io.grpc.Channel;
-import io.grpc.inprocess.InProcessChannelBuilder;
 
 /**
  * A CDI extension that will start the {@link GrpcServer gRPC server}.
@@ -64,6 +62,8 @@ public class GrpcServerCdiExtension
     private static final Logger STARTUP_LOGGER = Logger.getLogger("io.helidon.microprofile.startup.server");
 
     private GrpcServer server;
+
+
 
     private void startServer(@Observes AfterDeploymentValidation event, BeanManager beanManager) {
         GrpcRouting.Builder routingBuilder = discoverGrpcRouting(beanManager);

@@ -114,7 +114,7 @@ public class SslConfiguration {
     /**
      * Builds the configuration for ssl.
      */
-    static class Builder implements io.helidon.common.Builder<SslConfiguration> {
+    public static class Builder implements io.helidon.common.Builder<SslConfiguration> {
         private boolean jdkSSL;
         private String tlsCert = null;
         private String tlsKey = null;

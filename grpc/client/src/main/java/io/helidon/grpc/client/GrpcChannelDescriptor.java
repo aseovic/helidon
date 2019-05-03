@@ -123,7 +123,7 @@ public class GrpcChannelDescriptor {
         }
 
         /**
-         * Build and return a new GrpcChannelDescriptor
+         * Build and return a new GrpcChannelDescriptor.
          * @return a new GrpcChannelDescriptor
          */
         public GrpcChannelDescriptor build() {

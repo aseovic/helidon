@@ -106,8 +106,8 @@ public class GrpcChannelsProvider {
      * @param name the name of the channel configuration as specified in the configuration file
      * @return a new instance of {@link io.grpc.Channel}
      * @throws SSLException if any error during Channel creation
-     * @throws {@link       java.lang.NullPointerException} if name is null
-     * @throws {@link       java.lang.IllegalArgumentException} if name is empty
+     * @throws NullPointerException if name is null
+     * @throws IllegalArgumentException if name is empty
      */
     public Channel channel(String name)
             throws SSLException {

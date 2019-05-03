@@ -10,15 +10,15 @@ grpc:
         enabled: false
         tlsKey: "clientKey.pem"
         tlsCert: "clientCert.pem"
-        caCert: "ca.pem"
+        tlsCaCert: "ca.pem"
     default_host_ssl_one_way:
       port: 4096
       ssl:
         enabled: true
-        caCert: "ca.pem"
+        tlsCaCert: "ca.pem"
     default_port_ssl:
       host: "non_default_host.com"
       ssl:
         tlsKey: "clientKey.pem"
         tlsCert: "clientCert.pem"
-        caCert: "ca.pem"
+        tlsCaCert: "ca.pem"

@@ -140,7 +140,7 @@ public class GrpcChannelsProvider {
         } else {
             channel = NettyChannelBuilder.forAddress(cfg.host(), cfg.port())
                     .negotiationType(NegotiationType.TLS)
-                    .sslContext(createClientSslContext(cfg.sslDescriptor().caCert(),
+                    .sslContext(createClientSslContext(cfg.sslDescriptor().tlsCaCert(),
                                                        cfg.sslDescriptor().tlsCert(),
                                                        cfg.sslDescriptor().tlsKey()))
                     .build();
@@ -187,7 +187,7 @@ public class GrpcChannelsProvider {
         /**
          * Create a new instance of {@link GrpcChannelsProvider} from this Builder.
          *
-         * @return A new instance of {@link GrpcChannelsProvider}.
+         * @return a new instance of {@link GrpcChannelsProvider}
          */
         public GrpcChannelsProvider build() {
             return new GrpcChannelsProvider(channelConfigs);

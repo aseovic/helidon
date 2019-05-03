@@ -74,12 +74,6 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-   <dependency>
-     <groupId>io.helidon.config</groupId>
-     <artifactId>helidon-config-hocon</artifactId>
-     <version>${project.version}</version>
-     <scope>test</scope>
-   </dependency>
     <dependency>
         <groupId>org.junit.jupiter</groupId>
         <artifactId>junit-jupiter-api</artifactId>
@@ -104,11 +98,6 @@
         <groupId>io.reactivex.rxjava2</groupId>
         <artifactId>rxjava</artifactId>
         <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.oracle.bedrock</groupId>
-      <artifactId>bedrock-testing-support</artifactId>
-      <scope>test</scope>
     </dependency>
   </dependencies>
 

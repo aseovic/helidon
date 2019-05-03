@@ -224,7 +224,7 @@ public class ClientServiceDescriptor {
          * The added interceptors will be applied using the specified priority.
          *
          * @param priority     the priority to assign to the interceptors
-         * @param interceptors one or more {@link ClientInterceptor}s to add
+         * @param interceptors one or more {@link ClientInterceptor}s to channel
          * @return this builder to allow fluent method chaining
          */
         Rules intercept(int priority, ClientInterceptor... interceptors);
@@ -540,7 +540,7 @@ public class ClientServiceDescriptor {
                 return Object.class;
             }
 
-            // todo: add error handling here, and fail fast with a more
+            // todo: channel error handling here, and fail fast with a more
             // todo: meaningful exception (and message) than a NPE
             // todo: if the service or the method cannot be found
             Descriptors.ServiceDescriptor svc = proto.findServiceByName(name);

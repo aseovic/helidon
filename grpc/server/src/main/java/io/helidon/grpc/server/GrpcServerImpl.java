@@ -38,6 +38,7 @@ import javax.net.ssl.SSLContext;
 
 import io.helidon.common.configurable.Resource;
 import io.helidon.common.pki.KeyConfig;
+import io.helidon.grpc.core.GrpcSslDescriptor;
 import io.helidon.grpc.core.PriorityBag;
 
 import io.grpc.BindableService;
@@ -133,15 +134,15 @@ public class GrpcServerImpl implements GrpcServer {
         String sName = config.name();
         int port = config.port();
         boolean tls = false;
-        SslConfiguration sslConfig = config.sslConfig();
+        GrpcSslDescriptor sslConfig = config.sslConfig();
         SslContext sslContext = null;
 
         try {
             if (sslConfig != null) {
                 if (sslConfig.isJdkSSL()) {
                     SSLContext sslCtx = SSLContextBuilder.create(KeyConfig.pemBuilder()
-                                                                         .key(Resource.create(sslConfig.getTLSKey()))
-                                                                         .certChain(Resource.create(sslConfig.getTLSCerts()))
+                                                                         .key(Resource.create(sslConfig.tlsKey()))
+                                                                         .certChain(Resource.create(sslConfig.tlsCert()))
                                                                          .build()).build();
                     sslContext = new JdkSslContext(sslCtx, false, ClientAuth.NONE);
 
@@ -351,10 +352,10 @@ public class GrpcServerImpl implements GrpcServer {
      * @param sslConfig the ssl configuration
      * @return an instance of SslContextBuilder
      */
-    protected SslContextBuilder sslContextBuilder(SslConfiguration sslConfig) {
-        String sCertFile = sslConfig.getTLSCerts();
-        String sKeyFile = sslConfig.getTLSKey();
-        String sClientCertFile = sslConfig.getTLSClientCerts();
+    protected SslContextBuilder sslContextBuilder(GrpcSslDescriptor sslConfig) {
+        String sCertFile = sslConfig.tlsCert();
+        String sKeyFile = sslConfig.tlsKey();
+        String sClientCertFile = sslConfig.tlsCaCert();
 
         if (sCertFile == null || sCertFile.isEmpty()) {
             throw new IllegalStateException("gRPC server is configured to use TLS but cert file is not set");

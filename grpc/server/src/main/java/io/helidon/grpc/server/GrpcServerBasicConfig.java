@@ -16,6 +16,8 @@
 
 package io.helidon.grpc.server;
 
+import io.helidon.grpc.core.GrpcSslDescriptor;
+
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
 
@@ -37,7 +39,7 @@ public class GrpcServerBasicConfig
 
     private final int workers;
 
-    private final SslConfiguration sslConfig;
+    private final GrpcSslDescriptor sslConfig;
 
     /**
      * Construct {@link GrpcServerBasicConfig} instance.
@@ -57,7 +59,7 @@ public class GrpcServerBasicConfig
                                  boolean nativeTransport,
                                  Tracer tracer,
                                  TracingConfiguration tracingConfig,
-                                 SslConfiguration sslConfig) {
+                                 GrpcSslDescriptor sslConfig) {
 
         this.name = name == null || name.trim().isEmpty() ? DEFAULT_NAME : name.trim();
         this.port = port <= 0 ? 0 : port;
@@ -121,7 +123,7 @@ public class GrpcServerBasicConfig
     }
 
     @Override
-    public SslConfiguration sslConfig() {
+    public GrpcSslDescriptor sslConfig() {
         return sslConfig;
     }
 }

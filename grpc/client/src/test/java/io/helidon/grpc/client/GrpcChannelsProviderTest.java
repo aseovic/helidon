@@ -19,6 +19,7 @@ import javax.net.ssl.SSLException;
 
 import io.helidon.config.Config;
 import io.helidon.config.ConfigSources;
+import io.helidon.grpc.core.GrpcSslDescriptor;
 
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -32,9 +33,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class GrpcChannelsProviderTest {
 
-    private static final String CLIENT_CERT = "clientCert.pem";
-    private static final String CLIENT_KEY = "clientKey.pem";
-    private static final String CA_CERT = "ca.pem";
+    private static final String CLIENT_CERT = "/space/helidon/grpc/client/clientCert.pem";
+    private static final String CLIENT_KEY = "/space/helidon/grpc/client/clientKey.pem";
+    private static final String CA_CERT = "/space/helidon/grpc/client/ca.pem";
 
     private static final String DEFAULT_HOST_PORT_CFG = "default_host_port";
     private static final String DEFAULT_HOST_CFG = "default_host";
@@ -79,7 +80,7 @@ public class GrpcChannelsProviderTest {
     @Test
     public void testChannelConfigurationWithDefaultSsl() {
         GrpcChannelDescriptor cfg = GrpcChannelDescriptor.builder()
-                .sslDescriptor(SslDescriptor.builder().build())
+                .sslDescriptor(GrpcSslDescriptor.builder().build())
                 .build();
         assertThat(cfg.host(), equalTo("localhost"));
         assertThat(cfg.port(), equalTo(1408));
@@ -90,8 +91,8 @@ public class GrpcChannelsProviderTest {
     public void testChannelConfigurationWithSslConfig() {
         GrpcChannelDescriptor cfg = GrpcChannelDescriptor.builder()
                 .sslDescriptor(
-                        SslDescriptor.builder()
-                                .caCert("/certs/cacert")
+                        GrpcSslDescriptor.builder()
+                                .tlsCaCert("/certs/cacert")
                                 .tlsCert("/certs/clientcert")
                                 .tlsKey("/certs/clientkey")
                                 .build())
@@ -99,7 +100,7 @@ public class GrpcChannelsProviderTest {
         assertThat(cfg.host(), equalTo("localhost"));
         assertThat(cfg.port(), equalTo(1408));
         assertThat(cfg.sslDescriptor().isEnabled(), is(true));
-        assertThat(cfg.sslDescriptor().caCert(), equalTo("/certs/cacert"));
+        assertThat(cfg.sslDescriptor().tlsCaCert(), equalTo("/certs/cacert"));
         assertThat(cfg.sslDescriptor().tlsCert(), equalTo("/certs/clientcert"));
         assertThat(cfg.sslDescriptor().tlsKey(), equalTo("/certs/clientkey"));
     }
@@ -150,12 +151,12 @@ public class GrpcChannelsProviderTest {
         assertThat(chCfg.host(), equalTo("localhost"));
         assertThat(chCfg.port(), equalTo(1408));
 
-        SslDescriptor ssl = chCfg.sslDescriptor();
+        GrpcSslDescriptor ssl = chCfg.sslDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(false));
         assertThat(ssl.tlsKey(), equalTo(CLIENT_KEY));
         assertThat(ssl.tlsCert(), equalTo(CLIENT_CERT));
-        assertThat(ssl.caCert(), equalTo(CA_CERT));
+        assertThat(ssl.tlsCaCert(), equalTo(CA_CERT));
     }
 
     @Test
@@ -164,12 +165,12 @@ public class GrpcChannelsProviderTest {
         assertThat(chCfg.host(), equalTo("localhost"));
         assertThat(chCfg.port(), equalTo(4096));
 
-        SslDescriptor ssl = chCfg.sslDescriptor();
+        GrpcSslDescriptor ssl = chCfg.sslDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(true));
         assertThat(ssl.tlsKey(), nullValue());
         assertThat(ssl.tlsCert(), nullValue());
-        assertThat(ssl.caCert(), equalTo(CA_CERT));
+        assertThat(ssl.tlsCaCert(), equalTo(CA_CERT));
     }
 
     @Test
@@ -178,12 +179,12 @@ public class GrpcChannelsProviderTest {
         assertThat(chCfg.host(), equalTo("non_default_host.com"));
         assertThat(chCfg.port(), equalTo(1408));
 
-        SslDescriptor ssl = chCfg.sslDescriptor();
+        GrpcSslDescriptor ssl = chCfg.sslDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(true));
         assertThat(ssl.tlsKey(), equalTo(CLIENT_KEY));
         assertThat(ssl.tlsCert(), equalTo(CLIENT_CERT));
-        assertThat(ssl.caCert(), equalTo(CA_CERT));
+        assertThat(ssl.tlsCaCert(), equalTo(CA_CERT));
     }
 
     @Test

@@ -21,12 +21,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 import javax.net.ssl.SSLException;
-import javax.net.ssl.SSLHandshakeException;
 
+import io.helidon.grpc.core.GrpcSslDescriptor;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
-import io.helidon.grpc.server.SslConfiguration;
 
 import io.grpc.StatusRuntimeException;
 import org.junit.jupiter.api.AfterAll;
@@ -119,13 +118,13 @@ public class GrpcChannelsProviderIT {
      * @return A reference to a {@link io.helidon.grpc.server.GrpcServer}.
      */
     private static GrpcServer startGrpcServer(int nPort, boolean sslEnabled, boolean mutual) throws Exception {
-        SslConfiguration sslConfig = null;
+        GrpcSslDescriptor sslConfig = null;
         String name = "grpc.server";
         if (!sslEnabled) {
             name = name + 1;
         } else if (mutual) {
             name = name + 2;
-            sslConfig = SslConfiguration.builder()
+            sslConfig = GrpcSslDescriptor.builder()
                     .jdkSSL(false)
                     .tlsCert(tlsCert)
                     .tlsKey(tlsKey)
@@ -133,7 +132,7 @@ public class GrpcChannelsProviderIT {
                     .build();
         } else {
             name = name + 3;
-            sslConfig = SslConfiguration.builder()
+            sslConfig = GrpcSslDescriptor.builder()
                     .jdkSSL(false)
                     .tlsCert(tlsCert)
                     .tlsKey(tlsKey)
@@ -237,9 +236,9 @@ public class GrpcChannelsProviderIT {
 
         if ((sslMode & WITH_NO_SSL) == 0) {
             // SSL enabled.
-            SslDescriptor.Builder sslBldr = SslDescriptor.builder();
+            GrpcSslDescriptor.Builder sslBldr = GrpcSslDescriptor.builder();
             if ((sslMode & WITH_CA_CERT) > 0) {
-                sslBldr.caCert(tlsCaCert);
+                sslBldr.tlsCaCert(tlsCaCert);
             }
             if ((sslMode & WITH_CLIENT_KEY) > 0) {
                 sslBldr.tlsKey(tlsClientKey);

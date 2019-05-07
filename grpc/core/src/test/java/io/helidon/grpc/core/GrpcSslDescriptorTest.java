@@ -20,6 +20,7 @@ import io.helidon.config.ConfigSources;
 
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
@@ -62,11 +63,11 @@ public class GrpcSslDescriptorTest {
         assertThat(desc, notNullValue());
         assertThat(desc.isEnabled(), equalTo(true));
         assertThat(desc.isJdkSSL(), equalTo(false));
-        String path = "/space/helidon/grpc/core/src/test/resources/ssl/";
+        String path = "src/test/resources/ssl/";
 
-        assertThat(desc.tlsKey(), equalTo(path + "serverKey.pem"));
-        assertThat(desc.tlsCert(), equalTo(path + "serverCert.pem"));
-        assertThat(desc.tlsCaCert(), equalTo(path + "ca.pem"));
+        assertThat(desc.tlsKey(), endsWith(path + "serverKey.pem"));
+        assertThat(desc.tlsCert(), endsWith(path + "serverCert.pem"));
+        assertThat(desc.tlsCaCert(), endsWith(path + "ca.pem"));
     }
 
 }

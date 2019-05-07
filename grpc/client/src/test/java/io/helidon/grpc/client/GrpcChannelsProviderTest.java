@@ -24,6 +24,7 @@ import io.helidon.grpc.core.GrpcSslDescriptor;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
+import static org.hamcrest.CoreMatchers.endsWith;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.hasItems;
 import static org.hamcrest.CoreMatchers.is;
@@ -33,9 +34,9 @@ import static org.hamcrest.MatcherAssert.assertThat;
 
 public class GrpcChannelsProviderTest {
 
-    private static final String CLIENT_CERT = "/space/helidon/grpc/client/clientCert.pem";
-    private static final String CLIENT_KEY = "/space/helidon/grpc/client/clientKey.pem";
-    private static final String CA_CERT = "/space/helidon/grpc/client/ca.pem";
+    private static final String CLIENT_CERT = "/clientCert.pem";
+    private static final String CLIENT_KEY = "/clientKey.pem";
+    private static final String CA_CERT = "/ca.pem";
 
     private static final String DEFAULT_HOST_PORT_CFG = "default_host_port";
     private static final String DEFAULT_HOST_CFG = "default_host";
@@ -154,9 +155,9 @@ public class GrpcChannelsProviderTest {
         GrpcSslDescriptor ssl = chCfg.sslDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(false));
-        assertThat(ssl.tlsKey(), equalTo(CLIENT_KEY));
-        assertThat(ssl.tlsCert(), equalTo(CLIENT_CERT));
-        assertThat(ssl.tlsCaCert(), equalTo(CA_CERT));
+        assertThat(ssl.tlsKey(), endsWith(CLIENT_KEY));
+        assertThat(ssl.tlsCert(), endsWith(CLIENT_CERT));
+        assertThat(ssl.tlsCaCert(), endsWith(CA_CERT));
     }
 
     @Test
@@ -170,7 +171,7 @@ public class GrpcChannelsProviderTest {
         assertThat(ssl.isEnabled(), equalTo(true));
         assertThat(ssl.tlsKey(), nullValue());
         assertThat(ssl.tlsCert(), nullValue());
-        assertThat(ssl.tlsCaCert(), equalTo(CA_CERT));
+        assertThat(ssl.tlsCaCert(), endsWith(CA_CERT));
     }
 
     @Test
@@ -182,9 +183,9 @@ public class GrpcChannelsProviderTest {
         GrpcSslDescriptor ssl = chCfg.sslDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(true));
-        assertThat(ssl.tlsKey(), equalTo(CLIENT_KEY));
-        assertThat(ssl.tlsCert(), equalTo(CLIENT_CERT));
-        assertThat(ssl.tlsCaCert(), equalTo(CA_CERT));
+        assertThat(ssl.tlsKey(), endsWith(CLIENT_KEY));
+        assertThat(ssl.tlsCert(), endsWith(CLIENT_CERT));
+        assertThat(ssl.tlsCaCert(), endsWith(CA_CERT));
     }
 
     @Test

@@ -22,6 +22,7 @@ import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.core.MarshallerSupplier;
 import io.helidon.grpc.core.PriorityBag;
 
+import io.grpc.CallCredentials;
 import io.grpc.ClientInterceptor;
 import io.grpc.MethodDescriptor;
 
@@ -52,12 +53,16 @@ public final class ClientMethodDescriptor {
      */
     private PriorityBag<ClientInterceptor> interceptors;
 
+    private CallCredentials callCredentials;
+
     private ClientMethodDescriptor(String name,
                                    MethodDescriptor descriptor,
-                                   PriorityBag<ClientInterceptor> interceptors) {
+                                   PriorityBag<ClientInterceptor> interceptors,
+                                   CallCredentials callCredentials) {
         this.name = name;
         this.descriptor = descriptor;
         this.interceptors = interceptors;
+        this.callCredentials = callCredentials;
     }
 
     /**
@@ -138,6 +143,15 @@ public final class ClientMethodDescriptor {
     }
 
     /**
+     * Return the {@link io.grpc.CallCredentials} set on this service.
+     *
+     * @return the {@link io.grpc.CallCredentials} set on this service
+     */
+    public CallCredentials callCredentials() {
+        return this.callCredentials;
+    }
+
+    /**
      * Creates a new {@link ClientMethodDescriptor.Builder} with the specified name.
      *
      * @param serviceName the name of the owning gRPC service
@@ -188,6 +202,7 @@ public final class ClientMethodDescriptor {
         return interceptors.readOnly();
     }
 
+
     /**
      * ClientMethod configuration API.
      */
@@ -213,7 +228,7 @@ public final class ClientMethodDescriptor {
          * Register one or more {@link ClientInterceptor interceptors} for the method.
          *
          * @param interceptors the interceptor(s) to register
-         * @return this {@link io.helidon.grpc.client.ClientMethodDescriptor.Rules} instance for fluent call chaining
+         * @return this {@link Rules} instance for fluent call chaining
          */
         Rules intercept(ClientInterceptor... interceptors);
 
@@ -224,7 +239,7 @@ public final class ClientMethodDescriptor {
          *
          * @param priority     the priority to assign to the interceptors
          * @param interceptors one or more {@link ClientInterceptor}s to register
-         * @return this builder to allow fluent method chaining
+         * @return this {@link Rules} to allow fluent method chaining
          */
         Rules intercept(int priority, ClientInterceptor... interceptors);
 
@@ -237,6 +252,15 @@ public final class ClientMethodDescriptor {
          * @return this {@link Rules} instance for fluent call chaining
          */
         Rules marshallerSupplier(MarshallerSupplier marshallerSupplier);
+
+        /**
+         * Register the {@link io.grpc.CallCredentials} to be used for this method. This overrides
+         * any {@link io.grpc.CallCredentials} set on the {@link io.helidon.grpc.client.ClientServiceDescriptor}.
+         *
+         * @param callCredentials the {@link io.grpc.CallCredentials} to set.
+         * @return this {@link Rules} instance for fluent call chaining
+         */
+        Rules callCredentials(CallCredentials callCredentials);
     }
 
     /**
@@ -252,6 +276,7 @@ public final class ClientMethodDescriptor {
         private PriorityBag<ClientInterceptor> interceptors = new PriorityBag<>(InterceptorPriorities.USER);
         private MarshallerSupplier defaultMarshallerSupplier = MarshallerSupplier.defaultInstance();
         private MarshallerSupplier marshallerSupplier;
+        private CallCredentials callCredentials;
 
         /**
          * Constructs a new Builder instance.
@@ -316,6 +341,13 @@ public final class ClientMethodDescriptor {
             return this;
         }
 
+        @Override
+        public Rules callCredentials(CallCredentials callCredentials) {
+            this.callCredentials = callCredentials;
+            return this;
+        }
+
+
         /**
          * Builds and returns a new instance of {@link ClientMethodDescriptor}.
          *
@@ -340,7 +372,8 @@ public final class ClientMethodDescriptor {
 
             return new ClientMethodDescriptor(name,
                                               descriptor.build(),
-                                              interceptors);
+                                              interceptors,
+                                              callCredentials);
         }
 
     }

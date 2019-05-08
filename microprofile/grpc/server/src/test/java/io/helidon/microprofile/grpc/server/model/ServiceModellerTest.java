@@ -16,6 +16,8 @@
 
 package io.helidon.microprofile.grpc.server.model;
 
+import javax.enterprise.inject.Instance;
+import javax.enterprise.inject.spi.BeanManager;
 import javax.inject.Singleton;
 
 import io.helidon.grpc.core.JavaMarshaller;
@@ -30,6 +32,7 @@ import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
 import io.grpc.stub.StreamObserver;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -44,11 +47,22 @@ import static org.mockito.Mockito.when;
 
 
 public class ServiceModellerTest {
+
+    private BeanManager beanManager;
+
+    @BeforeEach
+    public void setup() {
+        beanManager = mock(BeanManager.class);
+        Instance instance = mock(Instance.class);
+
+        when(beanManager.createInstance()).thenReturn(instance);
+    }
+
     @Test
     public void shouldUseServiceNameFromAnnotation() {
         ServiceOne service = new ServiceOne();
         ServiceModeller modeller = new ServiceModeller(service);
-        ServiceDescriptor.Builder builder = modeller.createServiceBuilder();
+        ServiceDescriptor.Builder builder = modeller.createServiceBuilder(beanManager);
 
         assertThat(builder.name(), is("ServiceOne/foo"));
     }
@@ -57,7 +71,7 @@ public class ServiceModellerTest {
     public void shouldUseDefaultServiceName() {
         ServiceTwo service = new ServiceTwo();
         ServiceModeller modeller = new ServiceModeller(service);
-        ServiceDescriptor.Builder builder = modeller.createServiceBuilder();
+        ServiceDescriptor.Builder builder = modeller.createServiceBuilder(beanManager);
 
         assertThat(builder.name(), is("ServiceTwo"));
     }
@@ -74,7 +88,7 @@ public class ServiceModellerTest {
     }
 
     public void assertServiceOne(ServiceModeller modeller) {
-        ServiceDescriptor.Builder builder = modeller.createServiceBuilder();
+        ServiceDescriptor.Builder builder = modeller.createServiceBuilder(beanManager);
 
         ServiceDescriptor descriptor = builder.build();
         assertThat(descriptor.name(), is("ServiceOne/foo"));
@@ -136,7 +150,7 @@ public class ServiceModellerTest {
     public void shouldCreateServiceWithMethodNamesFromAnnotation() {
         ServiceTwo service = new ServiceTwo();
         ServiceModeller modeller = new ServiceModeller(service);
-        ServiceDescriptor.Builder builder = modeller.createServiceBuilder();
+        ServiceDescriptor.Builder builder = modeller.createServiceBuilder(beanManager);
 
         ServiceDescriptor descriptor = builder.build();
         assertThat(descriptor.name(), is("ServiceTwo"));
@@ -206,7 +220,7 @@ public class ServiceModellerTest {
 
     @SuppressWarnings("unchecked")
     public void assertSingleton(ServiceModeller modeller) {
-        ServiceDescriptor.Builder builder = modeller.createServiceBuilder();
+        ServiceDescriptor.Builder builder = modeller.createServiceBuilder(beanManager);
 
         ServiceDescriptor descriptor = builder.build();
 
@@ -238,7 +252,7 @@ public class ServiceModellerTest {
     @Test
     public void shouldHaveMarshallerFromServiceAnnotation() {
         ServiceModeller modeller = new ServiceModeller(ServiceThree.class);
-        ServiceDescriptor.Builder builder = modeller.createServiceBuilder();
+        ServiceDescriptor.Builder builder = modeller.createServiceBuilder(beanManager);
 
         ServiceDescriptor descriptor = builder.build();
 
@@ -251,7 +265,7 @@ public class ServiceModellerTest {
     @Test
     public void shouldHaveMarshallerFromMethodAnnotation() {
         ServiceModeller modeller = new ServiceModeller(ServiceFour.class);
-        ServiceDescriptor.Builder builder = modeller.createServiceBuilder();
+        ServiceDescriptor.Builder builder = modeller.createServiceBuilder(beanManager);
 
         ServiceDescriptor descriptor = builder.build();
 

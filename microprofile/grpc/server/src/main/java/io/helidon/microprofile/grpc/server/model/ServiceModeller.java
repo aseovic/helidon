@@ -17,11 +17,13 @@
 package io.helidon.microprofile.grpc.server.model;
 
 import java.util.Objects;
+import java.util.ServiceLoader;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import io.helidon.common.serviceloader.HelidonServiceLoader;
 import io.helidon.grpc.core.ContextKeys;
 import io.helidon.grpc.core.MethodHandler;
 import io.helidon.grpc.server.MethodDescriptor;
@@ -93,6 +95,11 @@ public class ServiceModeller
                 .marshallerSupplier(getMarshallerSupplier());
 
         addServiceMethods(builder, methodList);
+
+        Class<?> serviceClass = serviceClass();
+        Class<?> annotatedClass = annotatedServiceClass();
+        HelidonServiceLoader.create(ServiceLoader.load(AnnotatedServiceConfigurer.class))
+                .forEach(configurer -> configurer.accept(serviceClass, annotatedClass, builder));
 
         LOGGER.log(Level.FINEST, () -> String.format("A new gRPC service was created by ServiceModeller: %s", builder));
 

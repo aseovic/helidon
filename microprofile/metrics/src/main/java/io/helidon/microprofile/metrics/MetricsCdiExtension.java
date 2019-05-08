@@ -65,6 +65,8 @@ import org.eclipse.microprofile.metrics.annotation.Timed;
 import static io.helidon.microprofile.metrics.MetricUtil.LookupResult;
 import static io.helidon.microprofile.metrics.MetricUtil.getMetricName;
 import static io.helidon.microprofile.metrics.MetricUtil.lookupAnnotation;
+import static io.helidon.microprofile.metrics.MetricUtil.registerMetric;
+import static io.helidon.microprofile.metrics.MetricUtil.toTags;
 
 /**
  * MetricsCdiExtension class.
@@ -84,53 +86,6 @@ public class MetricsCdiExtension implements Extension {
         return (T) bm.getReference(bean, type, bm.createCreationalContext(bean));
     }
 
-    static <E extends Member & AnnotatedElement>
-    void registerMetric(E element, Class<?> clazz, LookupResult<? extends Annotation> lookupResult) {
-        MetricRegistry registry = getMetricRegistry();
-        Annotation annotation = lookupResult.getAnnotation();
-
-        if (annotation instanceof Counted) {
-            Counted counted = (Counted) annotation;
-            String metricName = getMetricName(element, clazz, lookupResult.getType(), counted.name(), counted.absolute());
-            Metadata meta = new Metadata(metricName,
-                                         counted.displayName(),
-                                         counted.description(),
-                                         MetricType.COUNTER,
-                                         counted.unit(),
-                                         toTags(counted.tags()));
-            registry.counter(meta);
-            LOGGER.log(Level.FINE, () -> "### Registered counter " + metricName);
-        } else if (annotation instanceof Metered) {
-            Metered metered = (Metered) annotation;
-            String metricName = getMetricName(element, clazz, lookupResult.getType(), metered.name(), metered.absolute());
-            Metadata meta = new Metadata(metricName,
-                                         metered.displayName(),
-                                         metered.description(),
-                                         MetricType.METERED,
-                                         metered.unit(),
-                                         toTags(metered.tags()));
-            registry.meter(meta);
-            LOGGER.log(Level.FINE, () -> "### Registered meter " + metricName);
-        } else if (annotation instanceof Timed) {
-            Timed timed = (Timed) annotation;
-            String metricName = getMetricName(element, clazz, lookupResult.getType(), timed.name(), timed.absolute());
-            Metadata meta = new Metadata(metricName,
-                                         timed.displayName(),
-                                         timed.description(),
-                                         MetricType.TIMER,
-                                         timed.unit(),
-                                         toTags(timed.tags()));
-            registry.timer(meta);
-            LOGGER.log(Level.FINE, () -> "### Registered timer " + metricName);
-        }
-    }
-
-    static String toTags(String[] tags) {
-        if (null == tags || tags.length == 0) {
-            return "";
-        }
-        return String.join(",", tags);
-    }
 
     /**
      * Returns the real class of this object, skipping proxies.

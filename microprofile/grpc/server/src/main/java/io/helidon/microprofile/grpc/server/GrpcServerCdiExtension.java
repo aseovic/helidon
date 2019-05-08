@@ -16,19 +16,20 @@
 
 package io.helidon.microprofile.grpc.server;
 
-import java.util.List;
+import java.lang.annotation.Annotation;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.event.Observes;
+import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Instance;
 import javax.enterprise.inject.Produces;
 import javax.enterprise.inject.spi.AfterDeploymentValidation;
+import javax.enterprise.inject.spi.Bean;
 import javax.enterprise.inject.spi.BeanManager;
 import javax.enterprise.inject.spi.BeforeShutdown;
 import javax.enterprise.inject.spi.Extension;
@@ -64,12 +65,11 @@ public class GrpcServerCdiExtension
     private GrpcServer server;
 
 
-
     private void startServer(@Observes AfterDeploymentValidation event, BeanManager beanManager) {
         GrpcRouting.Builder routingBuilder = discoverGrpcRouting(beanManager);
 
         Config config = resolveConfig(beanManager);
-        GrpcServerConfiguration.Builder serverConfiguration = GrpcServerConfiguration.builder(config);
+        GrpcServerConfiguration.Builder serverConfiguration = GrpcServerConfiguration.builder(config.get("grpc"));
 
         loadExtensions(beanManager, config, routingBuilder, serverConfiguration);
         server = GrpcServer.create(serverConfiguration.build(), routingBuilder.build());
@@ -140,31 +140,45 @@ public class GrpcServerCdiExtension
      */
     private GrpcRouting.Builder discoverGrpcRouting(BeanManager beanManager) {
         Instance<Object> instance = beanManager.createInstance();
-
         GrpcRouting.Builder builder = GrpcRouting.builder();
 
         // discover @RpcService annotated beans
-        List<Object> services = instance.select(RpcService.Literal.INSTANCE)
+        // we use the bean manager to do this as we need the actual bean class
+        beanManager.getBeans(Object.class, Any.Literal.INSTANCE)
                 .stream()
-                .collect(Collectors.toList());
+                .filter(this::hasRpcServiceQualifier)
+                .forEach(bean -> {
+                    Class<?> beanClass = bean.getBeanClass();
+                    Annotation[] qualifiers = bean.getQualifiers().toArray(new Annotation[0]);
+                    Object service = instance.select(beanClass, qualifiers).get();
+                    register(service, builder, beanClass);
+                });
 
         // discover beans of type GrpcService
-        List<GrpcService> grpcServices = instance.select(GrpcService.class)
-                .stream()
-                .collect(Collectors.toList());
+        beanManager.getBeans(GrpcService.class)
+                .forEach(bean -> {
+                    Class<?> beanClass = bean.getBeanClass();
+                    Annotation[] qualifiers = bean.getQualifiers().toArray(new Annotation[0]);
+                    Object service = instance.select(beanClass, qualifiers).get();
+                    builder.register((GrpcService) service);
+                });
 
         // discover beans of type BindableService
-        List<BindableService> bindableServices = instance.select(BindableService.class)
-                .stream()
-                .collect(Collectors.toList());
-
-        if (services.size() > 0 || grpcServices.size() > 0 || bindableServices.size() > 0) {
-            services.forEach(service -> this.register(service, builder));
-            grpcServices.forEach(builder::register);
-            bindableServices.forEach(builder::register);
-        }
+        beanManager.getBeans(BindableService.class)
+                .forEach(bean -> {
+                    Class<?> beanClass = bean.getBeanClass();
+                    Annotation[] qualifiers = bean.getQualifiers().toArray(new Annotation[0]);
+                    Object service = instance.select(beanClass, qualifiers).get();
+                    builder.register((BindableService) service);
+                });
 
         return builder;
+    }
+
+    private boolean hasRpcServiceQualifier(Bean<?> bean) {
+        return bean.getQualifiers()
+                .stream()
+                .anyMatch(q -> RpcService.class.isAssignableFrom(q.annotationType()));
     }
 
     /**
@@ -221,8 +235,7 @@ public class GrpcServerCdiExtension
      * @param service the service to register
      * @param builder the gRPC routing
      */
-    private void register(Object service, GrpcRouting.Builder builder) {
-        Class<?> cls = service.getClass();
+    private void register(Object service, GrpcRouting.Builder builder, Class<?> cls) {
         ServiceModeller modeller = new ServiceModeller(cls, () -> service);
         if (modeller.isAnnotatedService()) {
             builder.register(modeller.createServiceBuilder().build());

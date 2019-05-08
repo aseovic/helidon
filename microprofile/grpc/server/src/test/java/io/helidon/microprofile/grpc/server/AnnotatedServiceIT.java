@@ -25,6 +25,9 @@ import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.enterprise.inject.Instance;
+import javax.enterprise.inject.spi.BeanManager;
+
 import io.helidon.grpc.core.ResponseHelper;
 import io.helidon.grpc.server.CollectingObserver;
 import io.helidon.grpc.server.GrpcRouting;
@@ -57,6 +60,8 @@ import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.collection.IsIterableContainingInOrder.contains;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 /**
  * Functional tests to verify the various server side call handlers.
@@ -285,7 +290,12 @@ public class AnnotatedServiceIT {
 
     private static ServiceDescriptor descriptor(Class<?> cls) {
         ServiceModeller modeller = new ServiceModeller(cls);
-        return modeller.createServiceBuilder().build();
+        BeanManager beanManager = mock(BeanManager.class);
+        Instance instance = mock(Instance.class);
+
+        when(beanManager.createInstance()).thenReturn(instance);
+
+        return modeller.createServiceBuilder(beanManager).build();
     }
 
     // ----- service implementations ----------------------------------------

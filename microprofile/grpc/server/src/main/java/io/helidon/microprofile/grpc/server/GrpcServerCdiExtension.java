@@ -151,7 +151,7 @@ public class GrpcServerCdiExtension
                     Class<?> beanClass = bean.getBeanClass();
                     Annotation[] qualifiers = bean.getQualifiers().toArray(new Annotation[0]);
                     Object service = instance.select(beanClass, qualifiers).get();
-                    register(service, builder, beanClass);
+                    register(service, builder, beanClass, beanManager);
                 });
 
         // discover beans of type GrpcService
@@ -234,11 +234,12 @@ public class GrpcServerCdiExtension
      *
      * @param service the service to register
      * @param builder the gRPC routing
+     * @param beanManager the {@link BeanManager} to use to locate beans required by the service
      */
-    private void register(Object service, GrpcRouting.Builder builder, Class<?> cls) {
+    private void register(Object service, GrpcRouting.Builder builder, Class<?> cls, BeanManager beanManager) {
         ServiceModeller modeller = new ServiceModeller(cls, () -> service);
         if (modeller.isAnnotatedService()) {
-            builder.register(modeller.createServiceBuilder().build());
+            builder.register(modeller.createServiceBuilder(beanManager).build());
         } else {
             LOGGER.log(Level.WARNING,
                        () -> "Discovered type is not a properly annotated gRPC service " + service.getClass());

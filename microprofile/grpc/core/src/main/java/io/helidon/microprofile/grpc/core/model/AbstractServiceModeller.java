@@ -79,7 +79,7 @@ public abstract class AbstractServiceModeller {
      * Obtain the service class.
      * @return  the service class
      */
-    protected Class<?> serviceClass() {
+    public Class<?> serviceClass() {
         return serviceClass;
     }
 
@@ -87,7 +87,7 @@ public abstract class AbstractServiceModeller {
      * Obtain the actual annotated class.
      * @return  the actual annotated class
      */
-    protected Class<?> annotatedServiceClass() {
+    public Class<?> annotatedServiceClass() {
         return annotatedServiceClass;
     }
 
@@ -208,7 +208,7 @@ public abstract class AbstractServiceModeller {
      * @param annotation  the method type annotation
      * @return the value to use for the method name
      */
-    protected String determineMethodName(AnnotatedMethod method, RpcMethod annotation) {
+    public static String determineMethodName(AnnotatedMethod method, RpcMethod annotation) {
         Annotation actualAnnotation = method.annotationsWithMetaAnnotation(RpcMethod.class)
                 .findFirst()
                 .orElse(annotation);

@@ -105,6 +105,14 @@ public class GrpcServiceClient {
                 }
             }
 
+            if (methodDescriptor.callCredentials() != null) {
+                // Method level CallCredentials take precedence over service level CallCredentials.
+                methodStub = (GrpcMethodStub) methodStub.withCallCredentials(methodDescriptor.callCredentials());
+            } else if (clientServiceDescriptor.callCredentials() != null) {
+                // Service level CallCredentials take precedence over Channel level CallCredentials.
+                methodStub = (GrpcMethodStub) methodStub.withCallCredentials(clientServiceDescriptor.callCredentials());
+            }
+
             methodStubs.put(methodDescriptor.name(), methodStub);
         }
     }

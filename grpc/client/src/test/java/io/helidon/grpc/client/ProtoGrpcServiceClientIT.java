@@ -76,14 +76,17 @@ public class ProtoGrpcServiceClientIT {
     private static String inputStr = "Some_String_WITH_lower_and_UPPER_cases";
     private static StringMessage inputMsg = StringMessage.newBuilder().setText(inputStr).build();
 
+    // Interceptors to be used in the tests.
     private static LowPriorityInterceptor lowPriorityInterceptor = new LowPriorityInterceptor();
     private static MediumPriorityInterceptor mediumPriorityInterceptor = new MediumPriorityInterceptor();
     private static HighPriorityInterceptor highPriorityInterceptor = new HighPriorityInterceptor();
 
+    // CallCredentials to be used in the tests.
     private static CustomCallCredentials serviceCred = new CustomCallCredentials("service-level-key", "service-level-value");
     private static CustomCallCredentials lowerMethodCred = new CustomCallCredentials("lower-method-key", "lower-method-value");
     private static CustomCallCredentials joinMethodCred = new CustomCallCredentials("join-method-key", "join-method-value");
 
+    // A server interceptor to check the headers.
     private static HeaderCheckingInterceptor headerCheckingInterceptor = new HeaderCheckingInterceptor(null);
 
     @BeforeAll

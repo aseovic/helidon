@@ -25,7 +25,6 @@ import java.util.concurrent.CompletionStage;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Predicate;
 import java.util.logging.LogManager;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -33,7 +32,6 @@ import java.util.stream.StreamSupport;
 import javax.annotation.Priority;
 
 import io.helidon.grpc.client.test.StringServiceGrpc;
-import io.helidon.grpc.core.ContextKeys;
 import io.helidon.grpc.core.InterceptorPriorities;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;

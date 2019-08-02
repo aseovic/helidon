@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.helidon.microprofile.grpc.core;
+package io.helidon.microprofile.grpc.client;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -22,33 +22,43 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 import javax.enterprise.util.AnnotationLiteral;
+import javax.enterprise.util.Nonbinding;
 import javax.inject.Qualifier;
 
 /**
- * An qualifier annotation to specify that an in-process {@link io.grpc.Channel}
- * should be injected.
+ * An qualifier annotation to specify the name of a gRPC channel to inject.
  * <p>
  * For example:
  * <pre>
  *     &#064;javax.inject.Inject
- *     &#064;io.helidon.microprofile.grpc.core.InProcessChannel
+ *     &#064;io.helidon.microprofile.grpc.core.Channel(name="foo")
  *     private io.grpc.Channel channel;
  * </pre>
  */
 @Target({ElementType.METHOD, ElementType.CONSTRUCTOR, ElementType.FIELD, ElementType.PARAMETER})
 @Retention(RetentionPolicy.RUNTIME)
 @Qualifier
-public @interface InProcessChannel {
+public @interface GrpcChannel {
+    /**
+     * Obtain the name of the channel.
+     *
+     * @return  name of the channel
+     */
+    @Nonbinding String name();
 
     /**
-     * An {@link AnnotationLiteral} for the {@link InProcessChannel} annotation.
+     * An {@link javax.enterprise.util.AnnotationLiteral} for the
+     * {@link GrpcChannel} annotation.
      */
-    class Literal
-            extends AnnotationLiteral<InProcessChannel>
-            implements InProcessChannel {
+    class Literal extends AnnotationLiteral<GrpcChannel> implements GrpcChannel {
+
+        @Override
+        public String name() {
+            return "";
+        }
 
         /**
-         * The singleton instance of {@link Literal}.
+         * The singleton instance of {@link GrpcChannel.Literal}.
          */
         public static final Literal INSTANCE = new Literal();
 

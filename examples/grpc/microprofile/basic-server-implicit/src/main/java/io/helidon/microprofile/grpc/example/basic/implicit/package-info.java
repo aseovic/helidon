@@ -15,6 +15,6 @@
  */
 
 /**
- * @author jk  2019.04.08
+ * Examples of implicit gRPC microprofile.
  */
 package io.helidon.microprofile.grpc.example.basic.implicit;

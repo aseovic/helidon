@@ -20,6 +20,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 import java.util.function.Supplier;
 
 import io.helidon.grpc.core.GrpcHelper;
@@ -281,13 +282,15 @@ public class UnaryMethodHandlerSupplier
 
         Object invokeUnary(Object request, UnaryClient client) {
             try {
-                return invokeUnaryAsync(request, client).get();
+                return invokeUnaryAsync(request, client)
+                        .toCompletableFuture()
+                        .get();
             } catch (Throwable thrown) {
                 throw GrpcHelper.ensureStatusRuntimeException(thrown, Status.INTERNAL);
             }
         }
 
-        CompletableFuture<Object> invokeUnaryAsync(Object request, UnaryClient client) {
+        CompletionStage<Object> invokeUnaryAsync(Object request, UnaryClient client) {
             try {
                 return client.unary(methodName(), request);
             } catch (Throwable thrown) {

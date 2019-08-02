@@ -31,9 +31,14 @@
 
     <dependencies>
         <dependency>
-            <groupId>javax.ws.rs</groupId>
-            <artifactId>javax.ws.rs-api</artifactId>
-            <scope>provided</scope>
+            <groupId>io.helidon.microprofile.grpc</groupId>
+            <artifactId>helidon-microprofile-grpc-core</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.helidon.grpc</groupId>
+            <artifactId>helidon-grpc-client</artifactId>
+            <version>${project.version}</version>
         </dependency>
         <dependency>
             <groupId>javax.enterprise</groupId>
@@ -41,33 +46,8 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <!--
-            Needed by jersey in Java 9
-            Added as a dependency to correctly run tests (without the long exception
-            from hk2). If you run application on Java 9, you need to add this dependency
-            in compile scope to prevent the error messages.
-            -->
-            <groupId>javax.activation</groupId>
-            <artifactId>javax.activation-api</artifactId>
-            <scope>provided</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.glassfish</groupId>
-            <artifactId>javax.json</artifactId>
-        </dependency>
-        <dependency>
             <groupId>io.helidon.microprofile.config</groupId>
             <artifactId>helidon-microprofile-config</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.helidon.microprofile.server</groupId>
-            <artifactId>helidon-microprofile-server</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.helidon.microprofile.server</groupId>
-            <artifactId>helidon-microprofile-server</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>
@@ -82,36 +62,6 @@
             <!-- redirecting Weld logging to JUL logging -->
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-jdk14</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>io.helidon.grpc</groupId>
-            <artifactId>helidon-grpc-server</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.helidon.webserver</groupId>
-            <artifactId>helidon-webserver</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>io.helidon.webserver</groupId>
-            <artifactId>helidon-webserver-jersey</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <!-- Jersey integration with Weld -->
-            <groupId>org.glassfish.jersey.ext.cdi</groupId>
-            <artifactId>jersey-weld2-se</artifactId>
-        </dependency>
-        <dependency>
-            <!-- Jersey injection - needed for Jersey itself -->
-            <groupId>org.glassfish.jersey.inject</groupId>
-            <artifactId>jersey-hk2</artifactId>
-        </dependency>
-        <dependency>
-            <!-- Jersey support for JSON-P -->
-            <groupId>org.glassfish.jersey.media</groupId>
-            <artifactId>jersey-media-json-processing</artifactId>
         </dependency>
         <dependency>
             <groupId>io.helidon.microprofile.bundles</groupId>

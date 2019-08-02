@@ -26,7 +26,7 @@ import javax.inject.Inject;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcService;
 import io.helidon.grpc.server.ServiceDescriptor;
-import io.helidon.microprofile.grpc.core.InProcessChannel;
+import io.helidon.microprofile.grpc.core.InProcessGrpcChannel;
 import io.helidon.microprofile.grpc.core.RpcService;
 import io.helidon.microprofile.grpc.core.Unary;
 import io.helidon.microprofile.grpc.server.spi.GrpcMpContext;
@@ -132,11 +132,11 @@ public class GrpcServerCdiExtensionIT {
         private GrpcServer server;
 
         @Inject
-        @InProcessChannel
+        @InProcessGrpcChannel
         private Channel channel;
 
         @Inject
-        @InProcessChannel
+        @InProcessGrpcChannel
         private InProcessChannelBuilder builder;
 
         public GrpcServer server() {

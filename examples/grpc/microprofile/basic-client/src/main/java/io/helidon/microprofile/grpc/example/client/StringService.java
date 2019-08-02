@@ -14,15 +14,15 @@
  * limitations under the License.
  */
 
-package io.helidon.microprofile.grpc.example.basic.implicit;
+package io.helidon.microprofile.grpc.example.client;
 
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import javax.enterprise.context.ApplicationScoped;
-
-import io.helidon.grpc.core.ResponseHelper;
-import io.helidon.grpc.server.CollectingObserver;
+import io.helidon.microprofile.grpc.core.Bidirectional;
+import io.helidon.microprofile.grpc.core.ClientStreaming;
+import io.helidon.microprofile.grpc.core.RpcService;
+import io.helidon.microprofile.grpc.core.ServerStreaming;
+import io.helidon.microprofile.grpc.core.Unary;
 
 import io.grpc.stub.StreamObserver;
 
@@ -31,14 +31,10 @@ import io.grpc.stub.StreamObserver;
  * <p>
  * This class has the {@link io.helidon.microprofile.grpc.core.RpcService} annotation
  * so that it will be discovered and loaded using CDI when the MP gRPC server starts.
- * <p>
- * The {@link javax.enterprise.context.ApplicationScoped} annotation means
- * that this service will be scoped to the application so will effectively
- * be a singleton service.
  */
-@ApplicationScoped
-public class StringServiceImpl
-        implements StringService, ResponseHelper {
+@RpcService
+@SuppressWarnings("CdiManagedBeanInconsistencyInspection")
+public interface StringService {
 
     /**
      * Convert a string value to upper case.
@@ -46,9 +42,8 @@ public class StringServiceImpl
      * @param request  the request containing the string to convert
      * @return the request value converted to upper case
      */
-    public String upper(String request) {
-        return request.toUpperCase();
-    }
+    @Unary
+    String upper(String request);
 
     /**
      * Convert a string value to lower case.
@@ -56,62 +51,30 @@ public class StringServiceImpl
      * @param request  the request containing the string to convert
      * @return  the request converted to lower case
      */
-    public String lower(String request) {
-        return request.toLowerCase();
-    }
+    @Unary
+    String lower(String request);
 
     /**
      * Split a space delimited string value and stream back the split parts.
      * @param request  the request containing the string to split
      * @return  a {@link java.util.stream.Stream} containing the split parts
      */
-    public Stream<String> split(String request) {
-        return Stream.of(request.split(" "));
-    }
+    @ServerStreaming
+    Stream<String> split(String request);
 
     /**
      * Join a stream of string values and return the result.
      * @param observer  the request containing the string to split
      * @return  a {@link java.util.stream.Stream} containing the split parts
      */
-    public StreamObserver<String> join(StreamObserver<String> observer) {
-        return new CollectingObserver<>(Collectors.joining(" "), observer);
-    }
+    @ClientStreaming
+    StreamObserver<String> join(StreamObserver<String> observer);
 
     /**
      * Echo each value streamed from the client back to the client.
      * @param observer  the {@link io.grpc.stub.StreamObserver} to send responses to
      * @return  the {@link io.grpc.stub.StreamObserver} to receive requests from
      */
-    public StreamObserver<String> echo(StreamObserver<String> observer) {
-        return new EchoObserver(observer);
-    }
-
-    /**
-     * Inner StreamObserver used to echo values back to the caller.
-     */
-    private class EchoObserver
-            implements StreamObserver<String> {
-
-        private final StreamObserver<String> observer;
-
-        private EchoObserver(StreamObserver<String> observer) {
-            this.observer = observer;
-        }
-
-        @Override
-        public void onNext(String msg) {
-            observer.onNext(msg);
-        }
-
-        @Override
-        public void onError(Throwable t) {
-            t.printStackTrace();
-        }
-
-        @Override
-        public void onCompleted() {
-            observer.onCompleted();
-        }
-    }
+    @Bidirectional
+    StreamObserver<String> echo(StreamObserver<String> observer);
 }

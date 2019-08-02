@@ -30,6 +30,8 @@
     <name>Helidon gRPC Microprofile Examples</name>
 
     <modules>
+        <module>basic-client</module>
         <module>basic-server-implicit</module>
+        <module>metrics</module>
     </modules>
 </project>

@@ -34,11 +34,13 @@ import javax.enterprise.inject.spi.BeanManager;
 import javax.enterprise.inject.spi.BeforeShutdown;
 import javax.enterprise.inject.spi.Extension;
 
+import io.helidon.common.serviceloader.HelidonServiceLoader;
 import io.helidon.config.Config;
 import io.helidon.grpc.server.GrpcRouting;
 import io.helidon.grpc.server.GrpcServer;
 import io.helidon.grpc.server.GrpcServerConfiguration;
 import io.helidon.grpc.server.GrpcService;
+import io.helidon.microprofile.grpc.core.InProcessGrpcChannel;
 import io.helidon.microprofile.grpc.core.RpcService;
 import io.helidon.microprofile.grpc.server.model.ServiceModeller;
 import io.helidon.microprofile.grpc.server.spi.GrpcMpContext;
@@ -46,6 +48,7 @@ import io.helidon.microprofile.grpc.server.spi.GrpcMpExtension;
 
 import io.grpc.BindableService;
 import io.grpc.Channel;
+import io.grpc.inprocess.InProcessChannelBuilder;
 
 /**
  * A CDI extension that will start the {@link GrpcServer gRPC server}.
@@ -218,8 +221,8 @@ public class GrpcServerCdiExtension
             }
         };
 
-        ServiceLoader<GrpcMpExtension> loader = ServiceLoader.load(GrpcMpExtension.class);
-        loader.forEach(ext -> ext.configure(context));
+        HelidonServiceLoader.create(ServiceLoader.load(GrpcMpExtension.class))
+                .forEach(ext -> ext.configure(context));
 
         beanManager.createInstance()
                 .select(GrpcMpExtension.class)
@@ -278,6 +281,36 @@ public class GrpcServerCdiExtension
         @Produces
         public Supplier<GrpcServer> supply() {
             return this::server;
+        }
+
+        /**
+         * Produces an in-process {@link Channel} to connect to the
+         * running gRPC server.
+         *
+         * @return an in-process {@link Channel} to connect to the
+         *         running gRPC server
+         */
+        @Produces
+        @InProcessGrpcChannel
+        public Channel channel() {
+            String name = server.configuration().name();
+            return InProcessChannelBuilder.forName(name)
+                    .usePlaintext()
+                    .build();
+        }
+
+        /**
+         * Produces an in-process {@link InProcessChannelBuilder} to
+         * connect to the running gRPC server.
+         *
+         * @return an in-process {@link InProcessChannelBuilder} to
+         *         connect to the running gRPC server
+         */
+        @Produces
+        @InProcessGrpcChannel
+        public InProcessChannelBuilder channelBuilder() {
+            String name = server.configuration().name();
+            return InProcessChannelBuilder.forName(name);
         }
 
         void server(GrpcServer server) {

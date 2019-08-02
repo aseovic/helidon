@@ -16,8 +16,13 @@
 
 package io.helidon.microprofile.grpc.example.basic.implicit;
 
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.enterprise.context.ApplicationScoped;
+
+import io.helidon.grpc.core.ResponseHelper;
+import io.helidon.grpc.server.CollectingObserver;
 import io.helidon.microprofile.grpc.core.Bidirectional;
 import io.helidon.microprofile.grpc.core.ClientStreaming;
 import io.helidon.microprofile.grpc.core.RpcService;
@@ -27,14 +32,15 @@ import io.helidon.microprofile.grpc.core.Unary;
 import io.grpc.stub.StreamObserver;
 
 /**
- * The gRPC StringService.
+ * The gRPC StringService implementation.
  * <p>
- * This class has the {@link io.helidon.microprofile.grpc.core.RpcService} annotation
- * so that it will be discovered and loaded using CDI when the MP gRPC server starts.
+ * This class is a gRPC service annotated with {@link RpcService} and {@link ApplicationScoped}
+ * so that it will be discovered and deployed using CDI when the MP gRPC server starts.
  */
 @RpcService
-@SuppressWarnings("CdiManagedBeanInconsistencyInspection")
-public interface StringService {
+@ApplicationScoped
+public class StringService
+        implements ResponseHelper {
 
     /**
      * Convert a string value to upper case.
@@ -42,8 +48,10 @@ public interface StringService {
      * @param request  the request containing the string to convert
      * @return the request value converted to upper case
      */
-    @Unary(name = "Upper")
-    String upper(String request);
+    @Unary
+    public String upper(String request) {
+        return request.toUpperCase();
+    }
 
     /**
      * Convert a string value to lower case.
@@ -51,30 +59,66 @@ public interface StringService {
      * @param request  the request containing the string to convert
      * @return  the request converted to lower case
      */
-    @Unary(name = "Lower")
-    String lower(String request);
+    @Unary
+    public String lower(String request) {
+        return request.toLowerCase();
+    }
 
     /**
      * Split a space delimited string value and stream back the split parts.
      * @param request  the request containing the string to split
      * @return  a {@link java.util.stream.Stream} containing the split parts
      */
-    @ServerStreaming(name = "Split")
-    Stream<String> split(String request);
+   @ServerStreaming
+    public Stream<String> split(String request) {
+        return Stream.of(request.split(" "));
+    }
 
     /**
      * Join a stream of string values and return the result.
      * @param observer  the request containing the string to split
      * @return  a {@link java.util.stream.Stream} containing the split parts
      */
-    @ClientStreaming(name = "Join")
-    StreamObserver<String> join(StreamObserver<String> observer);
+    @ClientStreaming
+    public StreamObserver<String> join(StreamObserver<String> observer) {
+        return new CollectingObserver<>(Collectors.joining(" "), observer);
+    }
 
     /**
      * Echo each value streamed from the client back to the client.
      * @param observer  the {@link io.grpc.stub.StreamObserver} to send responses to
      * @return  the {@link io.grpc.stub.StreamObserver} to receive requests from
      */
-    @Bidirectional(name = "Echo")
-    StreamObserver<String> echo(StreamObserver<String> observer);
+    @Bidirectional
+    public StreamObserver<String> echo(StreamObserver<String> observer) {
+        return new EchoObserver(observer);
+    }
+
+    /**
+     * Inner StreamObserver used to echo values back to the caller.
+     */
+    private class EchoObserver
+            implements StreamObserver<String> {
+
+        private final StreamObserver<String> observer;
+
+        private EchoObserver(StreamObserver<String> observer) {
+            this.observer = observer;
+        }
+
+        @Override
+        public void onNext(String msg) {
+            observer.onNext(msg);
+        }
+
+        @Override
+        public void onError(Throwable t) {
+            t.printStackTrace();
+        }
+
+        @Override
+        public void onCompleted() {
+            observer.onCompleted();
+        }
+    }
 }

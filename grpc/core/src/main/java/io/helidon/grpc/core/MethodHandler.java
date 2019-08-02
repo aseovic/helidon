@@ -15,7 +15,7 @@
  */
 package io.helidon.grpc.core;
 
-import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionStage;
 
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
@@ -186,6 +186,6 @@ public interface MethodHandler<ReqT, RespT>
          * @param <RespT>     the response type
          * @return a {@link java.util.concurrent.CompletableFuture} that completes when the call completes
          */
-        <ReqT, RespT> CompletableFuture<RespT> unary(String methodName, ReqT request);
+        <ReqT, RespT> CompletionStage<RespT> unary(String methodName, ReqT request);
     }
 }

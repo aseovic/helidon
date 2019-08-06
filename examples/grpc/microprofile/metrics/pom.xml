@@ -28,7 +28,7 @@
     <name>Helidon Microprofile Examples gRPC Metrics</name>
 
     <description>
-        Microprofile 1.2 example with gRPC server with metrics
+        Microprofile 2.2 example gRPC server with metrics
     </description>
 
     <properties>
@@ -38,7 +38,7 @@
     <dependencies>
         <dependency>
             <groupId>io.helidon.microprofile.bundles</groupId>
-            <artifactId>helidon-microprofile-1.2</artifactId>
+            <artifactId>helidon-microprofile-2.2</artifactId>
             <version>${project.version}</version>
         </dependency>
         <dependency>

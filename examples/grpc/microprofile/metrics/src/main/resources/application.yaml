@@ -14,7 +14,12 @@
 # limitations under the License.
 #
 
-grpc.port: 1408
+grpc:
+  name: "test.server"
+  port: 1408
 
-server.port: 8080
+server:
+  port: 8080
 
+tracing:
+  service: "grpc-server"

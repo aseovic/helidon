@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package io.helidon.microprofile.grpc.example.basic.implicit;
+package io.helidon.microprofile.grpc.example.metrics;
 
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -30,12 +30,16 @@ import io.helidon.microprofile.grpc.core.ServerStreaming;
 import io.helidon.microprofile.grpc.core.Unary;
 
 import io.grpc.stub.StreamObserver;
+import org.eclipse.microprofile.metrics.annotation.Counted;
+import org.eclipse.microprofile.metrics.annotation.Metered;
+import org.eclipse.microprofile.metrics.annotation.Timed;
 
 /**
  * The gRPC StringService implementation.
  * <p>
- * This class is a gRPC service annotated with {@link RpcService} and {@link ApplicationScoped}
- * so that it will be discovered and deployed using CDI when the MP gRPC server starts.
+ * This class is a gRPC service annotated with {@link io.helidon.microprofile.grpc.core.RpcService}
+ * and {@link javax.enterprise.context.ApplicationScoped} so that it will be discovered and deployed
+ * using CDI when the MP gRPC server starts.
  */
 @RpcService
 @ApplicationScoped
@@ -44,22 +48,32 @@ public class StringService
 
     /**
      * Convert a string value to upper case.
+     * <p>
+     * This method is annotated with {@literal @}{@link Timed} so a
+     * gRPC metrics {@link io.grpc.ServerInterceptor} will be added
+     * by the gRPC metrics CDI extension.
      *
      * @param request  the request containing the string to convert
      * @return the request value converted to upper case
      */
     @Unary
+    @Timed
     public String upper(String request) {
         return request.toUpperCase();
     }
 
     /**
      * Convert a string value to lower case.
+     * <p>
+     * This method is annotated with {@literal @}{@link Timed} so a
+     * gRPC metrics {@link io.grpc.ServerInterceptor} will be added
+     * by the gRPC metrics CDI extension.
      *
      * @param request  the request containing the string to convert
      * @return  the request converted to lower case
      */
     @Unary
+    @Timed
     public String lower(String request) {
         return request.toLowerCase();
     }
@@ -68,8 +82,13 @@ public class StringService
      * Split a space delimited string value and stream back the split parts.
      * @param request  the request containing the string to split
      * @return  a {@link java.util.stream.Stream} containing the split parts
+     * <p>
+     * This method is annotated with {@literal @}{@link Metered} so a
+     * gRPC metrics {@link io.grpc.ServerInterceptor} will be added
+     * by the gRPC metrics CDI extension.
      */
-   @ServerStreaming
+    @ServerStreaming
+    @Metered
     public Stream<String> split(String request) {
         return Stream.of(request.split(" "));
     }
@@ -78,8 +97,13 @@ public class StringService
      * Join a stream of string values and return the result.
      * @param observer  the request containing the string to split
      * @return  a {@link java.util.stream.Stream} containing the split parts
+     * <p>
+     * This method is annotated with {@literal @}{@link Counted} so a
+     * gRPC metrics {@link io.grpc.ServerInterceptor} will be added
+     * by the gRPC metrics CDI extension.
      */
     @ClientStreaming
+    @Counted
     public StreamObserver<String> join(StreamObserver<String> observer) {
         return new CollectingObserver<>(Collectors.joining(" "), observer);
     }
@@ -88,8 +112,13 @@ public class StringService
      * Echo each value streamed from the client back to the client.
      * @param observer  the {@link io.grpc.stub.StreamObserver} to send responses to
      * @return  the {@link io.grpc.stub.StreamObserver} to receive requests from
+     * <p>
+     * This method is annotated with {@literal @}{@link Counted} so a
+     * gRPC metrics {@link io.grpc.ServerInterceptor} will be added
+     * by the gRPC metrics CDI extension.
      */
     @Bidirectional
+    @Counted
     public StreamObserver<String> echo(StreamObserver<String> observer) {
         return new EchoObserver(observer);
     }

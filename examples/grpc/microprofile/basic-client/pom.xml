@@ -32,7 +32,7 @@
     </description>
 
     <properties>
-        <mainClass>io.helidon.microprofile.server.Main</mainClass>
+        <mainClass>io.helidon.microprofile.grpc.example.client.Client</mainClass>
     </properties>
 
     <dependencies>

@@ -13,6 +13,8 @@ Two additional services (`GreetService` and `EchoService`) that are not normally
 managed beans are manually added as CDI managed beans in the `AdditionalServices` class
 so that they can be discovered.
   
+This example can be run together with the [Basic gRPC Client example](../basic-client/README.md) 
+which provides a microprofile gRPC client that uses the services deployed in this server.
 
 ## Build
 

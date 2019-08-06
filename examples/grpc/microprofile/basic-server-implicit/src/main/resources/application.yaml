@@ -21,3 +21,5 @@ grpc:
 server:
   port: 8080
 
+tracing:
+  service: "grpc-server"

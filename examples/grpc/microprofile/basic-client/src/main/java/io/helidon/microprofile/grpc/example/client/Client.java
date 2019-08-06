@@ -149,14 +149,17 @@ public class Client {
 
         private String value;
 
+        @Override
         public void onNext(String value) {
             this.value = value;
         }
 
+        @Override
         public void onError(Throwable t) {
             completeExceptionally(t);
         }
 
+        @Override
         public void onCompleted() {
             complete(value);
         }
@@ -178,14 +181,17 @@ public class Client {
 
         private List<String> values = new ArrayList<>();
 
+        @Override
         public void onNext(String value) {
             values.add(value);
         }
 
+        @Override
         public void onError(Throwable t) {
             completeExceptionally(t);
         }
 
+        @Override
         public void onCompleted() {
             complete(values);
         }

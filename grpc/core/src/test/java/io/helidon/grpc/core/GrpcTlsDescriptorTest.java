@@ -27,11 +27,11 @@ import static org.hamcrest.CoreMatchers.notNullValue;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
-public class GrpcSslDescriptorTest {
+public class GrpcTlsDescriptorTest {
 
     @Test
     public void testDefaultSslDescriptor() {
-        GrpcSslDescriptor desc = GrpcSslDescriptor.builder().build();
+        GrpcTlsDescriptor desc = GrpcTlsDescriptor.builder().build();
         assertThat(desc.isEnabled(), equalTo(true));
         assertThat(desc.isJdkSSL(), equalTo(false));
         assertThat(desc.tlsKey(), nullValue());
@@ -41,7 +41,7 @@ public class GrpcSslDescriptorTest {
 
     @Test
     public void testSslDescriptorWithBuilder() {
-        GrpcSslDescriptor desc = GrpcSslDescriptor.builder()
+        GrpcTlsDescriptor desc = GrpcTlsDescriptor.builder()
                 .tlsCaCert("/certs/cacert")
                 .tlsCert("/certs/clientcert")
                 .tlsKey("/certs/clientkey")
@@ -58,7 +58,7 @@ public class GrpcSslDescriptorTest {
     @Test
     public void testLoadFromConfig() {
         Config cfg = Config.create(ConfigSources.classpath("config-ssl.yaml"));
-        GrpcSslDescriptor desc = GrpcSslDescriptor.create(cfg.get("grpcserver.ssl"));
+        GrpcTlsDescriptor desc = GrpcTlsDescriptor.create(cfg.get("grpcserver.ssl"));
 
         assertThat(desc, notNullValue());
         assertThat(desc.isEnabled(), equalTo(true));

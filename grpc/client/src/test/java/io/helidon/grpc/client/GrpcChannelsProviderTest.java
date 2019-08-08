@@ -19,7 +19,7 @@ import javax.net.ssl.SSLException;
 
 import io.helidon.config.Config;
 import io.helidon.config.ConfigSources;
-import io.helidon.grpc.core.GrpcSslDescriptor;
+import io.helidon.grpc.core.GrpcTlsDescriptor;
 
 import io.grpc.Channel;
 import org.junit.jupiter.api.BeforeAll;
@@ -69,7 +69,7 @@ public class GrpcChannelsProviderTest {
         GrpcChannelDescriptor cfg = GrpcChannelDescriptor.builder().build();
         assertThat(cfg.host(), equalTo(DEFAULT_HOST));
         assertThat(cfg.port(), equalTo(DEFAULT_PORT));
-        assertThat(cfg.sslDescriptor(), nullValue());
+        assertThat(cfg.tlsDescriptor(), nullValue());
     }
 
     @Test
@@ -77,7 +77,7 @@ public class GrpcChannelsProviderTest {
         GrpcChannelDescriptor cfg = GrpcChannelDescriptor.builder().host("abc.com").build();
         assertThat(cfg.host(), equalTo("abc.com"));
         assertThat(cfg.port(), equalTo(DEFAULT_PORT));
-        assertThat(cfg.sslDescriptor(), nullValue());
+        assertThat(cfg.tlsDescriptor(), nullValue());
     }
 
     @Test
@@ -85,24 +85,24 @@ public class GrpcChannelsProviderTest {
         GrpcChannelDescriptor cfg = GrpcChannelDescriptor.builder().port(4096).build();
         assertThat(cfg.host(), equalTo("localhost"));
         assertThat(cfg.port(), equalTo(4096));
-        assertThat(cfg.sslDescriptor(), nullValue());
+        assertThat(cfg.tlsDescriptor(), nullValue());
     }
 
     @Test
     public void testChannelConfigurationWithDefaultSsl() {
         GrpcChannelDescriptor cfg = GrpcChannelDescriptor.builder()
-                .sslDescriptor(GrpcSslDescriptor.builder().build())
+                .sslDescriptor(GrpcTlsDescriptor.builder().build())
                 .build();
         assertThat(cfg.host(), equalTo("localhost"));
         assertThat(cfg.port(), equalTo(1408));
-        assertThat(cfg.sslDescriptor().isEnabled(), is(true));
+        assertThat(cfg.tlsDescriptor().isEnabled(), is(true));
     }
 
     @Test
     public void testChannelConfigurationWithSslConfig() {
         GrpcChannelDescriptor cfg = GrpcChannelDescriptor.builder()
                 .sslDescriptor(
-                        GrpcSslDescriptor.builder()
+                        GrpcTlsDescriptor.builder()
                                 .tlsCaCert("/certs/cacert")
                                 .tlsCert("/certs/clientcert")
                                 .tlsKey("/certs/clientkey")
@@ -110,10 +110,10 @@ public class GrpcChannelsProviderTest {
                 .build();
         assertThat(cfg.host(), equalTo("localhost"));
         assertThat(cfg.port(), equalTo(1408));
-        assertThat(cfg.sslDescriptor().isEnabled(), is(true));
-        assertThat(cfg.sslDescriptor().tlsCaCert(), equalTo("/certs/cacert"));
-        assertThat(cfg.sslDescriptor().tlsCert(), equalTo("/certs/clientcert"));
-        assertThat(cfg.sslDescriptor().tlsKey(), equalTo("/certs/clientkey"));
+        assertThat(cfg.tlsDescriptor().isEnabled(), is(true));
+        assertThat(cfg.tlsDescriptor().tlsCaCert(), equalTo("/certs/cacert"));
+        assertThat(cfg.tlsDescriptor().tlsCert(), equalTo("/certs/clientcert"));
+        assertThat(cfg.tlsDescriptor().tlsKey(), equalTo("/certs/clientkey"));
     }
 
     @Test
@@ -134,7 +134,7 @@ public class GrpcChannelsProviderTest {
         GrpcChannelDescriptor chCfg = grpcConfig.channels().get(DEFAULT_HOST_PORT_CFG);
         assertThat(chCfg.host(), equalTo("localhost"));
         assertThat(chCfg.port(), equalTo(1408));
-        assertThat(chCfg.sslDescriptor(), nullValue());
+        assertThat(chCfg.tlsDescriptor(), nullValue());
     }
 
     @Test
@@ -142,7 +142,7 @@ public class GrpcChannelsProviderTest {
         GrpcChannelDescriptor chCfg = grpcConfig.channels().get(DEFAULT_HOST_CFG);
         assertThat(chCfg.host(), equalTo("localhost"));
         assertThat(chCfg.port(), equalTo(4096));
-        assertThat(chCfg.sslDescriptor(), nullValue());
+        assertThat(chCfg.tlsDescriptor(), nullValue());
     }
 
     @Test
@@ -150,7 +150,7 @@ public class GrpcChannelsProviderTest {
         GrpcChannelDescriptor chCfg = grpcConfig.channels().get(DEFAULT_PORT_CFG);
         assertThat(chCfg.host(), equalTo("non_default_host.com"));
         assertThat(chCfg.port(), equalTo(1408));
-        assertThat(chCfg.sslDescriptor(), nullValue());
+        assertThat(chCfg.tlsDescriptor(), nullValue());
     }
 
     @Test
@@ -159,7 +159,7 @@ public class GrpcChannelsProviderTest {
         assertThat(chCfg.host(), equalTo("localhost"));
         assertThat(chCfg.port(), equalTo(1408));
 
-        GrpcSslDescriptor ssl = chCfg.sslDescriptor();
+        GrpcTlsDescriptor ssl = chCfg.tlsDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(false));
         assertThat(ssl.tlsKey(), endsWith(CLIENT_KEY));
@@ -173,7 +173,7 @@ public class GrpcChannelsProviderTest {
         assertThat(chCfg.host(), equalTo("localhost"));
         assertThat(chCfg.port(), equalTo(4096));
 
-        GrpcSslDescriptor ssl = chCfg.sslDescriptor();
+        GrpcTlsDescriptor ssl = chCfg.tlsDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(true));
         assertThat(ssl.tlsKey(), nullValue());
@@ -187,7 +187,7 @@ public class GrpcChannelsProviderTest {
         assertThat(chCfg.host(), equalTo("non_default_host.com"));
         assertThat(chCfg.port(), equalTo(1408));
 
-        GrpcSslDescriptor ssl = chCfg.sslDescriptor();
+        GrpcTlsDescriptor ssl = chCfg.tlsDescriptor();
         assertThat(ssl, notNullValue());
         assertThat(ssl.isEnabled(), equalTo(true));
         assertThat(ssl.tlsKey(), endsWith(CLIENT_KEY));

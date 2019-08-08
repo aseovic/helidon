@@ -23,16 +23,16 @@ import io.helidon.config.Config;
 import io.helidon.config.objectmapping.Value;
 
 /**
- * GrpcSslDescriptor contains details about configuring TLS of a {@link io.grpc.Channel}.
+ * GrpcTlsDescriptor contains details about configuring TLS of a {@link io.grpc.Channel}.
  */
-public class GrpcSslDescriptor {
+public class GrpcTlsDescriptor {
     private final boolean enabled;
     private final boolean jdkSSL;
     private final String tlsCert;
     private final String tlsKey;
     private final String tlsCaCert;
 
-    private GrpcSslDescriptor(boolean enabled, boolean jdkSSL, String tlsCert, String tlsKey, String tlsCaCert) {
+    private GrpcTlsDescriptor(boolean enabled, boolean jdkSSL, String tlsCert, String tlsKey, String tlsCaCert) {
         this.enabled = enabled;
         this.jdkSSL = jdkSSL;
         this.tlsCert = tlsCert;
@@ -41,8 +41,8 @@ public class GrpcSslDescriptor {
     }
 
     /**
-     * Return a new instance of {@link io.helidon.grpc.core.GrpcSslDescriptor.Builder}.
-     * @return a new instance of {@link io.helidon.grpc.core.GrpcSslDescriptor.Builder}
+     * Return a new instance of {@link GrpcTlsDescriptor.Builder}.
+     * @return a new instance of {@link GrpcTlsDescriptor.Builder}
      */
     public static Builder builder() {
         return new Builder();
@@ -59,18 +59,18 @@ public class GrpcSslDescriptor {
     }
 
     /**
-     * Create an instance of sslConfig from external configuration source.
+     * Create an instance of a TLS configuration from external configuration source.
      *
      * @param config external config
-     * @return an instance of sslconfig
+     * @return an instance of a TLS configuration
      */
-    public static GrpcSslDescriptor create(Config config) {
+    public static GrpcTlsDescriptor create(Config config) {
         return builder(config).build();
     }
 
     /**
-     * Check if SSL is enabled. If this is false, then none of the other configuration values are used.
-     * @return true if ssl is enabled; false otherwise
+     * Check if TLS is enabled. If this is false, then none of the other configuration values are used.
+     * @return true if TLS is enabled; false otherwise
      */
     public boolean isEnabled() {
         return enabled;
@@ -109,9 +109,9 @@ public class GrpcSslDescriptor {
     }
 
     /**
-     * Builder to build a new instance of {@link io.helidon.grpc.core.GrpcSslDescriptor}.
+     * Builder to build a new instance of {@link GrpcTlsDescriptor}.
      */
-    public static class Builder implements io.helidon.common.Builder<GrpcSslDescriptor> {
+    public static class Builder implements io.helidon.common.Builder<GrpcTlsDescriptor> {
 
         private boolean enabled = true;
         private boolean jdkSSL;
@@ -150,7 +150,7 @@ public class GrpcSslDescriptor {
         }
 
         /**
-         * Enable or disable Ssl. If enabled is false then the rest of the SslDescriptor properties are ignored.
+         * Enable or disable TLS. If enabled is false then the rest of the TLS configuration properties are ignored.
          * @param enabled true to enable, false otherwise
          * @return this instance for fluent API
          */
@@ -205,11 +205,11 @@ public class GrpcSslDescriptor {
         }
 
         /**
-         * Create and return a new instance of {@link io.helidon.grpc.core.GrpcSslDescriptor}.
-         * @return a new instance of {@link io.helidon.grpc.core.GrpcSslDescriptor}
+         * Create and return a new instance of {@link GrpcTlsDescriptor}.
+         * @return a new instance of {@link GrpcTlsDescriptor}
          */
-        public GrpcSslDescriptor build() {
-            return new GrpcSslDescriptor(enabled, jdkSSL, tlsCert, tlsKey, tlsCaCert);
+        public GrpcTlsDescriptor build() {
+            return new GrpcTlsDescriptor(enabled, jdkSSL, tlsCert, tlsKey, tlsCaCert);
         }
     }
 }

@@ -48,7 +48,7 @@ public class Client {
      */
     @Inject
     @GrpcServiceProxy
-    @GrpcChannel(name = "default")
+    @GrpcChannel(name = "test-server")
     private StringService stringService;
 
 

@@ -130,28 +130,28 @@ public class ClientStreamingMethodHandlerSupplier
      */
     private enum CallType {
         /**
-         * An standard client streaming call.
+         * A standard client streaming call.
          * <pre>
          *     StreamObserver&lt;ReqT&gt; invoke(StreamObserver&lt;RespT&gt; observer)
          * </pre>
          */
         clientStreaming,
         /**
-         * An client side only client streaming call with an iterable request.
+         * A client side only client streaming call with an iterable request.
          * <pre>
          *     RespT invoke(Iterable&lt;ReqT&gt; requests)
          * </pre>
          */
         clientStreamingIterable,
         /**
-         * An client side only client streaming call with an stream request.
+         * A client side only client streaming call with an stream request.
          * <pre>
          *     RespT invoke(Stream&lt;ReqT&gt; requests)
          * </pre>
          */
         clientStreamingStream,
         /**
-         * An standard client streaming call with an async response.
+         * A standard client streaming call with an async response.
          * <pre>
          *     StreamObserver&lt;ReqT&gt; invoke(CompletableFuture&lt;RespT&gt; future)
          * </pre>

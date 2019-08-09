@@ -24,23 +24,37 @@ Building Java gRPC clients using the Helidon MP gRPC APIs is very simple and rem
 associated to more traditional approaches to writing gRPC Java clients. At it simplest a gRPC Java client can be written using
 nothing more than a suitably annotated interface.
 
-As discussed in the secion on <<02_server_side_services.adoc, Server-Side Services>> there are four different types of gRPC method.
+As discussed in the section on <<02_server_side_services.adoc, Server-Side Services>> there are four different types of gRPC method.
 
 * Unary - a simple method with at most a single request value and returning at most a single response value.
 * Server Streaming - a method that takes at most a single request value but may return zero or more response values.
 * Client Streaming - a request that takes one or more request values and returns at most one response value.
 * Bi-directional Streaming - a method that can take one or more request values and return zero or more response values.
 
-
 An as with the server-side APIS, the Helidon MP gRPC client APIs support a number of different method signatures for each of the
 different gRPC method types.
 
-== Building a gRPC Client
 
+== Building a gRPC Client
 There are a few steps to building and using a gRPC client in Helidon MP.
 
+Include the services include the dependency:
+
+[source,xml]
+.Maven Dependency
+----
+<dependency>
+    <groupId>io.helidon.microprofile.bundles</groupId>
+    <artifactId>helidon-microprofile-2.2</artifactId>
+</dependency>
+<dependency>
+    <groupId>io.helidon.microprofile.grpc</groupId>
+    <artifactId>helidon-microprofile-grpc-client</artifactId>
+</dependency>
+----
+
 === The Client Service Interface
-The first step is to produce an interface with the service methods that the client requires.
+The next step is to produce an interface with the service methods that the client requires.
 
 For example, suppose we have a simple server side service that has a unary method to convert a string to uppercase.
 [source,java]
@@ -163,18 +177,53 @@ grpc:
         tlsKey: /certs/foo.key      <4>
         tlsCaCert: /certs/ca.cert   <5>
 ----
-<1> The `tls` secion of the channel configuration is used to configure TLS.
+<1> The `tls` section of the channel configuration is used to configure TLS.
 <2> The `enabled` value is used to enable or disable TLS for this channel.
 <3> The `tlsCert` value is the location of the TLS certificate file
 <4> The `tlsKey` value is the location of the TLS key file
 <5> The `tlsCaCert` value is the location of the TLS CA certificate file
 
 
+=== Using Channels
+Once one or more channels have been configured they can be used by client code. The simplest way to use a channel is to inject it
+into beans using CDI. The Helidon gRPC client APIs have CDI producers that can provide `io.grpc.Channel` instances.
+
+For example, a class might have an injectable `io.grpc.Channel` field:
+[source,java]
+.gRPC Channel Injection
+----
+    @Inject                             <1>
+    @GrpcChannel(name = "test-server")  <2>
+    private Channel channel;
+----
+<1> The `@Inject` annotation tells CDI to inject the channel.
+<2> The `@GrpcChannel` annotation is the qualifier that supplies the Channel name. This is the same name as used in the channel
+configuration in the configuration examples above.
+
+When an instance of the CDI bean with the channel field is instantiated a channel will be injected into it.
+
+==== The In-Process Channel
+If code is running in an application that is executing as part of a Helidon MP gRPC server there is a special in-process channel
+available. This allows code executing on the server to make calls to gRPC services deployed on that server in the same way an
+external client does. To inject an in-process channel a different qualifier annotation is used.
+
+[source,java]
+.gRPC in-Process Channel Injection
+----
+    @Inject                  <1>
+    @InProcessGrpcChannel    <2>
+    private Channel channel;
+----
+<1> The `@Inject` annotation is used the same as previously.
+<2> The `@InProcessGrpcChannel` is the qualifier that is used to tell the Helidon MP gRPC API to inject an in-process channel.
+
+
 === Using the Client Interface in an Application
 Now that there is a client interface and a Channel configuration we can use these in the client application. The simplest way is
 to use the client in a CDI microprofile application.
 
-In the application class that requires the client we can declare a field that CDI will inject the client into
+In the application class that requires the client we can declare a field of the same type as the client service interface.
+The field is then annotated so that CDI will inject the client proxy into the field.
 
 [source,java]
 .Simple gRPC Service
@@ -195,3 +244,6 @@ a channel name in the application configuration.
 
 Now when the CDI container instantiates instances of the `Client` it will inject a dynamic proxy into the `stringService` field
 and then any code in methods in the `Client` class can call methods on the `StringService` which will be translated to gRPC calls.
+
+In the example above there is no need to directly use a `Channel` directly. The correct channel is added to the dynamic client
+proxy internally by the Helidon MP gRPC APIs.

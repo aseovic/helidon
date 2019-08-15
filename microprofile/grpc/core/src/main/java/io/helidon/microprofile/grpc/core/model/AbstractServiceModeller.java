@@ -34,6 +34,7 @@ import java.util.logging.Logger;
 import javax.annotation.Priority;
 import javax.inject.Singleton;
 
+import io.helidon.common.serviceloader.HelidonServiceLoader;
 import io.helidon.grpc.core.MarshallerSupplier;
 import io.helidon.microprofile.grpc.core.GrpcMarshaller;
 import io.helidon.microprofile.grpc.core.RpcMethod;
@@ -242,9 +243,8 @@ public abstract class AbstractServiceModeller {
      */
     private List<MethodHandlerSupplier> loadHandlerSuppliers() {
         List<MethodHandlerSupplier> list = new ArrayList<>();
-        for (MethodHandlerSupplier supplier : ServiceLoader.load(MethodHandlerSupplier.class)) {
-            list.add(supplier);
-        }
+
+        HelidonServiceLoader.create(ServiceLoader.load(MethodHandlerSupplier.class)).forEach(list::add);
 
         list.sort((left, right) -> {
             Priority leftPriority = left.getClass().getAnnotation(Priority.class);

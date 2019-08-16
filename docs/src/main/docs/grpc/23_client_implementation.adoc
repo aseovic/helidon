@@ -21,7 +21,7 @@
 :description: Helidon gRPC Client Implementation
 :keywords: helidon, grpc, java
 
-= Client Implementation
+= gRPC Client Implementation
 
 Helidon gRPC client framework allows you to write gRPC clients to access any gRPC
 service implementation. The benefits of using Helidon gRPC Client Framework include:

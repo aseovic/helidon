@@ -16,26 +16,34 @@
 
 ///////////////////////////////////////////////////////////////////////////////
 
-= gRPC MicroProfile Server-Side Services
+= gRPC MicroProfile Server Services
+:pagename: grpc-microprofile-server
 :description: Helidon gRPC MicroProfile Server-Side Services
 :keywords: helidon, grpc, microprofile, micro-profile
+
+The gRPC Microprofile APIs are an extension to <<microprofile/01_introduction.adoc, Helidon MP>> to allow building
+of gRPC services and clients that integrate with the Microprofile APIs. Using Helidon gRPC MP makes building gRPC services
+and clients an easier process that the traditional approach using Protobuf files and code generation. Services can be built
+using POJOs that are then discovered and deployed at runtime in the same way the Helidon MP discovers and deploys web resources
+in the MP http server.
 
 Building gRPC services using Helidon gRPC MP is very simple and allows the developer to concentrate on their
 application logic without needing to write a lot of boilerplate gRPC code.
 
-To build Helidon gRPC MP include the services include the dependency:
-[source,xml]
-.Maven Dependency
+== Maven Coordinates
+
+The <<about/04_managing-dependencies.adoc, Managing Dependencies>> page describes how you
+should declare dependency management for Helidon applications. Then declare the following dependency in your project:
+
+[source,xml,subs="verbatim,attributes"]
 ----
-<dependency>
-    <groupId>io.helidon.microprofile.bundles</groupId>
-    <artifactId>helidon-microprofile-2.2</artifactId>
-</dependency>
 <dependency>
     <groupId>io.helidon.microprofile.grpc</groupId>
     <artifactId>helidon-microprofile-grpc-server</artifactId>
 </dependency>
 ----
+
+== Defining a Service
 
 The traditional approach to building Java gRPC services is to write Protobuf files describing the service and then
 use these to generate service stubs and finally implementing the service methods by extending the generated stub classes.
@@ -63,7 +71,6 @@ along with other annotations discussed later, allow the gRPC MP APIs to discover
 Of course Helidon gRPC MP does not preclude you from using the Protobuf files approach, traditional gRPC Java services
 also work in a gRPC MP server.
 
-== Defining a Service
 As already shown above a Helidon gRPC MP service is just an annotated POJO. To make a class a service it requires two
 annotations.
 
@@ -112,9 +119,9 @@ The Helidon gRPC MP API determines a method type by its annotation, which should
 === Request an Response Types
 A gRPC service method typically takes a request parameter and returns a response value (streaming methods may take or return
 multiple requests or responses). In traditional gRPC Java the types used for the request and response values must be
-Protobuf serializable classes but this is not the case with Helidon gRPC. Helidon supports <<../09_marshalling.adoc, pluggable Marshallers>>
-and by default will support any Java primitive or Java `Serializable` as well as Protobuf types. Any type that can be marshalled by the built-in
-marshallers or custom supplied marshaller may be used as a request or response type.
+Protobuf serializable classes but this is not the case with Helidon gRPC. Helidon supports <<grpc/09_marshalling.adoc, pluggable Marshallers>>
+and by default will support any Java primitive or Java `Serializable` as well as Protobuf types. Any type that can be marshalled
+by the built-in marshallers or custom supplied marshaller may be used as a request or response type.
 
 === Unary Methods
 A unary gRPC method is the simplest type of service method. Typically a unary method takes a request value and returns a
@@ -237,7 +244,7 @@ public StreamObserver<RequestType> invoke(StreamObserver<ResponseType> observer)
 == Deploying Protobuf Services
 Whilst the examples above show how simple it is to write gRPC services with basic POJOs there may be cases where there is a
 requirement to deploy services built the traditional way using gRPC Java generated classes or built as
-<<../04_service_implementation.adoc,non-microprofile Helidon gRCP services>>.
+<<grpc/04_service_implementation.adoc,non-microprofile Helidon gRCP services>>.
 
 === Annotate the Service Implementation
 When the gRPC MP server is starting it will discover all CDI beans of type `io.grpc.BindableService`. Service sub-classes
@@ -282,7 +289,7 @@ public class MyExtension
 
 <1> The `configure` method of the extension will be called to allow the extension to add extra configuration to the server.
 <2> In this example an instance of the `StringService` is registered with the routing (as described in
-the <<../03_routing.adoc,basic gRPC server documentation>>).
+the <<grpc/03_routing.adoc,basic gRPC server documentation>>).
 
 The `GrpcMpExtension` instances are discovered and loaded using the service loader so for the example above to work a file
 `META-INF/services/io.helidon.microprofile.grpc.server.spi.GrpcMpExtension` would need to be created that contained the names

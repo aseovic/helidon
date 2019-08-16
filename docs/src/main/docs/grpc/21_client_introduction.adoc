@@ -33,6 +33,21 @@ The class `GrpcServiceClient` acts as the client object for accessing a gRPC ser
 
 In later sections in this document, you will see how to customize both `ClientServiceDescriptor` and the `Channel`.
 
+== Maven Coordinates
+
+The <<about/04_managing-dependencies.adoc, Managing Dependencies>> page describes how you
+should declare dependency management for Helidon applications. Then declare the following dependency in your project:
+
+[source,xml]
+----
+<dependency>
+    <groupId>io.helidon.grpc</groupId>
+    <artifactId>helidon-grpc-client</artifactId> <!--1-->
+</dependency>
+----
+
+<1> Declare dependency on Helidon gRPC Client.
+
 == Quick Start
 
 First, create and run a minimalist `HelloService` gRPC server application as described in the
@@ -74,18 +89,3 @@ requests and responses.
 
 We will look into deployment of "standard" gRPC services that use Protobuf for request and response marshalling, as well as
 how you can configure custom marshallers, later in this document.
-
-== Maven Coordinates
-
-The <<getting-started/03_managing-dependencies.adoc, Getting Started>> page describes how you
-should declare dependency management for Helidon applications. Then declare the following dependency in your project:
-
-[source,xml]
-----
-<dependency>
-    <groupId>io.helidon.grpc</groupId>
-    <artifactId>helidon-grpc-client</artifactId> <!--1-->
-</dependency>
-----
-
-<1> Declare dependency on Helidon gRPC Client.

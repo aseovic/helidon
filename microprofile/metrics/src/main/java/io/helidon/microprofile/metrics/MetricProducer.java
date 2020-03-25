@@ -25,8 +25,11 @@ import java.util.function.BiFunction;
 import java.util.function.Supplier;
 
 import javax.enterprise.context.ApplicationScoped;
+import javax.enterprise.event.Event;
+import javax.enterprise.inject.Any;
 import javax.enterprise.inject.Produces;
 import javax.enterprise.inject.spi.InjectionPoint;
+import javax.inject.Inject;
 
 import io.helidon.metrics.HelidonMetadata;
 
@@ -52,6 +55,10 @@ import org.eclipse.microprofile.metrics.annotation.Timed;
  */
 @ApplicationScoped
 class MetricProducer {
+
+    @Inject
+    @Any
+    private Event<BeforeMetricCreation> beforeMetricCreationEvent;
 
     private static Metadata newMetadata(InjectionPoint ip, Metric metric, MetricType metricType) {
         return metric == null ? new HelidonMetadata(getName(ip),
@@ -84,7 +91,7 @@ class MetricProducer {
     }
 
     private static Tag[] tags(Metric metric) {
-        if (metric == null || metric.tags() == null) {
+        if (metric == null || metric.tags().length == 0) {
             return null;
         }
         final List<Tag> result = new ArrayList<>();
@@ -96,7 +103,7 @@ class MetricProducer {
                 }
             }
         }
-        return result.toArray(new Tag[result.size()]);
+        return result.toArray(new Tag[0]);
     }
 
     private static String getName(InjectionPoint ip) {
@@ -236,8 +243,13 @@ class MetricProducer {
             BiFunction<Metadata, Tag[], T> registerFn, Class<T> clazz) {
 
         final Metric metricAnno = ip.getAnnotated().getAnnotation(Metric.class);
+        final String name = getName(metricAnno, ip);
         final Tag[] tags = tags(metricAnno);
-        final MetricID metricID = new MetricID(getName(metricAnno, ip), tags);
+
+        BeforeMetricCreation bmc = new BeforeMetricCreation(name, tags);
+        beforeMetricCreationEvent.fire(bmc);
+
+        final MetricID metricID = new MetricID(bmc.getName(), bmc.getTags());
 
         T result = getTypedMetricsFn.get().get(metricID);
         final Metadata newMetadata = newMetadata(ip, metricAnno, MetricType.from(clazz));
@@ -260,8 +272,7 @@ class MetricProducer {
         return result;
     }
 
-    private static void enforceReusability(MetricID metricID, Metadata existingMetadata,
-              Metadata newMetadata, Tag... tags) {
+    private static void enforceReusability(MetricID metricID, Metadata existingMetadata, Metadata newMetadata) {
         if (existingMetadata.isReusable() != newMetadata.isReusable()) {
             throw new IllegalArgumentException("Attempt to reuse metric " + metricID
                     + " with inconsistent isReusable setting");
